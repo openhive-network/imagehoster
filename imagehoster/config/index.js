@@ -19,7 +19,6 @@ const config = {
     uploadIpLimit: {
         minRep: parseFloat(process.env.STEEMIT_UPLOAD_MIN_REP || 10),
     },
-
     uploadBucket: process.env.STEEMIT_IMAGEPROXY_BUCKET_UPLOAD || "steemit-dev-imageproxy-upload",
     webBucket: process.env.STEEMIT_IMAGEPROXY_BUCKET_WEB || "steemit-dev-imageproxy-web",
     thumbnailBucket: process.env.STEEMIT_IMAGEPROXY_BUCKET_THUMBNAIL || "steemit-dev-imageproxy-thumbnail",
