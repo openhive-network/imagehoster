@@ -13,18 +13,19 @@
         "no-const-assign": ["error"],
         "no-this-before-super": ["error"],
         "use-isnan": ["error"],
-
         "prefer-const": ["warn"],
         "no-var": ["warn"],
         "no-unused-vars": ["warn"],
         "no-unreachable": ["warn"],
         "no-shadow": ["warn"],
         "no-constant-condition": ["warn"],
-        "no-shadow-restricted-names": ["off"], # warn misfired on 'import' statements
+        "no-shadow-restricted-names": ["off"],
+        "no-console": ["off"]
     },
     "env": {
         "browser": true,
         "node": true,
-        "es6": true,
-    }
+        "es6": true
+    },
+    "extends": "eslint:recommended"
 }

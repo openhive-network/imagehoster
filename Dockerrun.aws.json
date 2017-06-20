@@ -1,0 +1,39 @@
+{
+  "AWSEBDockerrunVersion": 2,
+  "containerDefinitions": [
+    {
+      "name": "steemit-imagehostertt",
+      "image": "steemit/imagehostertt:latest",
+      "logConfiguration": {
+        "logDriver": "syslog"
+      },
+      "essential": true,
+      "memory": 512,
+      "portMappings": [
+        {
+          "containerPort": 3301
+        }
+      ],
+      "mountPoints": []
+    },
+    {
+      "name": "steemit-imagehoster",
+      "image": "steemit/imagehoster:latest",
+      "logConfiguration": {
+        "logDriver": "syslog"
+      },
+      "essential": true,
+      "memory": 2944,
+      "portMappings": [
+        {
+          "hostPort": 80,
+          "containerPort": 3234
+        }
+      ],
+      "links": [
+        "steemit-imagehostertt"
+      ],
+      "mountPoints": []
+    }
+  ]
+}
