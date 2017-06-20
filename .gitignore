@@ -7,3 +7,8 @@ npm-debug.log
 bundle.js
 env_dev.sh
 env_prod.sh
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml

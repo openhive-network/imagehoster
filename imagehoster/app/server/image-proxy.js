@@ -106,7 +106,7 @@ router.get("/:width(\\d+)x:height(\\d+)/:url(.*)", function *() {
             const imageHead = yield fetchHead(this, Bucket, Key, url, webBucketKey);
             if (imageHead && imageHead.ContentType === "image/gif") {
                 if (TRACE) console.log("image-proxy -> gif redirect (animated gif work-around)", JSON.stringify(imageHead, null, 0));
-                let cf_url = base_cloudfront_web_url + imageHead.headKey;
+                let cf_url = base_cloudfront_web_url + Key;
                 //const signedUrl = cf.getSignedUrl(base_cloudfront_web_url + imageHead.headKey, cloudfront_options);
                 //const signedUrl = s3.getSignedUrl("getObject", imageHead.headKey);
                 this.redirect(cf_url);
@@ -128,7 +128,7 @@ router.get("/:width(\\d+)x:height(\\d+)/:url(.*)", function *() {
             // Case 2 of 2: initial fetch
             yield waitFor("objectExists", webBucketKey);
             if (TRACE) console.log("image-proxy -> new gif redirect (animated gif work-around)", JSON.stringify(webBucketKey, null, 0));
-            let cf_url = base_cloudfront_web_url + webBucketKey;
+            let cf_url = base_cloudfront_web_url + Key;
             //const signedUrl = cf.getSignedUrl(base_cloudfront_web_url + webBucketKey, cloudfront_options);
             //const signedUrl = s3.getSignedUrl("getObject", webBucketKey);
             this.redirect(cf_url);
@@ -144,7 +144,7 @@ router.get("/:width(\\d+)x:height(\\d+)/:url(.*)", function *() {
             yield waitFor("objectExists", thumbnailKey);
 
             if (TRACE) console.log("image-proxy -> thumbnail redirect", JSON.stringify(thumbnailKey, null, 0));
-            let cf_url = base_cloudfront_thumb_url + thumbnailKey;
+            let cf_url = base_cloudfront_thumb_url + resizedKey;
             //const signedUrl = cf.getSignedUrl(base_cloudfront_thumb_url + thumbnailKey, cloudfront_options);
             //const signedUrl = s3.getSignedUrl("getObject", thumbnailKey);
 
@@ -153,7 +153,7 @@ router.get("/:width(\\d+)x:height(\\d+)/:url(.*)", function *() {
             console.error("image-proxy resize error", this.request.originalUrl, error, error ? error.stack : undefined);
             yield waitFor("objectExists", webBucketKey);
             if (TRACE) console.log("image-proxy -> resize error redirect", url);
-            let cf_url = base_cloudfront_web_url + webBucketKey;
+            let cf_url = base_cloudfront_web_url + Key;
             // /const signedUrl = cf.getSignedUrl(base_cloudfront_web_url + webBucketKey, cloudfront_options);
             //const signedUrl = s3.getSignedUrl("getObject", webBucketKey);
             this.redirect(cf_url)
@@ -166,7 +166,7 @@ router.get("/:width(\\d+)x:height(\\d+)/:url(.*)", function *() {
     const hasOriginal = !!(yield s3call("headObject", originalKey));
     if (hasOriginal) {
         if (TRACE) console.log("image-proxy -> original redirect", JSON.stringify(originalKey, null, 0));
-        let cf_url = base_cloudfront_web_url + originalKey
+        let cf_url = base_cloudfront_web_url + Key
         //const signedUrl = cf.getSignedUrl(base_cloudfront_web_url + originalKey, cloudfront_options);
         //const signedUrl = s3.getSignedUrl("getObject", originalKey);
         this.redirect(cf_url);
@@ -183,7 +183,7 @@ router.get("/:width(\\d+)x:height(\\d+)/:url(.*)", function *() {
     yield waitFor("objectExists", webBucketKey);
 
     if (TRACE) console.log("image-proxy -> original redirect", JSON.stringify(webBucketKey, null, 0));
-    let cf_url = base_cloudfront_web_url + webBucketKey
+    let cf_url = base_cloudfront_web_url + Key
     //const signedUrl = cf.getSignedUrl(base_cloudfront_web_url + webBucketKey, cloudfront_options);
     //const signedUrl = s3.getSignedUrl("getObject", webBucketKey);
     this.redirect(cf_url)
