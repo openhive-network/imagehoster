@@ -27,6 +27,11 @@ const koaBody = require('koa-body')({
     // formidable: { uploadDir: '/tmp', }
 })
 
+const usernameBlackList = [
+    "aplomb",
+    "secretpayout5"
+];
+
 router.post('/:username/:signature', koaBody, function *() {
     const ip = getRemoteIp(this.req)
     if(yield limit(this, 'uploadIp', ip, 'Uploads', 'request')) return
@@ -54,6 +59,14 @@ router.post('/:username/:signature', koaBody, function *() {
     }
 
     const {username} = this.params
+
+    if (usernameBlackList.includes(username)) {
+        this.status = 451;
+        this.statusText = `Account '${this.params.username}' cannot upload images for legal reasons.`;
+        this.body = {error: this.statusText};
+        return
+    }
+
     let posting
     try {
         const [account] = yield Apis.db_api('get_accounts', [this.params.username])
