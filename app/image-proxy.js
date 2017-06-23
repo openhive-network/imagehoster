@@ -52,11 +52,11 @@ router.get("/:width(\\d+)x:height(\\d+)/:url(.*)", async function (ctx) {
     const fullSize = targetWidth === 1680 && targetHeight === 8400;
 
     // image blacklist
-    ctx.assert(!config.imageBlacklist.has(url), 400, 'Image Forbidden');
+    ctx.assert(!config.imageBlacklist.has(url), 403, 'Image Forbidden');
 
     // referer blacklist
-    const referrer_hostname = new URL(_.get(ctx, 'request.headers.referer'), 'https://noreferrer');
-    ctx.assert(!config.imageReferrerBlacklist.has(url.hostname), 400, 'Host Forbidden');
+    const referrer = new URL(_.get(ctx, 'request.headers.referer'), 'https://noreferrer');
+    ctx.assert(!config.imageReferrerBlacklist.has(referrer.host), 403, 'Host Forbidden');
 
 
     // Uploaded images were keyed by the hash of the image data and store these in the upload bucket.

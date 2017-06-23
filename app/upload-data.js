@@ -27,6 +27,10 @@ router.post('/:username/:signature', koaBody, async function (ctx) {
     ctx.assert(username, 400, 'username required');
     ctx.assert(signature, 400, 'signature required');
 
+
+    // block username if in blacklist
+    ctx.assert(!config.usernameUploadBlacklist.has(username), 403);
+
     // get user info from blockchain
     const {reputation, posting} = await getAccountInfo(username);
 
