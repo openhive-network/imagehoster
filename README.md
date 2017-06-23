@@ -2,7 +2,7 @@
 
 > cp ./config/env_example.sh env_prod.sh
 
-See also: `./config/index.js`
+See also: `./config/config.js`
 
 ## Example upload
 

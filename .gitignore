@@ -1,12 +1,14 @@
 .elasticbeanstalk
 .idea/
 imagehoster/envd
+yarn.loc
+envd
 script-compiled.js
 node_modules
 npm-debug.log
 bundle.js
-env_dev.sh
-env_prod.sh
+.DS_Store
+yarn.lock
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
