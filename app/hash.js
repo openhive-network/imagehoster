@@ -17,4 +17,19 @@ const imageHash = function(fbuffer) {
     return 'D' + base58.encode(multihash.encode(sha, 'sha2-256'));
 };
 
-module.exports = {mhashEncode, imageHash, sha1};
+const urlHash = url => "U" + mhashEncode(sha1(url), "sha1");
+
+
+const simpleHashRe = /DQm[a-zA-Z0-9]{38,46}/;
+
+const isUploadHash = function(url) {
+    "use strict";
+    return simpleHashRe.test(url)
+};
+const getKeyFromUrl = function(url) {
+    "use strict";
+    const isUpload = isUploadHash(url);
+    return isUpload ? url.match(simpleHashRe)[0] : urlHash(url); // UQm...
+}
+
+module.exports = {urlHash, imageHash, sha1, isUploadHash, getKeyFromUrl};

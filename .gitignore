@@ -9,7 +9,7 @@ npm-debug.log
 bundle.js
 .DS_Store
 yarn.lock
-
+Dockerrun.aws.json
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml

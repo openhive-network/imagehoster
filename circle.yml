@@ -8,5 +8,5 @@ dependencies:
 
 test:
     override:
-        - docker build -t steemit/imagehoster ./imagehoster
-        - docker build -t steemit/imagehostertt ./ttdatastore
+        - docker build -t steemit/imagehoster ./imagehoster && docker run steemit/imagehoster npm test
+
