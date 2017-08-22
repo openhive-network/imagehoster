@@ -28,7 +28,8 @@ const koaBody = require('koa-body')({
 })
 
 const usernameBlackList = [
-    "aplomb"
+    "aplomb",
+    "iamgod"
 ];
 
 router.post('/:username/:signature', koaBody, function *() {
