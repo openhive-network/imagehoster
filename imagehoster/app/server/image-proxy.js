@@ -80,7 +80,7 @@ router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', function *() {
     const webBucketKey = {Bucket: webBucket, Key}
 
     const resizeRequest = targetWidth !== 0 || targetHeight !== 0
-    if(resizeRequest) {
+    if(resizeRequest) { // This is always true...
         const resizedKey = Key + `_${targetWidth}x${targetHeight}`
         const thumbnailKey = {Bucket: thumbnailBucket, Key: resizedKey}
 
@@ -146,6 +146,7 @@ router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', function *() {
     }
 
     // A full size image
+    throw 'NEVER REACHED'
 
     const hasOriginal = !!(yield s3call('headObject', originalKey))
     if(hasOriginal) {
