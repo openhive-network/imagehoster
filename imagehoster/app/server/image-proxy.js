@@ -9,6 +9,8 @@ import request from 'request'
 import sharp from 'sharp'
 
 const {uploadBucket, webBucket, thumbnailBucket} = config
+const putOptions = {CacheControl: 'public,max-age=604800'}
+
 const TRACE = process.env.STEEMIT_IMAGEPROXY_TRACE || false
 
 const router = require('koa-router')()
@@ -76,7 +78,6 @@ router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', function *() {
     const Bucket = isUpload ? uploadBucket : webBucket
     const originalKey = {Bucket, Key}
     const webBucketKey = {Bucket: webBucket, Key}
-    const putOptions = {CacheControl: 'public,max-age=31536000,immutable'}
 
     const resizeRequest = targetWidth !== 0 || targetHeight !== 0
     if(resizeRequest) {
@@ -113,9 +114,6 @@ router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', function *() {
         if(!imageResult) {
             return
         }
-
-        if(TRACE) console.log('image-proxy -> original save', url, JSON.stringify(webBucketKey, null, 0))
-        yield s3call('putObject', Object.assign({}, webBucketKey, imageResult, putOptions))
 
         if(fullSize && imageResult.ContentType === 'image/gif') {
             // Case 2 of 2: initial fetch
