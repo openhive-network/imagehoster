@@ -196,7 +196,7 @@ router.post('/:username/:signature', koaBody, function *() {
         }
     }
 
-    const params = {Bucket: uploadBucket, Key: key, Body: fbuffer};
+    const params = {Bucket: uploadBucket, Key: key, Body: fbuffer, CacheControl: 'public,max-age=31536000,immutable'};
     if(mime) {
         params.ContentType = mime
     }
