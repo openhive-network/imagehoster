@@ -32,3 +32,7 @@ export function waitFor(method, params/*, responseHeaders*/) {
         });
     })
 }
+
+export function getObjectUrl({Key, Bucket}) {
+    return `https://${ Bucket }.s3.amazonaws.com/${ Key }`
+}

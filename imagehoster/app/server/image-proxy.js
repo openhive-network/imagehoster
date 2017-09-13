@@ -2,13 +2,15 @@
 import config from 'config'
 import {sha1, mhashEncode} from 'app/server/hash'
 import {missing, statusError} from 'app/server/utils-koa'
-import {waitFor, s3call, s3} from 'app/server/amazon-bucket'
+import {waitFor, s3call, s3, getObjectUrl} from 'app/server/amazon-bucket'
 
 import fileType from 'file-type'
 import request from 'request'
 import sharp from 'sharp'
 
 const {uploadBucket, webBucket, thumbnailBucket} = config
+const putOptions = {CacheControl: 'public,max-age=31536000,immutable'}
+
 const TRACE = process.env.STEEMIT_IMAGEPROXY_TRACE || false
 
 const router = require('koa-router')()
@@ -77,8 +79,13 @@ router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', function *() {
     const originalKey = {Bucket, Key}
     const webBucketKey = {Bucket: webBucket, Key}
 
+    // This lets us remove images even if the s3 bucket cache is public,immutable
+    // Clients will have to re-evaulate the 302 redirect every day
+    this.status = 302
+    this.set('Cache-Control', 'public,max-age=86400')
+
     const resizeRequest = targetWidth !== 0 || targetHeight !== 0
-    if(resizeRequest) {
+    if(resizeRequest) { // This is always true...
         const resizedKey = Key + `_${targetWidth}x${targetHeight}`
         const thumbnailKey = {Bucket: thumbnailBucket, Key: resizedKey}
 
@@ -88,8 +95,7 @@ router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', function *() {
         if(hasThumbnail) {
             const params = {Bucket: thumbnailBucket, Key: resizedKey, Expires: 60}
             if(TRACE) console.log('image-proxy -> thumbnail redirect')
-            const signedUrl = s3.getSignedUrl('getObject', params)
-            this.redirect(signedUrl)
+            this.redirect(getObjectUrl(params))
             return
         }
 
@@ -100,8 +106,7 @@ router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', function *() {
             const imageHead = yield fetchHead(this, Bucket, Key, url, webBucketKey)
             if(imageHead && imageHead.ContentType === 'image/gif') {
                 if(TRACE) console.log('image-proxy -> gif redirect (animated gif work-around)', JSON.stringify(imageHead, null, 0))
-                const signedUrl = s3.getSignedUrl('getObject', imageHead.headKey)
-                this.redirect(signedUrl)
+                this.redirect(getObjectUrl(imageHead.headKey))
                 return
             }
             // See below, one more animated gif work-around ...
@@ -113,15 +118,11 @@ router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', function *() {
             return
         }
 
-        if(TRACE) console.log('image-proxy -> original save', url, JSON.stringify(webBucketKey, null, 0))
-        yield s3call('putObject', Object.assign({}, webBucketKey, imageResult))
-
         if(fullSize && imageResult.ContentType === 'image/gif') {
             // Case 2 of 2: initial fetch
             yield waitFor('objectExists', webBucketKey)
             if(TRACE) console.log('image-proxy -> new gif redirect (animated gif work-around)', JSON.stringify(webBucketKey, null, 0))
-            const signedUrl = s3.getSignedUrl('getObject', webBucketKey)
-            this.redirect(signedUrl)
+            this.redirect(getObjectUrl(webBucketKey))
             return
         }
 
@@ -130,23 +131,22 @@ router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', function *() {
             const thumbnail = yield prepareThumbnail(imageResult.Body, targetWidth, targetHeight)
 
             if(TRACE) console.log('image-proxy -> thumbnail save', JSON.stringify(thumbnailKey, null, 0))
-            yield s3call('putObject', Object.assign({}, thumbnailKey, thumbnail))
+            yield s3call('putObject', Object.assign({}, thumbnailKey, thumbnail, putOptions))
             yield waitFor('objectExists', thumbnailKey)
 
             if(TRACE) console.log('image-proxy -> thumbnail redirect', JSON.stringify(thumbnailKey, null, 0))
-            const signedUrl = s3.getSignedUrl('getObject', thumbnailKey)
-            this.redirect(signedUrl)
+            this.redirect(getObjectUrl(thumbnailKey))
         } catch(error) {
             console.error('image-proxy resize error', this.request.originalUrl, error, error ? error.stack : undefined)
             yield waitFor('objectExists', webBucketKey)
             if(TRACE) console.log('image-proxy -> resize error redirect', url)
-            const signedUrl = s3.getSignedUrl('getObject', webBucketKey)
-            this.redirect(signedUrl)
+            this.redirect(getObjectUrl(webBucketKey))
         }
         return
     }
 
     // A full size image
+    throw 'NEVER REACHED'
 
     const hasOriginal = !!(yield s3call('headObject', originalKey))
     if(hasOriginal) {
@@ -232,7 +232,7 @@ function* fetchImage(ctx, Bucket, Key, url, webBucketKey) {
         })
     })
     if(imgResult) {
-        yield s3call('putObject', Object.assign({}, webBucketKey, imgResult))
+        yield s3call('putObject', Object.assign({}, webBucketKey, imgResult, putOptions))
     }
     return imgResult
 }

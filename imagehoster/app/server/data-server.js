@@ -1,5 +1,5 @@
 import config from 'config'
-import {s3} from 'app/server/amazon-bucket'
+import {s3, getObjectUrl} from 'app/server/amazon-bucket'
 import {missing, getRemoteIp, limit} from 'app/server/utils-koa'
 
 const {uploadBucket} = config
@@ -16,11 +16,13 @@ router.get('/:hash/:filename?', function *() {
         const {hash} = this.params
         const key = `${hash}`
 
-        const params = {Bucket: uploadBucket, Key: key, Expires: 60};
-        const url = s3.getSignedUrl('getObject', params);
-        // console.log("get URL is", url);
-        this.redirect(url)
-        
+        // This lets us remove images even if the s3 bucket cache is public,immutable
+        // Clients will have to re-evaulate the 302 redirect every day
+        this.status = 302
+        this.set('Cache-Control', 'public,max-age=86400')
+
+        this.redirect(getObjectUrl({Bucket: uploadBucket, Key: key}))
+
         // yield new Promise(resolve => {
         //     const params = {Bucket: uploadBucket, Key: key};
         //     s3.getObject(params, (err, data) => {
