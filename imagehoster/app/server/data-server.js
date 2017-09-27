@@ -1,10 +1,30 @@
 import config from 'config'
 import {s3, getObjectUrl} from 'app/server/amazon-bucket'
 import {missing, getRemoteIp, limit} from 'app/server/utils-koa'
+import Apis from 'shared/api_client/ApiInstances'
+import path from 'path'
+import send from 'koa-send'
 
 const {uploadBucket} = config
 
 const router = require('koa-router')()
+
+router.get('/u/:username/avatar', function* () {
+    try {
+        const [account] = yield Apis.db_api('get_accounts', [this.params.username]);
+        if (!account) {
+            yield send(this, 'assets/user.png', { root: path.resolve(__dirname, '../..')});
+            return;
+        }
+        const json_metadata = account.json_metadata ? JSON.parse(account.json_metadata) : {};
+        if (json_metadata.profile && json_metadata.profile.profile_image && json_metadata.profile.profile_image.match(/^https?:\/\//) ) {
+            this.status = 302;
+            this.redirect('/120x120/' + json_metadata.profile.profile_image);
+            return;
+        }
+        yield send(this, 'assets/user.png', { root: path.resolve(__dirname, '../..')});
+    } catch (error) {console.error(error)}
+})
 
 router.get('/:hash/:filename?', function *() {
     try {
@@ -29,7 +49,7 @@ router.get('/:hash/:filename?', function *() {
         //         if(err) {
         //             console.log(err)
         //             this.status = 400
-        //             this.statusText = `Error fetching ${key}.` 
+        //             this.statusText = `Error fetching ${key}.`
         //             resolve()
         //             return
         //         }
@@ -38,7 +58,7 @@ router.get('/:hash/:filename?', function *() {
         //         resolve()
         //     })
         // })
-    } catch(error) {console.error(error)} 
+    } catch(error) {console.error(error)}
 })
 
 export default router.routes()
