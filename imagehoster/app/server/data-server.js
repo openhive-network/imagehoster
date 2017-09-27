@@ -11,9 +11,10 @@ const router = require('koa-router')()
 
 router.get('/u/:username/avatar', function* () {
     try {
+        const root = path.resolve(__dirname, '../..');
         const [account] = yield Apis.db_api('get_accounts', [this.params.username]);
         if (!account) {
-            yield send(this, 'assets/user.png', { root: path.resolve(__dirname, '../..')});
+            yield send(this, 'assets/user.png', {root});
             return;
         }
         const json_metadata = account.json_metadata ? JSON.parse(account.json_metadata) : {};
@@ -22,8 +23,11 @@ router.get('/u/:username/avatar', function* () {
             this.redirect('/120x120/' + json_metadata.profile.profile_image);
             return;
         }
-        yield send(this, 'assets/user.png', { root: path.resolve(__dirname, '../..')});
-    } catch (error) {console.error(error)}
+        yield send(this, 'assets/user.png', {root});
+    } catch (error) {
+        console.error(error)
+        yield send(this, 'assets/user.png', {root});
+    }
 })
 
 router.get('/:hash/:filename?', function *() {
