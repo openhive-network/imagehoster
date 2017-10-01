@@ -1,13 +1,13 @@
-FROM node:6
+FROM node:8
 
-RUN mkdir -p /usr/src/app
+RUN npm install -g yarn
+
 WORKDIR /usr/src/app
+COPY . .
 
-COPY package.json /usr/src/app/
-RUN npm install
+RUN yarn install --production --non-interactive --pure-lockfile
 
-COPY . /usr/src/app
-
+ENV NODE_ENV production
 EXPOSE 80
 
-CMD [ "npm", "start" ]
+CMD ["yarn", "run", "start"]
