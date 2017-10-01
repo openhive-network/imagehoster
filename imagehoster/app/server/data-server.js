@@ -9,25 +9,24 @@ const {uploadBucket} = config
 
 const router = require('koa-router')()
 
+const assetRoot = path.resolve(__dirname, '../..');
+router.get('/u/__default/avatar', function* () {
+    yield send(this, 'assets/user.png', {root: assetRoot, immutable: true})
+})
+
+const defaultAvatar = `https://${ config.host }/u/__default/avatar`
 router.get('/u/:username/avatar', function* () {
-    try {
-        const root = path.resolve(__dirname, '../..');
-        const [account] = yield Apis.db_api('get_accounts', [this.params.username]);
-        if (!account) {
-            yield send(this, 'assets/user.png', {root});
-            return;
-        }
-        const json_metadata = account.json_metadata ? JSON.parse(account.json_metadata) : {};
+    const [account] = yield Apis.db_api('get_accounts', [this.params.username])
+    let avatarUrl = defaultAvatar
+    if (account) {
+        const json_metadata = account.json_metadata ? JSON.parse(account.json_metadata) : {}
         if (json_metadata.profile && json_metadata.profile.profile_image && json_metadata.profile.profile_image.match(/^https?:\/\//) ) {
-            this.status = 302;
-            this.redirect('/120x120/' + json_metadata.profile.profile_image);
-            return;
+            avatarUrl = json_metadata.profile.profile_image
         }
-        yield send(this, 'assets/user.png', {root});
-    } catch (error) {
-        console.error(error)
-        yield send(this, 'assets/user.png', {root});
     }
+    this.status = 302
+    this.redirect('/128x128/' + avatarUrl)
+    return
 })
 
 router.get('/:hash/:filename?', function *() {
