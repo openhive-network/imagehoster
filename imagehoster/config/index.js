@@ -4,7 +4,7 @@ const {NODE_ENV = 'dev'} = process.env
 const dev = NODE_ENV === 'dev'
 
 const config = {
-    ws_connection_server: process.env.STEEMIT_UPLOAD_STEEMD_WEBSOCKET || 'wss://node.steem.ws',
+    ws_connection_server: process.env.STEEMIT_UPLOAD_STEEMD_WEBSOCKET || 'wss://steemd-int.steemit.com',
     // When protocol === 'https' a default port url is used (ignores STEEMIT_UPLOAD_HTTP_PORT)
     protocol: process.env.STEEMIT_UPLOAD_HTTP_PROTOCOL || 'https',
     host: process.env.STEEMIT_UPLOAD_HTTP_HOST || (dev ? 'steemitdevimages.com' : 'steemitimages.com'),
