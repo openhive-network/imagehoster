@@ -5,6 +5,9 @@ import Apis from 'shared/api_client/ApiInstances'
 import path from 'path'
 import send from 'koa-send'
 
+const CACHE_MAX_ENTRIES = 10000000;
+const HTTP_CODE_REDIRECT = 302
+
 const {uploadBucket} = config
 
 const router = require('koa-router')()
@@ -15,35 +18,39 @@ router.get('/u/__default/avatar', function* () {
 })
 
 let cache = {};
-let cache_counter = 0;
+let cacheCounter = 0;
 
 const defaultAvatar = `https://${ config.host }/u/__default/avatar`
 router.get('/u/:username/avatar', function* () {
     let avatarUrl = defaultAvatar
     const username = this.params.username;
-    const cached_value = cache[username];
-    if (cached_value && (Date.now() - cached_value.ts < 120000)) {
-        avatarUrl = cached_value.url;
+    const cachedValue = cache[username];
+    if (cachedValue && (Date.now() - cachedValue.ts < 120000)) {
+        avatarUrl = cachedValue.url;
     } else {
-        const [account] = yield Apis.db_api('get_accounts', [this.params.username])
-        if (account) {
-            const json_metadata = account.json_metadata ? JSON.parse(account.json_metadata) : {}
-            if (json_metadata.profile && json_metadata.profile.profile_image && json_metadata.profile.profile_image.match(/^https?:\/\//)) {
-                avatarUrl = json_metadata.profile.profile_image
+        try {
+            const [account] = yield Apis.db_api('get_accounts', [this.params.username])
+            if (account) {
+                const jsonMetadata = account.json_metadata ? JSON.parse(account.json_metadata) : {}
+                if (jsonMetadata.profile && jsonMetadata.profile.profile_image && jsonMetadata.profile.profile_image.match(/^https?:\/\//)) {
+                    avatarUrl = jsonMetadata.profile.profile_image
+                }
             }
+            cacheCounter += 1;
+            if (cacheCounter > CACHE_MAX_ENTRIES) {
+                // reset cache to prevent it to grow too large
+                cache = {};
+                cacheCounter = 0;
+            }
+            cache[username] = {
+                ts: Date.now(),
+                url: avatarUrl
+            };
+        } catch(e) {
+            avatarUrl = defaultAvatar
         }
-        cache_counter += 1;
-        if (cache_counter > 10000000) {
-            // reset cache to prevent it to grow too large
-            cache = {};
-            cache_counter = 0;
-        }
-        cache[username] = {
-            ts: Date.now(),
-            url: avatarUrl
-        };
     }
-    this.status = 302
+    this.status = HTTP_CODE_REDIRECT
     this.redirect('/128x128/' + avatarUrl)
     return
 })
@@ -60,7 +67,7 @@ router.get('/:hash/:filename?', function *() {
 
         // This lets us remove images even if the s3 bucket cache is public,immutable
         // Clients will have to re-evaulate the 302 redirect every day
-        this.status = 302
+        this.status = HTTP_CODE_REDIRECT
         this.set('Cache-Control', 'public,max-age=86400')
 
         this.redirect(getObjectUrl({Bucket: uploadBucket, Key: key}))
