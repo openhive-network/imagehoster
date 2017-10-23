@@ -26,9 +26,9 @@ let cache = {};
 let cacheCounter = 0;
 
 const defaultAvatar = `https://${ config.host }/u/__default/avatar`
-router.get('/u/:username/avatar/:size?', function* (sizeParam) {
+router.get('/u/:username/avatar/:size?', function* () {
     let avatarUrl = defaultAvatar
-    const size = AVATAR_SIZES[sizeParam || 'medium']
+    const size = AVATAR_SIZES[this.params.size || 'medium']
     const username = this.params.username;
     const cachedValue = cache[username];
     if (cachedValue && (Date.now() - cachedValue.ts < 120000)) {
