@@ -7,6 +7,11 @@ import send from 'koa-send'
 
 const CACHE_MAX_ENTRIES = 10000000;
 const HTTP_CODE_REDIRECT = 302
+const AVATAR_SIZES = {
+    small: 64,
+    medium: 128,
+    large: 512,
+}
 
 const {uploadBucket} = config
 
@@ -21,8 +26,9 @@ let cache = {};
 let cacheCounter = 0;
 
 const defaultAvatar = `https://${ config.host }/u/__default/avatar`
-router.get('/u/:username/avatar', function* () {
+router.get('/u/:username/avatar/:size?', function* (sizeParam) {
     let avatarUrl = defaultAvatar
+    const size = AVATAR_SIZES[sizeParam || 'medium']
     const username = this.params.username;
     const cachedValue = cache[username];
     if (cachedValue && (Date.now() - cachedValue.ts < 120000)) {
@@ -51,7 +57,7 @@ router.get('/u/:username/avatar', function* () {
         }
     }
     this.status = HTTP_CODE_REDIRECT
-    this.redirect('/128x128/' + avatarUrl)
+    this.redirect(`/${ size }x${ size }/${ avatarUrl }`)
     return
 })
 
