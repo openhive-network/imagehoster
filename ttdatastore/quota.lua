@@ -25,7 +25,7 @@ local limitsByType = {
         week = 300,
     },
     downloadIp = {
-        hour = 3600,
+        hour = 7200,
     },
 }
 
