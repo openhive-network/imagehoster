@@ -58,6 +58,9 @@ router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', function *() {
     const blacklist = [
         'https://pbs.twimg.com/media/CoN_sC6XEAE7VOB.jpg:large',
         'https://ipfs.pics/ipfs/QmXz6jNVkH2FyMEUtXSAvbPN4EwG1uQJzDBq7gQCJs1Nym',
+        'http://customerceobook.com/wp-content/uploads/2012/12/noahpozner420peoplemagazine.jpg',
+        'http://reseauinternational.net/wp-content/uploads/2015/01/Sans-titre.jpg',
+        'http://edge.liveleak.com/80281E/ll_a_u/thumbs/2015/Jan/1/67f252081582_sf_3.jpg',
     ];
     if(blacklist.includes(url)) {
         statusError(this, 400, 'Bad Request')
