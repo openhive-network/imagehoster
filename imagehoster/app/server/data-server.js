@@ -18,14 +18,14 @@ const {uploadBucket} = config
 const router = require('koa-router')()
 
 const assetRoot = path.resolve(__dirname, '../..');
-router.get('/u/__default/avatar', function* () {
+router.get('/u/__default_new/avatar', function* () {
     yield send(this, 'assets/user.png', {root: assetRoot, immutable: true})
 })
 
 let cache = {};
 let cacheCounter = 0;
 
-const defaultAvatar = `https://${ config.host }/u/__default/avatar`
+const defaultAvatar = `https://${ config.host }/u/__default_new/avatar`
 router.get('/u/:username/avatar/:size?', function* () {
     let avatarUrl = defaultAvatar
     const size = AVATAR_SIZES[this.params.size || 'medium']
