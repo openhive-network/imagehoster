@@ -11,6 +11,17 @@ import {APIError} from './error'
 import {store} from './store'
 import {mimeMagic} from './utils'
 
+/** Image types allowed to be proxied and resized. */
+const AcceptedContentTypes = [
+    'image/gif',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+]
+
+/** Minimum cache time for successfully proxied images. */
+const MinCacheSeconds = 60 * 60
+
 interface NeedleResponse extends http.IncomingMessage {
     body: any
     raw: Buffer
@@ -30,12 +41,21 @@ function fetchUrl(url: string, options: needle.NeedleOptions) {
     })
 }
 
-const AcceptedContentTypes = [
-    'image/gif',
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-]
+function parseCacheControl(header: string) {
+    const parts = header.split(',')
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0)
+    const rv: {[key: string]: number} = {}
+    for (const part of parts) {
+        const [key, value] = part.split('=').map((v) => v.trim())
+        if (value && value.length > 0) {
+            rv[key] = Number.parseInt(value)
+        } else {
+            rv[key] = 1
+        }
+    }
+    return rv
+}
 
 export async function proxyHandler(ctx: Koa.Context) {
     ctx.tag({handler: 'proxy'})
@@ -59,6 +79,9 @@ export async function proxyHandler(ctx: Koa.Context) {
         throw new APIError({cause, code: APIError.Code.InvalidProxyUrl})
     }
 
+    // cache all proxy requests for minimum 10 minutes, including failures
+    ctx.set('Cache-Control', 'public,max-age=600')
+
     ctx.log.debug('fetching %s', url.toString())
 
     // TODO: abort request for too large files
@@ -79,44 +102,56 @@ export async function proxyHandler(ctx: Koa.Context) {
 
     const contentType = await mimeMagic(res.body)
     APIError.assert(AcceptedContentTypes.includes(contentType), APIError.Code.InvalidImage)
+
     ctx.set('Content-Type', contentType)
 
+    let rv: Buffer
     if (contentType === 'image/gif' && width === 0 && height === 0) {
         // pass trough gif if requested with original size (0x0)
         // this is needed since resizing gifs creates still images
-        ctx.body = res.body
-        return
+        rv = res.body
+    } else {
+        const image = Sharp(res.body).jpeg({
+            quality: 85,
+            force: false,
+        }).png({
+            compressionLevel: 9,
+            force: false,
+        })
+
+        let metadata: Sharp.Metadata
+        try {
+            metadata = await image.metadata()
+        } catch (cause) {
+            throw new APIError({cause, code: APIError.Code.InvalidImage})
+        }
+
+        APIError.assert(metadata.width && metadata.height, APIError.Code.InvalidImage)
+
+        const newSize = calculateGeo(
+            metadata.width as number,
+            metadata.height as number,
+            width,
+            height
+        )
+
+        if (newSize.width !== metadata.width || newSize.height !== metadata.height) {
+            image.resize(newSize.width, newSize.height)
+        }
+
+        rv = await image.toBuffer()
     }
 
-    const image = Sharp(res.body).jpeg({
-        quality: 85,
-        force: false,
-    }).png({
-        compressionLevel: 9,
-        force: false,
-    })
-
-    let metadata: Sharp.Metadata
-    try {
-        metadata = await image.metadata()
-    } catch (cause) {
-        throw new APIError({cause, code: APIError.Code.InvalidImage})
+    // cache for longer than MinCacheSeconds if proxied image allows it
+    const cacheControl = parseCacheControl(res.headers['cache-control'] || '')
+    const maxAge = Math.max(cacheControl['max-age'] || 0, MinCacheSeconds)
+    const cacheRv = ['public', `max-age=${ maxAge }`]
+    if (cacheControl['immutable']) {
+        cacheRv.push('immutable')
     }
+    ctx.set('Cache-Control', cacheRv.join(','))
 
-    APIError.assert(metadata.width && metadata.height, APIError.Code.InvalidImage)
-
-    const newSize = calculateGeo(
-        metadata.width as number,
-        metadata.height as number,
-        width,
-        height
-    )
-
-    if (newSize.width !== metadata.width || newSize.height !== metadata.height) {
-        image.resize(newSize.width, newSize.height)
-    }
-
-    ctx.body = await image.toBuffer()
+    ctx.body = rv
 }
 
 // from old codebase
