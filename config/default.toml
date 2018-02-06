@@ -1,0 +1,36 @@
+# default configuration, override in config/local-development.toml
+
+# port to listen on
+port = 8800
+
+# whether the app runs behind a trusted proxy
+proxy = false
+
+# application name used for logging and service namespace
+name = 'imagehoster'
+
+# number of worker processes to spawn, 0 = autodetect
+num_workers = 1
+
+# url to steemd node used for verifying signatures
+rpc_node = 'https://api.steemit.com'
+
+# url where service is running
+service_url = 'http://localhost:8800'
+
+# log level to output at
+log_level = 'debug'
+
+# where to write logs, can be file path or stdout/err
+log_output = 'stdout'
+
+# what level to write request logs at
+req_log_level = 'info'
+
+# max upload size to allow, in bytes
+max_upload_size = 10000000 # 10mb
+
+# key value store used for drafts and user prefs
+[storage]
+type = 'memory' # valid types are: memory, s3
+# s3_bucket = 'mybucket'
