@@ -66,16 +66,23 @@ export async function proxyHandler(ctx: Koa.Context) {
 
     const res = await fetchUrl(url.toString(), {
         compressed: true,
+        parse_response: false,
         follow_max: 5,
         user_agent: 'SteemitProxy/1.0 (+https://github.com/steemit/imagehoster)',
     })
+
+    APIError.assert(Buffer.isBuffer(res.body), APIError.Code.InvalidImage)
+
+    if (Math.floor((res.statusCode || 404) / 100) !== 2) {
+        throw new APIError({code: APIError.Code.InvalidImage})
+    }
 
     const contentType = await mimeMagic(res.body)
     APIError.assert(AcceptedContentTypes.includes(contentType), APIError.Code.InvalidImage)
     ctx.set('Content-Type', contentType)
 
     if (contentType === 'image/gif' && width === 0 && height === 0) {
-        // pass trough gif if requested with autosize (0x0)
+        // pass trough gif if requested with original size (0x0)
         // this is needed since resizing gifs creates still images
         ctx.body = res.body
         return
@@ -89,7 +96,13 @@ export async function proxyHandler(ctx: Koa.Context) {
         force: false,
     })
 
-    const metadata = await image.metadata()
+    let metadata: Sharp.Metadata
+    try {
+        metadata = await image.metadata()
+    } catch (cause) {
+        throw new APIError({cause, code: APIError.Code.InvalidImage})
+    }
+
     APIError.assert(metadata.width && metadata.height, APIError.Code.InvalidImage)
 
     const newSize = calculateGeo(
@@ -102,8 +115,6 @@ export async function proxyHandler(ctx: Koa.Context) {
     if (newSize.width !== metadata.width || newSize.height !== metadata.height) {
         image.resize(newSize.width, newSize.height)
     }
-
-    // TODO: store in blobstore? probably not needed with cloudfront on top
 
     ctx.body = await image.toBuffer()
 }
