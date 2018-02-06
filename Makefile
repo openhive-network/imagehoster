@@ -34,7 +34,7 @@ test: node_modules
 ci-test: node_modules reports
 	nsp check
 	tslint -p tsconfig.json -c tslint.json
-	nyc -r lcov -e .ts -i ts-node/register \
+	NODE_ENV=test nyc -r lcov -e .ts -i ts-node/register \
 		--report-dir reports/coverage \
 		mocha --require ts-node/register \
 		--reporter mocha-junit-reporter \

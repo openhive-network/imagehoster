@@ -24,9 +24,6 @@ log_level = 'debug'
 # where to write logs, can be file path or stdout/err
 log_output = 'stdout'
 
-# what level to write request logs at
-req_log_level = 'info'
-
 # max upload size to allow, in bytes
 max_upload_size = 10000000 # 10mb
 

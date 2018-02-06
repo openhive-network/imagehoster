@@ -1,9 +1,9 @@
-# TODO: compat with old env var names
 port = 'PORT'
 proxy = 'IS_PROXIED'
 num_workers = 'NUM_WORKERS'
 log_level = 'LOG_LEVEL'
 log_output = 'LOG_OUTPUT'
+service_url = 'SERVICE_URL'
 [storage]
 type = 'STORAGE_TYPE'
 s3_bucket = 'S3_BUCKET'

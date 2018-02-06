@@ -1,4 +1,7 @@
 num_workers = 0
-port = 8080
+port = 3234
 proxy = true
 log_level = 'info'
+rpc_node = 'https://api.steemit.com'
+[storage]
+type = 's3'
