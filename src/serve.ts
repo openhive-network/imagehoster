@@ -29,6 +29,6 @@ export async function serveHandler(ctx: Koa.Context) {
     const mimeType = await mimeMagic(head)
 
     ctx.response.set('Content-Type', mimeType)
-    // TODO: cache control headers
+    ctx.response.set('Cache-Control', 'public,max-age=29030400,immutable')
     ctx.body = stream
 }
