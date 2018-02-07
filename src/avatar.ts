@@ -26,7 +26,13 @@ export async function avatarHandler(ctx: Koa.Context) {
 
     APIError.assert(account, APIError.Code.NoSuchAccount)
 
-    const metadata = JSON.parse(account.json_metadata)
+    let metadata: any
+    try {
+        metadata = JSON.parse(account.json_metadata)
+    } catch (error) {
+        ctx.log.debug(error, 'unable to parse json_metadata for %s', account.name)
+        metadata = {}
+    }
 
     let avatarUrl = DefaultAvatar
     if (metadata.profile &&
