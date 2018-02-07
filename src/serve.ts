@@ -15,7 +15,7 @@ export async function serveHandler(ctx: Koa.Context) {
 
     const file = store.store.createReadStream(ctx.params['hash'])
     file.on('error', (error) => {
-        if (error.notFound) {
+        if (error.notFound || error.code === 'NoSuchKey') {
             ctx.res.writeHead(404, 'Not Found')
         } else {
             ctx.log.error(error, 'unable to read %s', ctx.params['hash'])
