@@ -18,6 +18,9 @@ rpc_node = 'https://api.steemit.com'
 # url where service is running
 service_url = 'http://localhost:8800'
 
+# default user avatar, should be a png minimum 512x512
+default_avatar = 'https://steemitimages.com/DQmb2HNSGKN3pakguJ4ChCRjgkVuDN9WniFRPmrxoJ4sjR4'
+
 # log level to output at
 log_level = 'debug'
 

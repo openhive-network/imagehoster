@@ -3,6 +3,7 @@
 import * as Koa from 'koa'
 import * as Router from 'koa-router'
 
+import {avatarHandler} from './avatar'
 import {proxyHandler} from './proxy'
 import {serveHandler} from './serve'
 import {uploadHandler} from './upload'
@@ -18,9 +19,9 @@ async function healthcheck(ctx: Koa.Context) {
 
 router.get('/', healthcheck)
 router.get('/.well-known/healthcheck.json', healthcheck)
+router.get('/u/:username/avatar/:size?', avatarHandler)
 router.post('/:username/:signature', uploadHandler)
 router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', proxyHandler)
 router.get('/:hash/:filename?', serveHandler)
-// TODO: avatar route
 
 export const routes = router.routes()

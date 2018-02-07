@@ -29,7 +29,7 @@ const HttpCodes = new Map<ErrorCode, number>([
     [ErrorCode.InvalidSignature, 400],
     [ErrorCode.LengthRequired, 411],
     [ErrorCode.MissingParam, 400],
-    [ErrorCode.NoSuchAccount, 400],
+    [ErrorCode.NoSuchAccount, 404],
     [ErrorCode.NotFound, 404],
     [ErrorCode.PayloadTooLarge, 413],
 ])
