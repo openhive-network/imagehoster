@@ -138,7 +138,11 @@ export async function uploadHandler(ctx: Koa.Context) {
     const key = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
     const url = new URL(`${ key }/${ file.name }`, SERVICE_URL)
 
-    await store.write(key, data)
+    if (!(await store.exists(key))) {
+        await store.write(key, data)
+    } else {
+        ctx.log.debug('key %s already exists in store', key)
+    }
 
     ctx.log.info({account: account.name}, 'uploaded %s', url)
 

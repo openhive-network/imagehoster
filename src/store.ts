@@ -96,6 +96,18 @@ export class AsyncBlobStore {
         return this.write(opts, JSON.stringify(data))
     }
 
+    public async exists(opts: BlobKey) {
+        return new Promise<boolean>((resolve, reject) => {
+            this.store.exists(opts, (error, exits) => {
+                if (error) {
+                    reject(error)
+                } else {
+                    resolve(exits)
+                }
+            })
+        })
+    }
+
 }
 
 /** Main application store */
