@@ -6,6 +6,7 @@ import {camelToSnake} from './utils'
 
 enum ErrorCode {
     BadRequest,
+    Blacklisted,
     FileMissing,
     InternalError,
     InvalidImage,
@@ -22,6 +23,7 @@ enum ErrorCode {
 
 const HttpCodes = new Map<ErrorCode, number>([
     [ErrorCode.BadRequest, 400],
+    [ErrorCode.Blacklisted, 451],
     [ErrorCode.FileMissing, 400],
     [ErrorCode.InternalError, 500],
     [ErrorCode.InvalidImage, 400],

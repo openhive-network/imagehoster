@@ -10,6 +10,7 @@ import * as multihash from 'multihashes'
 import * as RateLimit from 'ratelimiter'
 import {URL} from 'url'
 
+import {accountBlacklist} from './blacklist'
 import {redisClient, rpcClient} from './common'
 import {APIError} from './error'
 import {store} from './store'
@@ -123,6 +124,7 @@ export async function uploadHandler(ctx: Koa.Context) {
     }
 
     APIError.assert(validSignature, APIError.Code.InvalidSignature)
+    APIError.assert(!accountBlacklist.includes(account.name), APIError.Code.Blacklisted)
 
     try {
         const limit = await getRatelimit(account.name)
@@ -133,7 +135,6 @@ export async function uploadHandler(ctx: Koa.Context) {
     }
 
     // TODO: account karma check
-    // TODO: account blacklist
 
     const key = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
     const url = new URL(`${ key }/${ file.name }`, SERVICE_URL)

@@ -7,6 +7,7 @@ import * as Sharp from 'sharp'
 import streamHead from 'stream-head/dist-es6'
 import {URL} from 'url'
 
+import {imageBlacklist} from './blacklist'
 import {APIError} from './error'
 import {store} from './store'
 import {mimeMagic} from './utils'
@@ -84,8 +85,9 @@ export async function proxyHandler(ctx: Koa.Context) {
 
     ctx.log.debug('fetching %s', url.toString())
 
+    APIError.assert(!imageBlacklist.includes(url.toString()), APIError.Code.Blacklisted)
+
     // TODO: abort request for too large files
-    // TODO: image blacklist (one that is not bypassable by adding ?lol=hax to image urls)
 
     const res = await fetchUrl(url.toString(), {
         compressed: true,
