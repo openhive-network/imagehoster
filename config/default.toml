@@ -30,6 +30,14 @@ log_output = 'stdout'
 # max upload size to allow, in bytes
 max_upload_size = 10000000 # 10mb
 
+# redis db used for ratelimiting uploads
+# redis_url = 'redis://localhost'
+
+# upload rate limits, only enforced if redis db is configured
+[upload_limits]
+duration = 604800000 # in ms (=1 week)
+max = 300 # max requests within duration
+
 # key value store used for drafts and user prefs
 [storage]
 type = 'memory' # valid types are: memory, s3

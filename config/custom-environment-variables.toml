@@ -5,6 +5,7 @@ log_level = 'LOG_LEVEL'
 log_output = 'LOG_OUTPUT'
 service_url = 'SERVICE_URL'
 default_avatar = 'DEFAULT_AVATAR'
+redis_url = 'REDIS_URL'
 [storage]
 type = 'STORAGE_TYPE'
 s3_bucket = 'S3_BUCKET'

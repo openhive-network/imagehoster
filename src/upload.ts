@@ -7,9 +7,10 @@ import {Client, Signature} from 'dsteem'
 import * as http from 'http'
 import * as Koa from 'koa'
 import * as multihash from 'multihashes'
+import * as RateLimit from 'ratelimiter'
 import {URL} from 'url'
 
-import {rpcClient} from './common'
+import {redisClient, rpcClient} from './common'
 import {APIError} from './error'
 import {store} from './store'
 import {readStream} from './utils'
@@ -19,6 +20,7 @@ const MAX_UPLOAD_SIZE = Number.parseInt(config.get('max_upload_size'))
 if (!Number.isFinite(MAX_UPLOAD_SIZE)) {
     throw new Error('Invalid max upload size')
 }
+const UPLOAD_LIMITS = config.get('upload_limits') as any
 
 if (new URL('http://blä.se').toString() !== 'http://xn--bl-wia.se/') {
     throw new Error('Incompatible node.js version, must be compiled with ICU support')
@@ -44,6 +46,30 @@ async function parseMultipart(request: http.IncomingMessage) {
             reject(new APIError({code: APIError.Code.FileMissing}))
         })
         request.pipe(form)
+    })
+}
+
+/**
+ * Get ratelimit info for account name.
+ */
+async function getRatelimit(account: string) {
+    return new Promise<{total: number, remaining: number, reset: number}>((resolve, reject) => {
+        if (!redisClient) {
+            throw new Error('Redis not configured')
+        }
+        const limit = new RateLimit({
+            db: redisClient,
+            duration: UPLOAD_LIMITS.duration,
+            id: account,
+            max: UPLOAD_LIMITS.max,
+        })
+        limit.get((error, result) => {
+            if (error) {
+                reject(error)
+            } else {
+                resolve(result)
+            }
+        })
     })
 }
 
@@ -98,7 +124,14 @@ export async function uploadHandler(ctx: Koa.Context) {
 
     APIError.assert(validSignature, APIError.Code.InvalidSignature)
 
-    // TODO: account-based rate limiting
+    try {
+        const limit = await getRatelimit(account.name)
+        ctx.tag({limit_remaining: limit.remaining})
+        APIError.assert(limit.remaining > 0, APIError.Code.QoutaExceeded)
+    } catch (error) {
+        ctx.log.warn(error, 'unable to enforce upload rate limits')
+    }
+
     // TODO: account karma check
     // TODO: account blacklist
 

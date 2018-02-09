@@ -17,6 +17,7 @@ enum ErrorCode {
     NoSuchAccount,
     NotFound,
     PayloadTooLarge,
+    QoutaExceeded,
 }
 
 const HttpCodes = new Map<ErrorCode, number>([
@@ -32,6 +33,7 @@ const HttpCodes = new Map<ErrorCode, number>([
     [ErrorCode.NoSuchAccount, 404],
     [ErrorCode.NotFound, 404],
     [ErrorCode.PayloadTooLarge, 413],
+    [ErrorCode.QoutaExceeded, 429],
 ])
 
 interface APIErrorOptions {
