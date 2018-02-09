@@ -134,7 +134,7 @@ export async function uploadHandler(ctx: Koa.Context) {
         ctx.log.warn(error, 'unable to enforce upload rate limits')
     }
 
-    // TODO: account karma check
+    APIError.assert(repLog10(account.reputation) >= UPLOAD_LIMITS.reputation, APIError.Code.Deplorable)
 
     const key = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
     const url = new URL(`${ key }/${ file.name }`, SERVICE_URL)
@@ -149,4 +149,35 @@ export async function uploadHandler(ctx: Koa.Context) {
 
     ctx.status = 200
     ctx.body = {url}
+}
+
+/**
+ * Calculate reputation for user, from old codebase.
+ * HERE BE DRAGONS
+ */
+function repLog10(rep2: any) {
+    if (rep2 == null) { return rep2 } // tslint:disable-line:triple-equals
+    let rep = String(rep2)
+    const neg = rep.charAt(0) === '-'
+    rep = neg ? rep.substring(1) : rep
+
+    let out = log10(rep)
+    if (isNaN(out)) { out = 0 }
+    out = Math.max(out - 9, 0) // @ -9, $0.50 earned is approx magnitude 1
+    out = (neg ? -1 : 1) * out
+    out = (out * 9) + 25 // 9 points per magnitude. center at 25
+    // base-line 0 to darken and < 0 to auto hide (grep rephide)
+    out = parseInt(out + '') // tslint:disable-line:radix
+    return out
+}
+
+/**
+ * This is a rough approximation of log10 that works with huge digit-strings.
+ * Warning: Math.log10(0) === NaN
+ */
+function log10(str: string) {
+    const leadingDigits = parseInt(str.substring(0, 4)) // tslint:disable-line:radix
+    const log = Math.log(leadingDigits) / Math.log(10)
+    const n = str.length - 1
+    return n + (log - parseInt(log + '')) // tslint:disable-line:radix
 }
