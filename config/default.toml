@@ -27,8 +27,8 @@ log_level = 'debug'
 # where to write logs, can be file path or stdout/err
 log_output = 'stdout'
 
-# max upload size to allow, in bytes
-max_upload_size = 10000000 # 10mb
+# max image size to allow uploading and proxying, in bytes
+max_image_size = 10000000 # 10mb
 
 # redis db used for ratelimiting uploads
 # redis_url = 'redis://localhost'

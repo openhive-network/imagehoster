@@ -1,5 +1,6 @@
 /** Resizing image proxy. */
 
+import * as config from 'config'
 import * as http from 'http'
 import * as Koa from 'koa'
 import * as needle from 'needle'
@@ -11,6 +12,11 @@ import {imageBlacklist} from './blacklist'
 import {APIError} from './error'
 import {store} from './store'
 import {mimeMagic} from './utils'
+
+const MAX_IMAGE_SIZE = Number.parseInt(config.get('max_image_size'))
+if (!Number.isFinite(MAX_IMAGE_SIZE)) {
+    throw new Error('Invalid max image size')
+}
 
 /** Image types allowed to be proxied and resized. */
 const AcceptedContentTypes = [
@@ -87,15 +93,17 @@ export async function proxyHandler(ctx: Koa.Context) {
 
     APIError.assert(!imageBlacklist.includes(url.toString()), APIError.Code.Blacklisted)
 
-    // TODO: abort request for too large files
-
     const res = await fetchUrl(url.toString(), {
+        open_timeout: 5 * 1000,
+        response_timeout: 5 * 1000,
+        read_timeout: 60 * 1000,
         compressed: true,
         parse_response: false,
         follow_max: 5,
         user_agent: 'SteemitProxy/1.0 (+https://github.com/steemit/imagehoster)',
-    })
+    } as any)
 
+    APIError.assert(res.bytes <= MAX_IMAGE_SIZE, APIError.Code.PayloadTooLarge)
     APIError.assert(Buffer.isBuffer(res.body), APIError.Code.InvalidImage)
 
     if (Math.floor((res.statusCode || 404) / 100) !== 2) {
@@ -157,7 +165,6 @@ export async function proxyHandler(ctx: Koa.Context) {
 }
 
 // from old codebase
-// TODO: simplify and maybe allow center cropped resizes?
 function calculateGeo(origWidth: number, origHeight: number, targetWidth: number, targetHeight: number) {
     // Default ratio. Default crop.
     const origRatio  = (origHeight !== 0 ? (origWidth / origHeight) : 1)

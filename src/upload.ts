@@ -17,9 +17,9 @@ import {store} from './store'
 import {readStream} from './utils'
 
 const SERVICE_URL = new URL(config.get('service_url'))
-const MAX_UPLOAD_SIZE = Number.parseInt(config.get('max_upload_size'))
-if (!Number.isFinite(MAX_UPLOAD_SIZE)) {
-    throw new Error('Invalid max upload size')
+const MAX_IMAGE_SIZE = Number.parseInt(config.get('max_image_size'))
+if (!Number.isFinite(MAX_IMAGE_SIZE)) {
+    throw new Error('Invalid max image size')
 }
 const UPLOAD_LIMITS = config.get('upload_limits') as any
 
@@ -36,7 +36,7 @@ async function parseMultipart(request: http.IncomingMessage) {
             headers: request.headers,
             limits: {
                 files: 1,
-                fileSize: MAX_UPLOAD_SIZE,
+                fileSize: MAX_IMAGE_SIZE,
             }
         })
         form.on('file', (field, stream, name, encoding, mime) => {
@@ -95,7 +95,7 @@ export async function uploadHandler(ctx: Koa.Context) {
     APIError.assert(Number.isFinite(contentLength),
                     APIError.Code.LengthRequired)
 
-    APIError.assert(contentLength <= MAX_UPLOAD_SIZE,
+    APIError.assert(contentLength <= MAX_IMAGE_SIZE,
                     APIError.Code.PayloadTooLarge)
 
     const file = await parseMultipart(ctx.req)
