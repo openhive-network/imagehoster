@@ -64,6 +64,7 @@ router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', function *() {
         'http://st-listas.20minutos.es/images/2016-03/408680/list_640px.jpg?1458217580',
         'http://i1272.photobucket.com/albums/y391/mtgmtg_2012/mtgmtg_2012006/8575314572_bb657293cd_b_zps4d684b87.jpg',
         'http://img09.deviantart.net/c561/i/2015/005/4/b/psychedeliczen_id_by_psychedeliczen-d63npyv.jpg',
+        'https://thumbs.gfycat.com/FakeWellwornAlaskanmalamute-size_restricted.gif',
     ];
     if(blacklist.includes(url)) {
         statusError(this, 400, 'Bad Request')
