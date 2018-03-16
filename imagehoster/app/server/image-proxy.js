@@ -71,6 +71,7 @@ router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', function *() {
         'https://i.imgur.com/VKdTkV8.jpg',
         'http://img09.deviantart.net/c561/i/2015/005/4/b/psychedeliczen_id_by_psychedeliczen-d63npyv.jpg',
         'https://img.esteem.ws/lk2hsivn08.jpg',
+        'https://ipfs.io/ipfs/QmWMfcLnPFKL36hR4T4qiyBFWzV9yzN2fXaYZXQ3uA4nrr',
         'https://ipfs.pics/ipfs/QmXz6jNVkH2FyMEUtXSAvbPN4EwG1uQJzDBq7gQCJs1Nym',
         'http://lifeinjapan.ru/upload/posts/mur2707.jpg',
         'https://myrmecos.files.wordpress.com/2010/04/imparis14.jpg?w=1400',
