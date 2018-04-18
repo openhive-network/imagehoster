@@ -1,7 +1,7 @@
 /** Misc utils. */
 
+import {AbstractBlobStore, BlobKey} from 'abstract-blob-store'
 import {Magic, MAGIC_MIME_TYPE} from 'mmmagic'
-import {BlobKey, AbstractBlobStore} from 'abstract-blob-store'
 
 const magic = new Magic(MAGIC_MIME_TYPE)
 

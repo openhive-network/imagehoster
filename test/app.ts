@@ -6,7 +6,7 @@ import * as needle from 'needle'
 import {app} from './../src/app'
 
 describe('app', function() {
-    const port = process.env['TEST_HTTP_PORT'] ? parseInt(process.env['TEST_HTTP_PORT'] as string) : 63205
+    const port = 63205
     const server = http.createServer(app.callback())
 
     before((done) => { server.listen(port, 'localhost', done) })

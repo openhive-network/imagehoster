@@ -11,7 +11,7 @@ import * as RateLimit from 'ratelimiter'
 import {URL} from 'url'
 
 import {accountBlacklist} from './blacklist'
-import {redisClient, rpcClient, store} from './common'
+import {redisClient, rpcClient, uploadStore} from './common'
 import {APIError} from './error'
 import {readStream, storeExists, storeWrite} from './utils'
 
@@ -138,8 +138,8 @@ export async function uploadHandler(ctx: Koa.Context) {
     const key = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
     const url = new URL(`${ key }/${ file.name }`, SERVICE_URL)
 
-    if (!(await storeExists(store, key))) {
-        await storeWrite(store, key, data)
+    if (!(await storeExists(uploadStore, key))) {
+        await storeWrite(uploadStore, key, data)
     } else {
         ctx.log.debug('key %s already exists in store', key)
     }

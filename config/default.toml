@@ -39,7 +39,14 @@ duration = 604800000 # in ms (=1 week)
 max = 300 # max requests within duration
 reputation = 10 # minimum reputation needed for upload
 
-# key value store used for drafts and user prefs
-[storage]
-type = 'memory' # valid types are: memory, s3
-# s3_bucket = 'mybucket'
+# blob stores, valid types are: memory, s3
+# the s3 type additionally needs the s3_bucket key to be set and expects
+# the proper AWS credentials to be configured (see aws-sdk for more info)
+
+# where to keep uploaded images
+[upload_store]
+type = 'memory'
+
+# where to keep proxied images
+[proxy_store]
+type = 'memory'

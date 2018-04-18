@@ -1,9 +1,9 @@
 /** Misc shared instances. */
 
-import * as config from 'config'
-import * as Redis from 'redis'
 import {AbstractBlobStore} from 'abstract-blob-store'
+import * as config from 'config'
 import {Client} from 'dsteem'
+import * as Redis from 'redis'
 
 import {logger} from './logger'
 
@@ -21,19 +21,25 @@ if (config.has('redis_url')) {
 }
 
 /** Blob storage. */
-export let store: AbstractBlobStore
+export const uploadStore = loadStore('upload_store')
+export const proxyStore = loadStore('proxy_store')
 
-const storageConf: any = config.get('storage')
-if (storageConf.type === 'memory') {
-    logger.warn('using memory store')
-    store = require('abstract-blob-store')()
-} else if (storageConf.type === 's3') {
-    const aws = require('aws-sdk')
-    const S3BlobStore = require('s3-blob-store')
-    const client = new aws.S3()
-    const bucket = storageConf.get('s3_bucket')
-    store = new S3BlobStore({client, bucket})
-} else {
-    throw new Error(`Invalid storage type: ${ storageConf.type }`)
+let S3Client: any
+function loadStore(key: string): AbstractBlobStore {
+    const conf = config.get(key) as any
+    if (conf.type === 'memory') {
+        logger.warn('using memory store for %s', key)
+        return require('abstract-blob-store')()
+    } else if (conf.type === 's3') {
+        if (!S3Client) {
+            const aws = require('aws-sdk')
+            S3Client = new aws.S3()
+        }
+        return require('s3-blob-store')({
+            client: S3Client,
+            bucket: conf.get('s3_bucket'),
+        })
+    } else {
+        throw new Error(`Invalid storage type: ${ conf.type }`)
+    }
 }
-

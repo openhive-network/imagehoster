@@ -12,17 +12,8 @@ import {rpcClient} from './../src/common'
 
 import {testKeys} from './index'
 
-describe('upload', function() {
-    const port = process.env['TEST_HTTP_PORT'] ? parseInt(process.env['TEST_HTTP_PORT'] as string) : 63205
-    const server = http.createServer(app.callback())
-
-    before((done) => { server.listen(port, 'localhost', done) })
-    after((done) => { server.close(done) })
-
-    it('should upload image', function(done) {
-        this.slow(500)
-        const file = path.resolve(__dirname, 'test.jpg')
-        const data = fs.readFileSync(file)
+export async function uploadImage(data: Buffer, port: number) {
+    return new Promise<any>((resolve, reject) => {
         const hash = crypto.createHash('sha256')
             .update('ImageSigningChallenge')
             .update(data)
@@ -37,19 +28,35 @@ describe('upload', function() {
         }
         const signature = testKeys.foo.sign(hash).toString()
         needle.post(`:${ port }/foo/${ signature }`, payload, {multipart: true}, function (error, response, body) {
-            assert.ifError(error)
-            assert.equal(response.statusCode, 200)
-            const {url} = body
-            const [key, fname] = url.split('/').slice(-2)
-            assert.equal(key, 'DQmZi174Xz96UrRVBMNRHb6A2FfU3z1HRPwPPQCgSMgdiUT')
-            assert.equal(fname, 'test.jpg')
-            needle.get(`:${ port }/${ key }/bla.bla`, (error, response, body) => {
-                assert.ifError(error)
-                assert.equal(response.statusCode, 200)
-                assert(crypto.timingSafeEqual(body, data), 'file same')
-                done()
-            })
+            if (error) {
+                reject(error)
+            } else {
+                resolve({response, body})
+            }
         })
+    })
+}
+
+describe('upload', function() {
+    const port = 63205
+    const server = http.createServer(app.callback())
+
+    before((done) => { server.listen(port, 'localhost', done) })
+    after((done) => { server.close(done) })
+
+    it('should upload image', async function() {
+        this.slow(500)
+        const file = path.resolve(__dirname, 'test.jpg')
+        const data = fs.readFileSync(file)
+        const {response, body} = await uploadImage(data, port)
+        assert.equal(response.statusCode, 200)
+        const {url} = body
+        const [key, fname] = url.split('/').slice(-2)
+        assert.equal(key, 'DQmZi174Xz96UrRVBMNRHb6A2FfU3z1HRPwPPQCgSMgdiUT')
+        assert.equal(fname, 'test.jpg')
+        const res = await needle('get', `:${ port }/${ key }/bla.bla`)
+        assert.equal(res.statusCode, 200)
+        assert(crypto.timingSafeEqual(res.body, data), 'file same')
     })
 
 })

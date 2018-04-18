@@ -1,22 +1,26 @@
 /** Resizing image proxy. */
 
+import {AbstractBlobStore} from 'abstract-blob-store'
 import * as config from 'config'
+import {createHash} from 'crypto'
 import * as http from 'http'
 import * as Koa from 'koa'
+import * as multihash from 'multihashes'
 import * as needle from 'needle'
 import * as Sharp from 'sharp'
 import streamHead from 'stream-head/dist-es6'
 import {URL} from 'url'
 
 import {imageBlacklist} from './blacklist'
+import {proxyStore, uploadStore} from './common'
 import {APIError} from './error'
-import {store} from './store'
-import {mimeMagic} from './utils'
+import {mimeMagic, readStream, storeExists, storeWrite} from './utils'
 
 const MAX_IMAGE_SIZE = Number.parseInt(config.get('max_image_size'))
 if (!Number.isFinite(MAX_IMAGE_SIZE)) {
     throw new Error('Invalid max image size')
 }
+const SERVICE_URL = new URL(config.get('service_url'))
 
 /** Image types allowed to be proxied and resized. */
 const AcceptedContentTypes = [
@@ -25,9 +29,6 @@ const AcceptedContentTypes = [
     'image/png',
     'image/webp',
 ]
-
-/** Minimum cache time for successfully proxied images. */
-const MinCacheSeconds = 60 * 60
 
 interface NeedleResponse extends http.IncomingMessage {
     body: any
@@ -46,22 +47,6 @@ function fetchUrl(url: string, options: needle.NeedleOptions) {
             }
         })
     })
-}
-
-function parseCacheControl(header: string) {
-    const parts = header.split(',')
-        .map((p) => p.trim())
-        .filter((p) => p.length > 0)
-    const rv: {[key: string]: number} = {}
-    for (const part of parts) {
-        const [key, value] = part.split('=').map((v) => v.trim())
-        if (value && value.length > 0) {
-            rv[key] = Number.parseInt(value)
-        } else {
-            rv[key] = 1
-        }
-    }
-    return rv
 }
 
 export async function proxyHandler(ctx: Koa.Context) {
@@ -89,39 +74,92 @@ export async function proxyHandler(ctx: Koa.Context) {
     // cache all proxy requests for minimum 10 minutes, including failures
     ctx.set('Cache-Control', 'public,max-age=600')
 
-    ctx.log.debug('fetching %s', url.toString())
+    // refuse to proxy images on blacklist
+    APIError.assert(imageBlacklist.includes(url.toString()) === false, APIError.Code.Blacklisted)
 
-    APIError.assert(!imageBlacklist.includes(url.toString()), APIError.Code.Blacklisted)
+    // where the original image is/will be stored
+    let origStore: AbstractBlobStore
+    let origKey: string
 
-    const res = await fetchUrl(url.toString(), {
-        open_timeout: 5 * 1000,
-        response_timeout: 5 * 1000,
-        read_timeout: 60 * 1000,
-        compressed: true,
-        parse_response: false,
-        follow_max: 5,
-        user_agent: 'SteemitProxy/1.0 (+https://github.com/steemit/imagehoster)',
-    } as any)
-
-    APIError.assert(res.bytes <= MAX_IMAGE_SIZE, APIError.Code.PayloadTooLarge)
-    APIError.assert(Buffer.isBuffer(res.body), APIError.Code.InvalidImage)
-
-    if (Math.floor((res.statusCode || 404) / 100) !== 2) {
-        throw new APIError({code: APIError.Code.InvalidImage})
+    const origIsUpload = SERVICE_URL.origin === url.origin && url.pathname[1] === 'D'
+    if (origIsUpload) {
+        // if we are proxying or own image use the uploadStore directly
+        // to avoid storing two copies of the same data
+        origStore = uploadStore
+        origKey = url.pathname.slice(1).split('/')[0]
+    } else {
+        const urlHash = createHash('sha1')
+            .update(url.toString())
+            .digest()
+        origStore = proxyStore
+        origKey = 'U' + multihash.toB58String(
+            multihash.encode(urlHash, 'sha1')
+        )
     }
 
-    const contentType = await mimeMagic(res.body)
-    APIError.assert(AcceptedContentTypes.includes(contentType), APIError.Code.InvalidImage)
+    const imageKey = `${ origKey }_${ width }x${ height }`
 
-    ctx.set('Content-Type', contentType)
+    // check if we already have a converted image for requested key
+    if (await storeExists(proxyStore, imageKey)) {
+        ctx.log.debug('streaming %s from store', imageKey)
+        const file = proxyStore.createReadStream(imageKey)
+        file.on('error', (error) => {
+            ctx.log.error(error, 'unable to read %s', imageKey)
+            ctx.res.writeHead(500, 'Internal Error')
+            ctx.res.end()
+            file.destroy()
+        })
+        const {head, stream} = await streamHead(file, {bytes: 16384})
+        const mimeType = await mimeMagic(head)
+        ctx.set('Content-Type', mimeType)
+        ctx.set('Cache-Control', 'public,max-age=29030400,immutable')
+        ctx.body = stream
+        return
+    }
+
+    // check if we have the original
+    let origData: Buffer
+    let contentType: string
+    if (await storeExists(origStore, origKey)) {
+        origData = await readStream(origStore.createReadStream(origKey))
+        contentType = await mimeMagic(origData)
+    } else {
+        APIError.assert(origIsUpload === false, 'Upload not found')
+        ctx.log.debug('fetching %s', url.toString())
+
+        const res = await fetchUrl(url.toString(), {
+            open_timeout: 5 * 1000,
+            response_timeout: 5 * 1000,
+            read_timeout: 60 * 1000,
+            compressed: true,
+            parse_response: false,
+            follow_max: 5,
+            user_agent: 'SteemitProxy/1.0 (+https://github.com/steemit/imagehoster)',
+        } as any)
+
+        APIError.assert(res.bytes <= MAX_IMAGE_SIZE, APIError.Code.PayloadTooLarge)
+        APIError.assert(Buffer.isBuffer(res.body), APIError.Code.InvalidImage)
+
+        if (Math.floor((res.statusCode || 404) / 100) !== 2) {
+            throw new APIError({code: APIError.Code.InvalidImage})
+        }
+
+        contentType = await mimeMagic(res.body)
+        APIError.assert(AcceptedContentTypes.includes(contentType), APIError.Code.InvalidImage)
+
+        origData = res.body
+
+        ctx.log.debug('storing original %s', origKey)
+        await storeWrite(origStore, origKey, origData)
+    }
 
     let rv: Buffer
     if (contentType === 'image/gif' && width === 0 && height === 0) {
         // pass trough gif if requested with original size (0x0)
         // this is needed since resizing gifs creates still images
-        rv = res.body
+        rv = origData
     } else {
-        const image = Sharp(res.body).jpeg({
+        const image = Sharp(origData).jpeg({
             quality: 85,
             force: false,
         }).png({
@@ -150,17 +188,12 @@ export async function proxyHandler(ctx: Koa.Context) {
         }
 
         rv = await image.toBuffer()
+        ctx.log.debug('storing converted %s', imageKey)
+        await storeWrite(proxyStore, imageKey, rv)
     }
 
-    // cache for longer than MinCacheSeconds if proxied image allows it
-    const cacheControl = parseCacheControl(res.headers['cache-control'] || '')
-    const maxAge = Math.max(cacheControl['max-age'] || 0, MinCacheSeconds)
-    const cacheRv = ['public', `max-age=${ maxAge }`]
-    if (cacheControl['immutable']) {
-        cacheRv.push('immutable')
-    }
-    ctx.set('Cache-Control', cacheRv.join(','))
-
+    ctx.set('Content-Type', contentType)
+    ctx.set('Cache-Control', 'public,max-age=29030400,immutable')
     ctx.body = rv
 }
 

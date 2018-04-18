@@ -57,12 +57,14 @@ export class APIError extends Error {
             switch (typeof arg) {
                 case 'string':
                     opts.info = {msg: arg as string}
+                    break
                 case 'object':
                     opts = arg as APIErrorOptions
+                    break
                 default:
                     opts = {code: arg as ErrorCode}
             }
-            if (!opts.code) {
+            if (opts.code === undefined) {
                 opts.code = ErrorCode.BadRequest
             }
             throw new APIError(opts)
