@@ -1,6 +1,7 @@
 /** Misc utils. */
 
 import {Magic, MAGIC_MIME_TYPE} from 'mmmagic'
+import {BlobKey, AbstractBlobStore} from 'abstract-blob-store'
 
 const magic = new Magic(MAGIC_MIME_TYPE)
 
@@ -56,4 +57,28 @@ export function mimeMagic(data: Buffer) {
         })
     })
 
+}
+
+/** Async version of abstract-blob-store exists. */
+export function storeExists(store: AbstractBlobStore, key: BlobKey) {
+    return new Promise<boolean>((resolve, reject) => {
+        store.exists(key, (error, exists) => {
+            if (error) {
+                reject(error)
+            } else {
+                resolve(exists)
+            }
+        })
+    })
+}
+
+/** Write data to store. */
+export function storeWrite(store: AbstractBlobStore, key: BlobKey, data: Buffer | string) {
+    return new Promise(async (resolve, reject) => {
+        const stream = store.createWriteStream(key, (error, metadata) => {
+            if (error) { reject(error) } else { resolve(metadata) }
+        })
+        stream.write(data)
+        stream.end()
+    })
 }

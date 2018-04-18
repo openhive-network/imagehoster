@@ -4,7 +4,7 @@ import * as Koa from 'koa'
 import streamHead from 'stream-head/dist-es6'
 
 import {APIError} from './error'
-import {store} from './store'
+import {store} from './common'
 import {mimeMagic} from './utils'
 
 export async function serveHandler(ctx: Koa.Context) {
@@ -13,7 +13,7 @@ export async function serveHandler(ctx: Koa.Context) {
     APIError.assert(ctx.method === 'GET', APIError.Code.InvalidMethod)
     APIError.assertParams(ctx.params, ['hash'])
 
-    const file = store.store.createReadStream(ctx.params['hash'])
+    const file = store.createReadStream(ctx.params['hash'])
     file.on('error', (error) => {
         if (error.notFound || error.code === 'NoSuchKey') {
             ctx.res.writeHead(404, 'Not Found')

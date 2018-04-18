@@ -12,6 +12,7 @@ export const testKeys = {
 export const mockAccounts = {
     foo: {
         name: 'foo',
+        reputation: '10525900772718',
         posting: {
             weight_threshold: 1,
             account_auths: [],
@@ -20,6 +21,7 @@ export const mockAccounts = {
     },
     bar: {
         name: 'bar',
+        reputation: '10525900772718',
         posting: {
             weight_threshold: 1,
             account_auths: [],

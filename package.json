@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@koa/cors": "^2.2.1",
-    "abstract-blob-store": "^3.3.2",
+    "abstract-blob-store": "^3.3.4",
     "aws-sdk": "^2.188.0",
     "bunyan": "^2.0.2",
     "busboy": "^0.2.14",

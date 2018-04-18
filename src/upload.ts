@@ -11,10 +11,9 @@ import * as RateLimit from 'ratelimiter'
 import {URL} from 'url'
 
 import {accountBlacklist} from './blacklist'
-import {redisClient, rpcClient} from './common'
+import {redisClient, rpcClient, store} from './common'
 import {APIError} from './error'
-import {store} from './store'
-import {readStream} from './utils'
+import {readStream, storeExists, storeWrite} from './utils'
 
 const SERVICE_URL = new URL(config.get('service_url'))
 const MAX_IMAGE_SIZE = Number.parseInt(config.get('max_image_size'))
@@ -139,8 +138,8 @@ export async function uploadHandler(ctx: Koa.Context) {
     const key = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
     const url = new URL(`${ key }/${ file.name }`, SERVICE_URL)
 
-    if (!(await store.exists(key))) {
-        await store.write(key, data)
+    if (!(await storeExists(store, key))) {
+        await storeWrite(store, key, data)
     } else {
         ctx.log.debug('key %s already exists in store', key)
     }
