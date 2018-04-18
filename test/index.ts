@@ -9,7 +9,7 @@ export const testKeys = {
     bar: PrivateKey.fromSeed('bar'),
 }
 
-export const mockAccounts = {
+export const mockAccounts: any = {
     foo: {
         name: 'foo',
         reputation: '10525900772718',
