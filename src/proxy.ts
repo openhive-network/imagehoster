@@ -82,6 +82,7 @@ export async function proxyHandler(ctx: Koa.Context) {
     let origKey: string
 
     const origIsUpload = SERVICE_URL.origin === url.origin && url.pathname[1] === 'D'
+    ctx.tag({is_upload: origIsUpload})
     if (origIsUpload) {
         // if we are proxying or own image use the uploadStore directly
         // to avoid storing two copies of the same data
@@ -101,6 +102,7 @@ export async function proxyHandler(ctx: Koa.Context) {
 
     // check if we already have a converted image for requested key
     if (await storeExists(proxyStore, imageKey)) {
+        ctx.tag({store: 'resized'})
         ctx.log.debug('streaming %s from store', imageKey)
         const file = proxyStore.createReadStream(imageKey)
         file.on('error', (error) => {
@@ -121,11 +123,13 @@ export async function proxyHandler(ctx: Koa.Context) {
     let origData: Buffer
     let contentType: string
     if (await storeExists(origStore, origKey)) {
+        ctx.tag({store: 'original'})
         origData = await readStream(origStore.createReadStream(origKey))
         contentType = await mimeMagic(origData)
     } else {
         APIError.assert(origIsUpload === false, 'Upload not found')
-        ctx.log.debug('fetching %s', url.toString())
+        ctx.tag({store: 'fetch'})
+        ctx.log.debug({url: url.toString()}, 'fetching image')
 
         const res = await fetchUrl(url.toString(), {
             open_timeout: 5 * 1000,
