@@ -1,24 +1,33 @@
-## Configure
 
-> cp ./config/env_example.sh env_prod.sh
+imagehoster
+===========
 
-See also: `./config/index.js`
+Steem-powered image hosting and proxying service.
 
-## Example upload
 
-#### Start the server
+Developing
+----------
 
-Enable the TEST key in development mode only.  The examples below are signed using this test key.
- 
-> export STEEMIT_UPLOAD_TEST_KEY=true
-> . ./env_prod.sh
-> npm start
+With node.js installed, run:
 
-#### Quota Server
+```
+make devserver
+```
 
-Tarantool database should be available on port 3301 of your local host.
+This will pull in all dependencies and spin up a hot-reloading development server.
 
-> tarantool ./app.lua
+Run `make lint` to run the autolinter, `make test` to run the unit tests.
+
+
+Configuration
+-------------
+
+Defaults are in <./config/default.toml> and can be overridden by env vars as defined in <./config/custom-enviroment-variables.toml>
+
+Load order is: env vars > `config/$NODE_ENV.toml` > `config/default.toml`
+
+See the `config` module docs for more details.
+
 
 #### Usage
 
