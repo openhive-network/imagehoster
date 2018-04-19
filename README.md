@@ -43,7 +43,7 @@ Responses should be determined by the Content-Type header, errors will have a st
 }
 ```
 
-### `POST /<username>/<signature>` - upload an image.
+#### `POST /<username>/<signature>` - upload an image.
 
 Multipart image upload, will only consider first file if there are multiple.
 
@@ -58,20 +58,20 @@ Returns a JSON object containing the url to the uploaded image, example:
 Requires a signature from a Steem account in good standing, see the "Signing uploads" section below for more information.
 
 
-### `GET /<image_hash>/[<filename>]` - fetch an uploaded image.
+#### `GET /<image_hash>/[<filename>]` - fetch an uploaded image.
 
 Download a previously uploaded image.
 
 `filename` is optional but can be provided to help users and applications understand the content type (Content-Type header will still always reflect actual image type).
 
 
-### `GET /<width>x<height>/<image_url>` - proxy and resize an image.
+#### `GET /<width>x<height>/<image_url>` - proxy and resize an image.
 
 Downloads and serves the provided `image_url`, note that a copy will be taken of the image and that will be served on subsequent requests so even if the upstream is removed or changes you will still get the original from the proxy endpoint.
 
 `width` and `height` can be set to `0` to preserve the image dimensions, if they are `>0` the image will be aspect resized (down-sample only) to fit inside the rectangle.
 
-### `GET /u/<username>/avatar/[<size>]` - get user avatar image.
+#### `GET /u/<username>/avatar/[<size>]` - get user avatar image.
 
 Serves the avatar for `username`, if no avatar is set a default image will be served (set in service config).
 
