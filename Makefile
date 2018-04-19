@@ -37,7 +37,7 @@ ci-test: node_modules reports
 	NODE_ENV=test nyc -r lcov -e .ts -i ts-node/register \
 		--report-dir reports/coverage \
 		mocha --require ts-node/register \
-		--reporter mocha-junit-reporter \
+		--reporter $$([ -n "$$CI" ] && echo "mocha-junit-reporter" || echo "tap") \
 		--reporter-options mochaFile=./reports/unit-tests/junit.xml \
 		test/*.ts
 
