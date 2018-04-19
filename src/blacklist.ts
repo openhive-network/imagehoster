@@ -4,6 +4,7 @@ interface Blacklist<T> {
     includes: (item: T) => boolean
 }
 
+/* tslint:disable:max-line-length */
 export const imageBlacklist: Blacklist<string> = [
     'http://avivas.ru/img/topic/23850/20.jpg',
     'http://bogleech.com/nature/fly-microdon.jpg',
