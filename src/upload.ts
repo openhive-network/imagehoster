@@ -7,7 +7,7 @@ import {Client, Signature} from 'dsteem'
 import * as http from 'http'
 import * as Koa from 'koa'
 import * as multihash from 'multihashes'
-import * as RateLimit from 'ratelimiter'
+import * as RateLimiter from 'ratelimiter'
 import {URL} from 'url'
 
 import {accountBlacklist} from './blacklist'
@@ -49,15 +49,21 @@ async function parseMultipart(request: http.IncomingMessage) {
     })
 }
 
+interface RateLimit {
+    remaining: number
+    reset: number
+    total: number
+}
+
 /**
  * Get ratelimit info for account name.
  */
 async function getRatelimit(account: string) {
-    return new Promise<{total: number, remaining: number, reset: number}>((resolve, reject) => {
+    return new Promise<RateLimit>((resolve, reject) => {
         if (!redisClient) {
             throw new Error('Redis not configured')
         }
-        const limit = new RateLimit({
+        const limit = new RateLimiter({
             db: redisClient,
             duration: UPLOAD_LIMITS.duration,
             id: account,
@@ -125,13 +131,14 @@ export async function uploadHandler(ctx: Koa.Context) {
     APIError.assert(validSignature, APIError.Code.InvalidSignature)
     APIError.assert(!accountBlacklist.includes(account.name), APIError.Code.Blacklisted)
 
+    let limit: RateLimit = {total: 0, remaining: Infinity, reset: 0}
     try {
-        const limit = await getRatelimit(account.name)
-        ctx.tag({limit_remaining: limit.remaining})
-        APIError.assert(limit.remaining > 0, APIError.Code.QoutaExceeded)
+        limit = await getRatelimit(account.name)
     } catch (error) {
         ctx.log.warn(error, 'unable to enforce upload rate limits')
     }
+
+    APIError.assert(limit.remaining > 0, APIError.Code.QoutaExceeded)
 
     APIError.assert(repLog10(account.reputation) >= UPLOAD_LIMITS.reputation, APIError.Code.Deplorable)
 
@@ -144,7 +151,7 @@ export async function uploadHandler(ctx: Koa.Context) {
         ctx.log.debug('key %s already exists in store', key)
     }
 
-    ctx.log.info({account: account.name}, 'uploaded %s', url)
+    ctx.log.info({uploader: account.name, size: data.byteLength}, 'image uploaded')
 
     ctx.status = 200
     ctx.body = {url}
