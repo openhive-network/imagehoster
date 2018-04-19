@@ -21,8 +21,6 @@ if (config.has('redis_url')) {
 }
 
 /** Blob storage. */
-export const uploadStore = loadStore('upload_store')
-export const proxyStore = loadStore('proxy_store')
 
 let S3Client: any
 function loadStore(key: string): AbstractBlobStore {
@@ -43,3 +41,6 @@ function loadStore(key: string): AbstractBlobStore {
         throw new Error(`Invalid storage type: ${ conf.type }`)
     }
 }
+
+export const uploadStore = loadStore('upload_store')
+export const proxyStore = loadStore('proxy_store')
