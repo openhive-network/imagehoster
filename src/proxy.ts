@@ -131,15 +131,20 @@ export async function proxyHandler(ctx: Koa.Context) {
         ctx.tag({store: 'fetch'})
         ctx.log.debug({url: url.toString()}, 'fetching image')
 
-        const res = await fetchUrl(url.toString(), {
-            open_timeout: 5 * 1000,
-            response_timeout: 5 * 1000,
-            read_timeout: 60 * 1000,
-            compressed: true,
-            parse_response: false,
-            follow_max: 5,
-            user_agent: 'SteemitProxy/1.0 (+https://github.com/steemit/imagehoster)',
-        } as any)
+        let res: NeedleResponse
+        try {
+            res = await fetchUrl(url.toString(), {
+                open_timeout: 5 * 1000,
+                response_timeout: 5 * 1000,
+                read_timeout: 60 * 1000,
+                compressed: true,
+                parse_response: false,
+                follow_max: 5,
+                user_agent: 'SteemitProxy/1.0 (+https://github.com/steemit/imagehoster)',
+            } as any)
+        } catch (cause) {
+            throw new APIError({cause, code: APIError.Code.UpstreamError})
+        }
 
         APIError.assert(res.bytes <= MAX_IMAGE_SIZE, APIError.Code.PayloadTooLarge)
         APIError.assert(Buffer.isBuffer(res.body), APIError.Code.InvalidImage)
