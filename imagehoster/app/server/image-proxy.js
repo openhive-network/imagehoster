@@ -80,6 +80,7 @@ router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', function *() {
         'https://i.imgur.com/P6WASGn.jpg',
         'https://i.imgur.com/qbvU7fN.jpg',
         'https://i.imgur.com/XhwS8Ow.jpg',
+        'http://www.honr.info/images/honrimage2.png',
         'http://img09.deviantart.net/c561/i/2015/005/4/b/psychedeliczen_id_by_psychedeliczen-d63npyv.jpg',
         'https://img.esteem.ws/lk2hsivn08.jpg',
         'https://ipfs.io/ipfs/QmWMfcLnPFKL36hR4T4qiyBFWzV9yzN2fXaYZXQ3uA4nrr',
