@@ -1,2 +1,5 @@
-node_modules
-npm-debug.log
+node_modules/
+lib/
+reports/
+.nyc_output/
+config/local*
