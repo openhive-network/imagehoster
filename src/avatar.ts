@@ -1,9 +1,8 @@
 /** Serve user avatars. */
 
 import * as config from 'config'
-import * as Koa from 'koa'
 
-import {rpcClient} from './common'
+import {KoaContext, rpcClient} from './common'
 import {APIError} from './error'
 
 const DefaultAvatar = config.get('default_avatar')
@@ -13,7 +12,7 @@ const AvatarSizes: {[size: string]: number} = {
     large: 512,
 }
 
-export async function avatarHandler(ctx: Koa.Context) {
+export async function avatarHandler(ctx: KoaContext) {
     ctx.tag({handler: 'avatar'})
 
     APIError.assert(ctx.method === 'GET', APIError.Code.InvalidMethod)

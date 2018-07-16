@@ -5,13 +5,12 @@ import * as config from 'config'
 import {createHash} from 'crypto'
 import {Client, Signature} from 'dsteem'
 import * as http from 'http'
-import * as Koa from 'koa'
 import * as multihash from 'multihashes'
 import * as RateLimiter from 'ratelimiter'
 import {URL} from 'url'
 
 import {accountBlacklist} from './blacklist'
-import {redisClient, rpcClient, uploadStore} from './common'
+import {KoaContext, redisClient, rpcClient, uploadStore} from './common'
 import {APIError} from './error'
 import {readStream, storeExists, storeWrite} from './utils'
 
@@ -79,7 +78,7 @@ async function getRatelimit(account: string) {
     })
 }
 
-export async function uploadHandler(ctx: Koa.Context) {
+export async function uploadHandler(ctx: KoaContext) {
     ctx.tag({handler: 'upload'})
 
     APIError.assert(ctx.method === 'POST', {code: APIError.Code.InvalidMethod})

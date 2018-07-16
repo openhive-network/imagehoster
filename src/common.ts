@@ -3,9 +3,17 @@
 import {AbstractBlobStore} from 'abstract-blob-store'
 import * as config from 'config'
 import {Client} from 'dsteem'
+import {IRouterContext} from 'koa-router'
 import * as Redis from 'redis'
 
 import {logger} from './logger'
+
+/** Koa context extension. */
+export interface KoaContext extends IRouterContext {
+    [k: string]: any
+    log: typeof logger
+    tag: (metadata: any) => void
+}
 
 /** Steemd (jussi) RPC client. */
 export const rpcClient = new Client(config.get('rpc_node'))

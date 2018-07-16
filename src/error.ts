@@ -1,7 +1,6 @@
 /** API Errors. */
 
-import * as Koa from 'koa'
-
+import {KoaContext} from './common'
 import {camelToSnake} from './utils'
 
 enum ErrorCode {
@@ -106,7 +105,7 @@ export class APIError extends Error {
     }
 }
 
-export async function errorMiddleware(ctx: Koa.Context, next: () => Promise<any>) {
+export async function errorMiddleware(ctx: KoaContext, next: () => Promise<any>) {
     try {
         await next()
     } catch (error) {

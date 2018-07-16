@@ -4,7 +4,6 @@ import {AbstractBlobStore} from 'abstract-blob-store'
 import * as config from 'config'
 import {createHash} from 'crypto'
 import * as http from 'http'
-import * as Koa from 'koa'
 import * as multihash from 'multihashes'
 import * as needle from 'needle'
 import * as Sharp from 'sharp'
@@ -12,7 +11,7 @@ import streamHead from 'stream-head/dist-es6'
 import {URL} from 'url'
 
 import {imageBlacklist} from './blacklist'
-import {proxyStore, uploadStore} from './common'
+import {KoaContext, proxyStore, uploadStore} from './common'
 import {APIError} from './error'
 import {mimeMagic, readStream, storeExists, storeWrite} from './utils'
 
@@ -49,7 +48,7 @@ function fetchUrl(url: string, options: needle.NeedleOptions) {
     })
 }
 
-export async function proxyHandler(ctx: Koa.Context) {
+export async function proxyHandler(ctx: KoaContext) {
     ctx.tag({handler: 'proxy'})
 
     APIError.assert(ctx.method === 'GET', APIError.Code.InvalidMethod)
