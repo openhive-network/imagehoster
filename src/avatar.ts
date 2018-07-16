@@ -41,5 +41,5 @@ export async function avatarHandler(ctx: KoaContext) {
     }
 
     ctx.set('Cache-Control', 'public,max-age=600')
-    ctx.redirect(`/${ size }x${ size }/${ avatarUrl }`)
+    ctx.redirect(`/p/${ avatarUrl }?width=${ size }&height=${ size }`)
 }
