@@ -1,4 +1,4 @@
-FROM node:9-alpine as build-stage
+FROM node:10-alpine as build-stage
 
 WORKDIR /app
 
@@ -26,7 +26,7 @@ RUN make lib ci-test
 RUN yarn install --non-interactive --frozen-lockfile --production
 
 # copy built application to runtime image
-FROM node:9-alpine
+FROM node:10-alpine
 WORKDIR /app
 RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/testing \
     fftw vips
