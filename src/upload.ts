@@ -118,7 +118,13 @@ export async function uploadHandler(ctx: KoaContext) {
     APIError.assert(account, APIError.Code.NoSuchAccount)
 
     let validSignature = false
-    const publicKey = signature.recover(imageHash).toString()
+    let publicKey
+    try {
+         publicKey = signature.recover(imageHash).toString()
+    } catch (cause) {
+        throw new APIError({code: APIError.Code.InvalidSignature, cause})
+    }
+
     const threshold = account.posting.weight_threshold
     for (const auth of account.posting.key_auths) {
         if (auth[0] === publicKey && auth[1] >= threshold) {
