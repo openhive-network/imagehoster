@@ -278,9 +278,11 @@ export async function proxyHandler(ctx: KoaContext) {
 
         APIError.assert(metadata.width && metadata.height, APIError.Code.InvalidImage)
 
-        // TODO: constrain
-        const width = options.width
-        const height = options.height
+        let width = options.width
+        let height = options.height
+
+        if (width && width > 8000) { width = 8000 }
+        if (height && height > 8000) { height = 8000 }
 
         switch (options.mode) {
             case ScalingMode.Cover:
