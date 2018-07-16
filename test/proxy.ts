@@ -2,13 +2,14 @@ import 'mocha'
 import * as assert from 'assert'
 import * as http from 'http'
 import * as needle from 'needle'
+import * as multihash from 'multihashes'
 import * as path from 'path'
 import * as fs from 'fs'
 import * as sharp from 'sharp'
 
 import {app} from './../src/app'
 import {proxyStore, uploadStore} from './../src/common'
-import {storeExists} from './../src/utils'
+import {storeExists, base58Enc} from './../src/utils'
 
 import {uploadImage} from './upload'
 
@@ -18,6 +19,8 @@ describe('proxy', function() {
 
     before((done) => { server.listen(port, 'localhost', done) })
     after((done) => { server.close(done) })
+
+    needle.defaults({follow_max: 1})
 
     let serveImage = true
     const imageServer = http.createServer((req, res) => {
@@ -74,6 +77,19 @@ describe('proxy', function() {
         const image = sharp(res.body)
         const meta = await image.metadata()
         assert((await storeExists(proxyStore, key)) === false, 'proxy store has original')
+    })
+
+    it('should proxy using new api', async function() {
+        this.slow(1000)
+        serveImage = false
+        const imageUrl = base58Enc(`http://localhost:${ port+1 }/test.jpg`)
+        const res = await needle('get', `http://localhost:${ port }/p/${ imageUrl }?width=100&height=100&format=webp`)
+        const image = sharp(res.body)
+        const meta = await image.metadata()
+        assert.equal(meta.width, 100)
+        assert.equal(meta.height, 100)
+        assert.equal(meta.format, 'webp')
+        assert.equal(meta.space, 'srgb')
     })
 
 })

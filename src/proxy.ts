@@ -13,7 +13,7 @@ import {URL} from 'url'
 import {imageBlacklist} from './blacklist'
 import {KoaContext, proxyStore, uploadStore} from './common'
 import {APIError} from './error'
-import {mimeMagic, readStream, storeExists, storeWrite} from './utils'
+import {base58Dec, mimeMagic, readStream, storeExists, storeWrite} from './utils'
 
 const MAX_IMAGE_SIZE = Number.parseInt(config.get('max_image_size'))
 if (!Number.isFinite(MAX_IMAGE_SIZE)) {
@@ -48,26 +48,112 @@ function fetchUrl(url: string, options: needle.NeedleOptions) {
     })
 }
 
+enum ScalingMode {
+    /**
+     * Scales the image to cover the rectangle defined by width and height.
+     * Any overflow will be cropped equally on all sides (center weighted).
+     */
+    Cover,
+    /**
+     * Scales the image to fit into the rectangle defined by width and height.
+     */
+    Fit,
+}
+
+enum OutputFormat {
+    /** Matches the input format, default. */
+    Match,
+    JPEG,
+    PNG,
+    WEBP,
+}
+
+interface ProxyOptions {
+    /** URL to image that should be proxied. */
+    url: URL
+    /** Image width, if unset min(orig_width, max_image_width) will be used. */
+    width?: number
+    /** Image height, if unset min(orig_height, max_image_height) will be used. */
+    height?: number
+    /** Scaling mode to use if the image has to be resized. */
+    mode: ScalingMode
+    /** Output format for the proxied image. */
+    format: OutputFormat
+}
+
+function parseOptions(ctx: KoaContext): ProxyOptions {
+    let url: URL
+    try {
+        url = new URL(base58Dec(ctx.params.url))
+    } catch (cause) {
+        throw new APIError({cause, code: APIError.Code.InvalidProxyUrl})
+    }
+    const q = ctx.query
+    const width = Number.parseInt(q['width']) || undefined
+    const height = Number.parseInt(q['height']) || undefined
+    let mode: ScalingMode
+    switch (q['mode']) {
+        case undefined:
+        case 'cover':
+            mode = ScalingMode.Cover
+            break
+        case 'fit':
+            mode = ScalingMode.Fit
+            break
+        default:
+            throw new APIError({message: 'Invalid scaling mode', code: APIError.Code.InvalidParam})
+    }
+    let format: OutputFormat
+    switch (q['format']) {
+        case undefined:
+        case 'match':
+            format = OutputFormat.Match
+            break
+        case 'jpeg':
+        case 'jpg':
+            format = OutputFormat.JPEG
+            break
+        case 'png':
+            format = OutputFormat.PNG
+            break
+        case 'webp':
+            format = OutputFormat.WEBP
+            break
+        default:
+            throw new APIError({message: 'Invalid output format', code: APIError.Code.InvalidParam})
+    }
+    return {url, width, height, mode, format}
+}
+
+function getImageKey(origKey: string, options: ProxyOptions): string {
+    if (options.mode === ScalingMode.Fit && options.format === OutputFormat.Match) {
+        // follow legacy key convention where possible
+        return `${ origKey }_${ options.width || 0 }x${ options.height || 0 }`
+    }
+    const rv = [origKey, ScalingMode[options.mode], OutputFormat[options.format]]
+    if (options.width) {
+        rv.push(options.width.toFixed(0))
+    }
+    if (options.height) {
+        rv.push(options.height.toFixed(0))
+    }
+    return rv.join('_')
+}
+
 export async function proxyHandler(ctx: KoaContext) {
     ctx.tag({handler: 'proxy'})
 
     APIError.assert(ctx.method === 'GET', APIError.Code.InvalidMethod)
-    APIError.assertParams(ctx.params, ['width', 'height', 'url'])
+    APIError.assertParams(ctx.params, ['url'])
 
-    const width = Number.parseInt(ctx.params['width'])
-    const height = Number.parseInt(ctx.params['height'])
+    const options = parseOptions(ctx)
+    const url = options.url
 
-    APIError.assert(Number.isFinite(width), 'Invalid width')
-    APIError.assert(Number.isFinite(height), 'Invalid height')
-
-    let url: URL
-    try {
-        let urlStr = ctx.request.originalUrl
-        urlStr = urlStr.slice(urlStr.indexOf('http'))
-        urlStr = urlStr.replace('steemit.com/ipfs/', 'ipfs.io/ipfs/')
-        url = new URL(urlStr)
-    } catch (cause) {
-        throw new APIError({cause, code: APIError.Code.InvalidProxyUrl})
+    if (options.width) {
+        APIError.assert(Number.isFinite(options.width), 'Invalid width')
+    }
+    if (options.height) {
+        APIError.assert(Number.isFinite(options.height), 'Invalid height')
     }
 
     // cache all proxy requests for minimum 10 minutes, including failures
@@ -97,7 +183,7 @@ export async function proxyHandler(ctx: KoaContext) {
         )
     }
 
-    const imageKey = `${ origKey }_${ width }x${ height }`
+    const imageKey = getImageKey(origKey, options)
 
     // check if we already have a converted image for requested key
     if (await storeExists(proxyStore, imageKey)) {
@@ -162,8 +248,13 @@ export async function proxyHandler(ctx: KoaContext) {
     }
 
     let rv: Buffer
-    if (contentType === 'image/gif' && width === 0 && height === 0) {
-        // pass trough gif if requested with original size (0x0)
+    if (contentType === 'image/gif' &&
+        options.width === undefined &&
+        options.height === undefined &&
+        options.format === OutputFormat.Match &&
+        options.mode === ScalingMode.Fit
+    ) {
+        // pass trough gif if requested with original size
         // this is needed since resizing gifs creates still images
         rv = origData
     } else {
@@ -172,6 +263,9 @@ export async function proxyHandler(ctx: KoaContext) {
             force: false,
         }).png({
             compressionLevel: 9,
+            force: false,
+        }).webp({
+            alphaQuality: 100,
             force: false,
         })
 
@@ -184,15 +278,31 @@ export async function proxyHandler(ctx: KoaContext) {
 
         APIError.assert(metadata.width && metadata.height, APIError.Code.InvalidImage)
 
-        const newSize = calculateGeo(
-            metadata.width as number,
-            metadata.height as number,
-            width,
-            height
-        )
+        // TODO: constrain
+        const width = options.width
+        const height = options.height
 
-        if (newSize.width !== metadata.width || newSize.height !== metadata.height) {
-            image.resize(newSize.width, newSize.height)
+        switch (options.mode) {
+            case ScalingMode.Cover:
+                image.resize(width, height).crop()
+                break
+            case ScalingMode.Fit:
+                image.resize(width, height).max()
+                break
+        }
+
+        switch (options.format) {
+            case OutputFormat.Match:
+                break
+            case OutputFormat.JPEG:
+                image.jpeg({force: true})
+                break
+            case OutputFormat.PNG:
+                image.png({force: true})
+                break
+            case OutputFormat.WEBP:
+                image.webp({force: true})
+                break
         }
 
         rv = await image.toBuffer()
@@ -203,38 +313,4 @@ export async function proxyHandler(ctx: KoaContext) {
     ctx.set('Content-Type', contentType)
     ctx.set('Cache-Control', 'public,max-age=29030400,immutable')
     ctx.body = rv
-}
-
-// from old codebase
-function calculateGeo(origWidth: number, origHeight: number, targetWidth: number, targetHeight: number) {
-    // Default ratio. Default crop.
-    const origRatio  = (origHeight !== 0 ? (origWidth / origHeight) : 1)
-
-    // Fill in missing target dims.
-    if (targetWidth === 0 && targetHeight === 0) {
-        targetWidth  = origWidth
-        targetHeight = origHeight
-    } else if (targetWidth === 0) {
-        targetWidth  = Math.round(targetHeight * origRatio)
-    } else if (targetHeight === 0) {
-        targetHeight = Math.round(targetWidth / origRatio)
-    }
-
-    // Constrain target dims.
-    if (targetWidth > origWidth) {   targetWidth  = origWidth }
-    if (targetHeight > origHeight) { targetHeight = origHeight }
-
-    const targetRatio = targetWidth / targetHeight
-    if (targetRatio > origRatio) {
-        // max out height, and calc a smaller width
-        targetWidth = Math.round(targetHeight * origRatio)
-    } else if (targetRatio < origRatio) {
-        // max out width, calc a smaller height
-        targetHeight = Math.round(targetWidth / origRatio)
-    }
-
-    return {
-        width:  targetWidth,
-        height: targetHeight,
-    }
 }
