@@ -69,8 +69,6 @@ enum OutputFormat {
 }
 
 interface ProxyOptions {
-    /** URL to image that should be proxied. */
-    url: URL
     /** Image width, if unset min(orig_width, max_image_width) will be used. */
     width?: number
     /** Image height, if unset min(orig_height, max_image_height) will be used. */
@@ -81,18 +79,21 @@ interface ProxyOptions {
     format: OutputFormat
 }
 
-function parseOptions(ctx: KoaContext): ProxyOptions {
+function parseUrl(value: string): URL {
     let url: URL
     try {
-        url = new URL(base58Dec(ctx.params.url))
+        url = new URL(base58Dec(value))
     } catch (cause) {
         throw new APIError({cause, code: APIError.Code.InvalidProxyUrl})
     }
-    const q = ctx.query
-    const width = Number.parseInt(q['width']) || undefined
-    const height = Number.parseInt(q['height']) || undefined
+    return url
+}
+
+function parseOptions(query: {[key: string]: any}): ProxyOptions {
+    const width = Number.parseInt(query['width']) || undefined
+    const height = Number.parseInt(query['height']) || undefined
     let mode: ScalingMode
-    switch (q['mode']) {
+    switch (query['mode']) {
         case undefined:
         case 'cover':
             mode = ScalingMode.Cover
@@ -104,7 +105,7 @@ function parseOptions(ctx: KoaContext): ProxyOptions {
             throw new APIError({message: 'Invalid scaling mode', code: APIError.Code.InvalidParam})
     }
     let format: OutputFormat
-    switch (q['format']) {
+    switch (query['format']) {
         case undefined:
         case 'match':
             format = OutputFormat.Match
@@ -122,7 +123,7 @@ function parseOptions(ctx: KoaContext): ProxyOptions {
         default:
             throw new APIError({message: 'Invalid output format', code: APIError.Code.InvalidParam})
     }
-    return {url, width, height, mode, format}
+    return {width, height, mode, format}
 }
 
 function getImageKey(origKey: string, options: ProxyOptions): string {
@@ -146,8 +147,13 @@ export async function proxyHandler(ctx: KoaContext) {
     APIError.assert(ctx.method === 'GET', APIError.Code.InvalidMethod)
     APIError.assertParams(ctx.params, ['url'])
 
-    const options = parseOptions(ctx)
-    const url = options.url
+    const options = parseOptions(ctx.query)
+    let url = parseUrl(ctx.params.url)
+
+    // resolve double proxied images
+    while (url.origin === SERVICE_URL.origin && url.pathname.slice(0, 2) === '/p') {
+        url = parseUrl(url.pathname.slice(3))
+    }
 
     if (options.width) {
         APIError.assert(Number.isFinite(options.width), 'Invalid width')

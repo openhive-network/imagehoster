@@ -92,4 +92,19 @@ describe('proxy', function() {
         assert.equal(meta.space, 'srgb')
     })
 
+    it('should resolve double proxied images', async function() {
+        this.slow(1000)
+        serveImage = false
+        const imageUrl = base58Enc(`http://localhost:${ port+1 }/test.jpg`)
+        const url1 = `http://localhost:${ port }/p/${ imageUrl }?width=100&height=100`
+        const url2 = `http://localhost:${ port }/p/${ base58Enc(url1) }?width=200`
+        const res = await needle('get', url2)
+        console.log(res.body)
+        const image = sharp(res.body)
+        const meta = await image.metadata()
+        assert.equal(meta.width, 200)
+        // this would be 200 if the first url wasn't stripped
+        assert.equal(meta.height, 133)
+    })
+
 })
