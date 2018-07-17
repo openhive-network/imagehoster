@@ -56,6 +56,7 @@ enum ScalingMode {
     Cover,
     /**
      * Scales the image to fit into the rectangle defined by width and height.
+     * This mode will only downsample.
      */
     Fit,
 }
@@ -295,7 +296,7 @@ export async function proxyHandler(ctx: KoaContext) {
                 image.resize(width, height).crop()
                 break
             case ScalingMode.Fit:
-                image.resize(width, height).max()
+                image.resize(width, height).max().withoutEnlargement()
                 break
         }
 
