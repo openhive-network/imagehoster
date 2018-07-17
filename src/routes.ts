@@ -15,6 +15,7 @@ const router = new Router()
 async function healthcheck(ctx: KoaContext) {
     const ok = true
     const date = new Date()
+    ctx.set('Cache-Control', 'no-cache')
     ctx.body = {ok, version, date}
 }
 
