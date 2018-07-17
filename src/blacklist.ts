@@ -46,6 +46,7 @@ export const imageBlacklist: Blacklist<string> = [
     'https://photos.smugmug.com/Ants/Taxonomic-List-of-Ant-Genera/Lasius/i-gj7LzPm/0/XL/flavus5-XL.jpg',
     'https://s9.postimg.org/6xge0h2gv/image.jpg',
     'https://thumbs.gfycat.com/FakeWellwornAlaskanmalamute-size_restricted.gif',
+    'https://thumbs.gfycat.com/CapitalPepperyAllosaurus-size_restricted.gif',
     'http://www.ecuavisa.com/sites/default/files/fotos/2017/01/04/hormiga.jpg',
     'http://www.quo.es/var/quo/storage/images/naturaleza/hormigas-de-fuego/1352329-1-esl-ES/las-hormigas-de-fuego-quieren-invadir-japon_ampliacion.jpg',
     'https://s14.postimg.org/qjbmzlvap/The_man_from_taured_RZ.jpg',
