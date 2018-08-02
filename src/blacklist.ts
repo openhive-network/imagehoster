@@ -25,6 +25,7 @@ export const imageBlacklist: Blacklist<string> = [
     'https://3.bp.blogspot.com/-HaidYOAZcRo/WgGFOjEJqJI/AAAAAAAANfQ/jKm7VXb7_08gqJPDCNsHkM2fxaiKeQsGACLcBGAs/s1600/Cephalotes%2Bporrasi%2B1.jpg',
     'https://d2r55xnwy6nx47.cloudfront.net/uploads/2014/04/Eciton7j-Alex-Wild-Web.jpg',
     'https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcRamUeYdOkZuUhgTr9drnicux-spHCow9d5slH8xeldMu1ODbi9JOl9b2R5Og',
+    'https://img.esteem.ws/b8r4fg7p4n.jpg',
     'https://i.blogs.es/05aca7/pyriformis13-xl/450_1000.jpg',
     'https://i.imgur.com/0XObSlG.jpg',
     'https://i.imgur.com/2s4Cb92.jpg',
@@ -39,6 +40,7 @@ export const imageBlacklist: Blacklist<string> = [
     'https://i.imgur.com/VKdTkV8.jpg',
     'https://i.imgur.com/XhwS8Ow.jpg',
     'https://img.esteem.ws/lk2hsivn08.jpg',
+    'https://img.esteem.ws/hhhly37j23.jpg',
     'https://ipfs.io/ipfs/QmWMfcLnPFKL36hR4T4qiyBFWzV9yzN2fXaYZXQ3uA4nrr',
     'https://ipfs.pics/ipfs/QmXz6jNVkH2FyMEUtXSAvbPN4EwG1uQJzDBq7gQCJs1Nym',
     'https://myrmecos.files.wordpress.com/2010/04/imparis14.jpg?w=1400',
@@ -52,7 +54,6 @@ export const imageBlacklist: Blacklist<string> = [
     'http://www.quo.es/var/quo/storage/images/naturaleza/hormigas-de-fuego/1352329-1-esl-ES/las-hormigas-de-fuego-quieren-invadir-japon_ampliacion.jpg',
     'https://s14.postimg.org/qjbmzlvap/The_man_from_taured_RZ.jpg',
     'https://s26.postimg.org/g1yai5ewp/hqdefault.jpg',
-    'https://img.esteem.ws/zmgz7cqrgb.jpg',
 ]
 
 export const accountBlacklist: Blacklist<string> = [
