@@ -26,6 +26,8 @@ export const imageBlacklist: Blacklist<string> = [
     'https://d2r55xnwy6nx47.cloudfront.net/uploads/2014/04/Eciton7j-Alex-Wild-Web.jpg',
     'https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcRamUeYdOkZuUhgTr9drnicux-spHCow9d5slH8xeldMu1ODbi9JOl9b2R5Og',
     'https://img.esteem.ws/b8r4fg7p4n.jpg',
+    'https://img.esteem.ws/nsbf69r7l5.jpg',
+    'https://img.esteem.ws/bxy7zwioi7.jpg',
     'https://i.blogs.es/05aca7/pyriformis13-xl/450_1000.jpg',
     'https://i.imgur.com/0XObSlG.jpg',
     'https://i.imgur.com/2s4Cb92.jpg',
