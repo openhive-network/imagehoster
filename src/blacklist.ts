@@ -74,6 +74,13 @@ export const imageBlacklist: Blacklist<string> = [
     'http://www.quo.es/var/quo/storage/images/naturaleza/hormigas-de-fuego/1352329-1-esl-ES/las-hormigas-de-fuego-quieren-invadir-japon_ampliacion.jpg',
     'https://s14.postimg.org/qjbmzlvap/The_man_from_taured_RZ.jpg',
     'https://s26.postimg.org/g1yai5ewp/hqdefault.jpg',
+    'http://venezuelaverde.com/wp-content/uploads/2016/01/Roraima-1.jpg',
+    'http://www.venezuelatuya.com/gransabana/roraima/kukenandesdetoperoraima_gde.jpg',
+    'http://www.u-acg.com/wp-content/uploads/2017/04/Monte-Roraima-41-1.jpg',
+    'https://i2.wp.com/www.lectualbeldrio.com.ve/wp-content/uploads/2017/02/371948-nature-landscape-Mount_Roraima-Venezuela-mountains-water-rock-reflection-mist-748x421.jpg?resize=640%2C360',
+    'http://www.legadocosmico.com/srx/max/mount_roraima_venezuela_6.jpg',
+    'https://arqueoastronomia.files.wordpress.com/2014/12/2b4fb-monteroraima.jpg?w=511&h=334',
+    'http://www.lapatilla.com/site/wp-content/uploads/2013/12/FOTO-3.jpg',
 ]
 
 export const accountBlacklist: Blacklist<string> = [
