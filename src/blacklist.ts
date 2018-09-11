@@ -81,9 +81,11 @@ export const imageBlacklist: Blacklist<string> = [
     'http://www.legadocosmico.com/srx/max/mount_roraima_venezuela_6.jpg',
     'https://arqueoastronomia.files.wordpress.com/2014/12/2b4fb-monteroraima.jpg?w=511&h=334',
     'http://www.lapatilla.com/site/wp-content/uploads/2013/12/FOTO-3.jpg',
+    'https://i.4cdn.org/biz/1509427563943.png',
 ]
 
 export const accountBlacklist: Blacklist<string> = [
+    'mpspringer',
     'aplomb',
     'iamgod',
 ]
