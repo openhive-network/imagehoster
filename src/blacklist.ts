@@ -74,9 +74,11 @@ export const imageBlacklist: Blacklist<string> = [
     'http://www.quo.es/var/quo/storage/images/naturaleza/hormigas-de-fuego/1352329-1-esl-ES/las-hormigas-de-fuego-quieren-invadir-japon_ampliacion.jpg',
     'https://s14.postimg.org/qjbmzlvap/The_man_from_taured_RZ.jpg',
     'https://s26.postimg.org/g1yai5ewp/hqdefault.jpg',
+    'https://i.4cdn.org/biz/1509427563943.png',
 ]
 
 export const accountBlacklist: Blacklist<string> = [
+    'mpspringer',
     'aplomb',
     'iamgod',
 ]
