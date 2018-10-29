@@ -82,6 +82,21 @@ export const imageBlacklist: Blacklist<string> = [
     'https://arqueoastronomia.files.wordpress.com/2014/12/2b4fb-monteroraima.jpg?w=511&h=334',
     'http://www.lapatilla.com/site/wp-content/uploads/2013/12/FOTO-3.jpg',
     'https://i.4cdn.org/biz/1509427563943.png',
+    'http://carterlandscapephotography.com.au/wp-content/uploads/2013/04/Country-Light.jpg',
+    'https://iso.500px.com/wp-content/uploads/2015/06/filters_cover.jpeg',
+    'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8389846858_e08e1b31ab_z.jpg',
+    'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8389845366_4b60df8d68_z.jpg',
+    'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8388758087_4a0cf450f1_z.jpg',
+    'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8388758993_5f1eca1cf2_z.jpg',
+    'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8389845028_1d4dc9b823_c.jpg',
+    'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8388759593_6008d7df36_z.jpg',
+    'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8388759361_7cc89850c9_z.jpg',
+    'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8388757585_7523a81abe_z.jpg',
+    'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8388759943_919ece40a2_z.jpg',
+    'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8389844652_1b33e0d602_c.jpg',
+    'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8389846974_71c868054a_z.jpg',
+    'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8389847110_496658df73_z.jpg',
+    'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8389847268_1c59fb03bc_z.jpg',
 ]
 
 export const accountBlacklist: Blacklist<string> = [
