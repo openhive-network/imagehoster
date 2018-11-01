@@ -9,23 +9,28 @@ jobs:
       - run: docker build .
   test:
     docker:
-      - image: node:9-alpine
+      - image: node:10-alpine
     steps:
       - run:
           >
             apk add --no-cache
+            bash build-base fftw-dev git make python
+      - run:
+          >
+            apk add --no-cache
+            --repository https://dl-3.alpinelinux.org/alpine/edge/main
             --repository http://dl-3.alpinelinux.org/alpine/edge/testing
-            bash build-base fftw-dev git make python vips-dev
+            vips-dev
       - checkout
       - restore_cache:
           keys:
-          - node9-dependencies-{{ checksum "yarn.lock" }}
-          - node9-dependencies-
+          - node10-dependencies-{{ checksum "yarn.lock" }}
+          - node10-dependencies-
       - run: yarn install --frozen-lockfile
       - save_cache:
           paths:
             - node_modules
-          key: node9-dependencies-{{ checksum "yarn.lock" }}
+          key: node10-dependencies-{{ checksum "yarn.lock" }}
       - run: yarn test
       - store_test_results:
           path: reports

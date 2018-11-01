@@ -24,7 +24,7 @@
     "ratelimiter": "^3.0.3",
     "redis": "^2.8.0",
     "s3-blob-store": "^3.2.0",
-    "sharp": "^0.20.1",
+    "sharp": "^0.21.0",
     "stream-head": "^1.1.0",
     "toml": "^2.3.3"
   },
