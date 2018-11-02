@@ -305,11 +305,14 @@ export async function proxyHandler(ctx: KoaContext) {
                 break
             case OutputFormat.JPEG:
                 image.jpeg({force: true})
+                contentType = 'image/jpeg'
                 break
             case OutputFormat.PNG:
                 image.png({force: true})
+                contentType = 'image/png'
                 break
             case OutputFormat.WEBP:
+                contentType = 'image/webp'
                 image.webp({force: true})
                 break
         }
