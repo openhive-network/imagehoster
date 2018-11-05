@@ -1,13 +1,12 @@
 /** Serve files from upload store. */
 
-import * as Koa from 'koa'
 import streamHead from 'stream-head/dist-es6'
 
-import {uploadStore} from './common'
+import {KoaContext, uploadStore} from './common'
 import {APIError} from './error'
 import {mimeMagic} from './utils'
 
-export async function serveHandler(ctx: Koa.Context) {
+export async function serveHandler(ctx: KoaContext) {
     ctx.tag({handler: 'serve'})
 
     APIError.assert(ctx.method === 'GET', APIError.Code.InvalidMethod)

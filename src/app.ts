@@ -7,6 +7,7 @@ import * as Koa from 'koa'
 import * as os from 'os'
 import * as util from 'util'
 
+import {KoaContext} from './common'
 import {APIError, errorMiddleware} from './error'
 import {logger, loggerMiddleware} from './logger'
 import {routes} from './routes'
@@ -17,8 +18,8 @@ export const version = require('./version')
 
 app.proxy = parseBool(config.get('proxy'))
 
-app.on('error', (error, ctx: Koa.Context) => {
-    const log: Bunyan = ctx['log'] || logger
+app.on('error', (error, ctx: KoaContext) => {
+    const log: Bunyan = ctx.log || logger
     if (error instanceof APIError) {
         if (error.statusCode >= 500) {
             log.error(error.cause || error, 'unexpected api error: %s', error.message)
@@ -30,8 +31,8 @@ app.on('error', (error, ctx: Koa.Context) => {
     }
 })
 
-app.use(loggerMiddleware)
-app.use(errorMiddleware)
+app.use(loggerMiddleware as any)
+app.use(errorMiddleware as any)
 app.use(cors())
 app.use(routes)
 app.use((ctx: Koa.Context) => {

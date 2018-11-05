@@ -1,7 +1,6 @@
 /** API Errors. */
 
-import * as Koa from 'koa'
-
+import {KoaContext} from './common'
 import {camelToSnake} from './utils'
 
 enum ErrorCode {
@@ -12,6 +11,7 @@ enum ErrorCode {
     InternalError,
     InvalidImage,
     InvalidMethod,
+    InvalidParam,
     InvalidProxyUrl,
     InvalidSignature,
     LengthRequired,
@@ -31,6 +31,7 @@ const HttpCodes = new Map<ErrorCode, number>([
     [ErrorCode.InternalError, 500],
     [ErrorCode.InvalidImage, 400],
     [ErrorCode.InvalidMethod, 405],
+    [ErrorCode.InvalidParam, 400],
     [ErrorCode.InvalidProxyUrl, 400],
     [ErrorCode.InvalidSignature, 400],
     [ErrorCode.LengthRequired, 411],
@@ -106,7 +107,7 @@ export class APIError extends Error {
     }
 }
 
-export async function errorMiddleware(ctx: Koa.Context, next: () => Promise<any>) {
+export async function errorMiddleware(ctx: KoaContext, next: () => Promise<any>) {
     try {
         await next()
     } catch (error) {
