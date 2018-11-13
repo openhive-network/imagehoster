@@ -97,6 +97,7 @@ export const imageBlacklist: Blacklist<string> = [
     'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8389846974_71c868054a_z.jpg',
     'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8389847110_496658df73_z.jpg',
     'https://cdn.fstoppers.com/wp-content/uploads/2013/01/8389847268_1c59fb03bc_z.jpg',
+    'http://www.honr.info/images/honrimage2.png',
 ]
 
 export const accountBlacklist: Blacklist<string> = [
