@@ -167,6 +167,8 @@ export async function proxyHandler(ctx: KoaContext) {
     ctx.set('Cache-Control', 'public,max-age=600')
 
     // refuse to proxy images on blacklist
+    ctx.log.debug({ url: url.toString(), options }, 'checking for blacklist')
+
     APIError.assert(imageBlacklist.includes(url.toString()) === false, APIError.Code.Blacklisted)
 
     // where the original image is/will be stored
