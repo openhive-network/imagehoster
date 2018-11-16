@@ -2,7 +2,6 @@
 
 import {AbstractBlobStore, BlobKey} from 'abstract-blob-store'
 import {Magic, MAGIC_MIME_TYPE} from 'mmmagic'
-import * as multihash from 'multihashes'
 
 const magic = new Magic(MAGIC_MIME_TYPE)
 
@@ -82,14 +81,4 @@ export function storeWrite(store: AbstractBlobStore, key: BlobKey, data: Buffer 
         stream.write(data)
         stream.end()
     })
-}
-
-/** Encode utf8 string with Base58. */
-export function base58Enc(value: string): string {
-    return multihash.toB58String(Buffer.from(value, 'utf8'))
-}
-
-/** Decode utf8 string from Base58. */
-export function base58Dec(value: string): string {
-    return multihash.fromB58String(value).toString('utf8')
 }

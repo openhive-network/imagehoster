@@ -5,11 +5,9 @@
     "moduleResolution": "node",
     "outDir": "lib",
     "strict": true,
-    "target": "esnext",
-    "typeRoots" : ["./node_modules/@types", "./src/types"]
+    "target": "esnext"
   },
   "include": [
-    "src/**/*.ts",
-    "src/types/*.ts.d"
+    "src/**/*.ts"
   ]
 }

@@ -1,19 +1,19 @@
 /** Serve user avatars. */
 
 import * as config from 'config'
-import { base58Enc } from './utils'
+import * as Koa from 'koa'
 
-import {KoaContext, rpcClient} from './common'
+import {rpcClient} from './common'
 import {APIError} from './error'
 
-const DefaultAvatar = config.get('default_avatar') as string
+const DefaultAvatar = config.get('default_avatar')
 const AvatarSizes: {[size: string]: number} = {
     small: 64,
     medium: 128,
     large: 512,
 }
 
-export async function avatarHandler(ctx: KoaContext) {
+export async function avatarHandler(ctx: Koa.Context) {
     ctx.tag({handler: 'avatar'})
 
     APIError.assert(ctx.method === 'GET', APIError.Code.InvalidMethod)
@@ -34,7 +34,7 @@ export async function avatarHandler(ctx: KoaContext) {
         metadata = {}
     }
 
-    let avatarUrl: string = DefaultAvatar
+    let avatarUrl = DefaultAvatar
     if (metadata.profile &&
         metadata.profile.profile_image &&
         metadata.profile.profile_image.match(/^https?:\/\//)) {
@@ -42,5 +42,5 @@ export async function avatarHandler(ctx: KoaContext) {
     }
 
     ctx.set('Cache-Control', 'public,max-age=600')
-    ctx.redirect(`/p/${ base58Enc(avatarUrl) }?width=${ size }&height=${ size }`)
+    ctx.redirect(`/${ size }x${ size }/${ avatarUrl }`)
 }

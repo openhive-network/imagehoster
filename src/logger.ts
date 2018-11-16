@@ -2,8 +2,8 @@
 
 import * as Bunyan from 'bunyan'
 import * as config from 'config'
+import * as Koa from 'koa'
 
-import {KoaContext} from './common'
 import {APIError} from './error'
 
 const level: Bunyan.LogLevel = config.get('log_level')
@@ -24,7 +24,7 @@ export const logger = Bunyan.createLogger({
     streams: [stream],
 })
 
-export function loggerMiddleware(ctx: KoaContext, next: () => Promise<any>) {
+export function loggerMiddleware(ctx: Koa.Context, next: () => Promise<any>) {
     ctx['start_time'] = process.hrtime()
     const uuid = ctx.request.get('X-Amzn-Trace-Id') ||
                  ctx.request.get('X-Request-Id') ||

@@ -5,12 +5,13 @@ import * as config from 'config'
 import {createHash} from 'crypto'
 import {Client, Signature} from 'dsteem'
 import * as http from 'http'
+import * as Koa from 'koa'
 import * as multihash from 'multihashes'
 import * as RateLimiter from 'ratelimiter'
 import {URL} from 'url'
 
 import {accountBlacklist} from './blacklist'
-import {KoaContext, redisClient, rpcClient, uploadStore} from './common'
+import {redisClient, rpcClient, uploadStore} from './common'
 import {APIError} from './error'
 import {readStream, storeExists, storeWrite} from './utils'
 
@@ -78,7 +79,7 @@ async function getRatelimit(account: string) {
     })
 }
 
-export async function uploadHandler(ctx: KoaContext) {
+export async function uploadHandler(ctx: Koa.Context) {
     ctx.tag({handler: 'upload'})
 
     APIError.assert(ctx.method === 'POST', {code: APIError.Code.InvalidMethod})
@@ -118,13 +119,7 @@ export async function uploadHandler(ctx: KoaContext) {
     APIError.assert(account, APIError.Code.NoSuchAccount)
 
     let validSignature = false
-    let publicKey
-    try {
-         publicKey = signature.recover(imageHash).toString()
-    } catch (cause) {
-        throw new APIError({code: APIError.Code.InvalidSignature, cause})
-    }
-
+    const publicKey = signature.recover(imageHash).toString()
     const threshold = account.posting.weight_threshold
     for (const auth of account.posting.key_auths) {
         if (auth[0] === publicKey && auth[1] >= threshold) {
