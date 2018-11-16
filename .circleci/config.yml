@@ -18,8 +18,8 @@ jobs:
       - run:
           >
             apk add --no-cache
-            --repository https://dl-3.alpinelinux.org/alpine/edge/main
-            --repository http://dl-3.alpinelinux.org/alpine/edge/testing
+            --repository https://dl-4.alpinelinux.org/alpine/edge/main
+            --repository http://dl-4.alpinelinux.org/alpine/edge/testing
             vips-dev
       - checkout
       - restore_cache:
