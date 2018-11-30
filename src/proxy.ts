@@ -142,11 +142,11 @@ function getImageKey(origKey: string, options: ProxyOptions): string {
     return rv.join('_')
 }
 
-export function configAsNumber(key: string, defaultValue: number): number {
+export function safeParseInt(value: any): number | undefined {
     // If the number can't be parsed (like if it's `nil` or `undefined`), then
     // `basicNumber` will be `NaN`.
-    const basicNumber = parseInt(config.get(key), 10)
-    return isNaN(basicNumber) ? defaultValue : basicNumber
+    const basicNumber = parseInt(value, 10)
+    return isNaN(basicNumber) ? undefined : basicNumber
 }
 
 export async function proxyHandler(ctx: KoaContext) {
@@ -292,12 +292,12 @@ export async function proxyHandler(ctx: KoaContext) {
 
         APIError.assert(metadata.width && metadata.height, APIError.Code.InvalidImage)
 
-        const maxWidth: number = configAsNumber('proxy_store.max_image_width', 1280)
-        const maxHeight: number = configAsNumber('proxy_store.max_image_height', 8000)
-        const maxCustomWidth: number = configAsNumber('proxy_store.max_custom_image_width', 8000)
-        const maxCustomHeight: number = configAsNumber('proxy_store.max_custom_image_height', 8000)
-        let width = options.width
-        let height = options.height
+        const maxWidth: number = safeParseInt(config.get('proxy_store.max_image_width')) || 1280
+        const maxHeight: number = safeParseInt(config.get('proxy_store.max_image_height')) || 8000
+        const maxCustomWidth: number = safeParseInt(config.get('proxy_store.max_custom_image_width')) || 8000
+        const maxCustomHeight: number = safeParseInt(config.get('proxy_store.max_custom_image_height')) || 8000
+        let width: number | undefined = safeParseInt(options.width)
+        let height: number | undefined = safeParseInt(options.height)
 
         // If no width and height are provided, it will use the default image
         // width and height, but cap it to the config-provided max image width
