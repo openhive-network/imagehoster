@@ -285,11 +285,30 @@ export async function proxyHandler(ctx: KoaContext) {
 
         APIError.assert(metadata.width && metadata.height, APIError.Code.InvalidImage)
 
+        const maxWidth: number = config.get('proxy_store.max_image_width')
+        const maxHeight: number = config.get('proxy_store.max_image_height')
+        const maxCustomWidth: number = config.get('proxy_store.max_custom_image_width')
+        const maxCustomHeight: number = config.get('proxy_store.max_custom_image_height')
         let width = options.width
         let height = options.height
 
-        if (width && width > 8000) { width = 8000 }
-        if (height && height > 8000) { height = 8000 }
+        // If no width and height are provided, it will use the default image
+        // width and height, but cap it to the config-provided max image width
+        // and height. This is so we can save on bandwidth for the default case.
+        //
+        // If width and height are provided, it will use the provided width and
+        // height. This is so clients who need a higher-res image can still get
+        // one.
+        if (width) {
+          if (width > maxCustomWidth) { width = maxCustomWidth }
+        } else {
+          if (metadata.width && metadata.width > maxWidth) { width = maxWidth }
+        }
+        if (height) {
+          if (height > maxCustomHeight) { height = maxCustomHeight }
+        } else {
+          if (metadata.height && metadata.height > maxHeight) { height = maxHeight }
+        }
 
         switch (options.mode) {
             case ScalingMode.Cover:
