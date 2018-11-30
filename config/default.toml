@@ -50,3 +50,7 @@ type = 'memory'
 # where to keep proxied images
 [proxy_store]
 type = 'memory'
+max_image_width = 1280
+max_image_height = 8000
+max_custom_image_width = 8000
+max_custom_image_height = 8000
