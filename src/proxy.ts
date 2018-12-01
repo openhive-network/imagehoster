@@ -323,7 +323,7 @@ export async function proxyHandler(ctx: KoaContext) {
                 break
             case ScalingMode.Fit:
                 if (!width) { width = maxWidth }
-                if (!height) { width = maxHeight }
+                if (!height) { height = maxHeight }
 
                 image.resize(width, height).max().withoutEnlargement()
                 break
