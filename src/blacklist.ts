@@ -100,6 +100,7 @@ export const imageBlacklist: Blacklist<string> = [
     'http://www.honr.info/images/honrimage2.png',
     'https://steemitimages.com/DQmeaQ8kw3Rj8BaeNvQm8BoevHatsjitxqKgs67RAMEdSh1/dog%202.jpg',
     'https://steemitimages.com/DQmS26awbCxfLwriVmGcMor4qRpiiUWuMn3r4aZ4NUYbbPm/dog%204.jpg',
+    'https://s18.postimg.org/yhwx0ctsp/14329130_1421221041226069_461326474_o.jpg',
 ]
 
 export const accountBlacklist: Blacklist<string> = [
