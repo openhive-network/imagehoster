@@ -101,6 +101,7 @@ export const imageBlacklist: Blacklist<string> = [
     'https://steemitimages.com/DQmeaQ8kw3Rj8BaeNvQm8BoevHatsjitxqKgs67RAMEdSh1/dog%202.jpg',
     'https://steemitimages.com/DQmS26awbCxfLwriVmGcMor4qRpiiUWuMn3r4aZ4NUYbbPm/dog%204.jpg',
     'https://s18.postimg.org/yhwx0ctsp/14329130_1421221041226069_461326474_o.jpg',
+    'https://steemitimages.com/0x0/https://thumbs.gfycat.com/VacantSecondAmericancreamdraft-size_restricted.gif'
 ]
 
 export const accountBlacklist: Blacklist<string> = [
