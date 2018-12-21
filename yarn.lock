@@ -65,7 +65,7 @@
     "@babel/code-frame" "7.0.0-beta.51"
     "@babel/parser" "7.0.0-beta.51"
     "@babel/types" "7.0.0-beta.51"
-    lodash "^4.17.5"
+    lodash "^4.17.11"
 
 "@babel/traverse@7.0.0-beta.51":
   version "7.0.0-beta.51"
@@ -81,7 +81,7 @@
     debug "^3.1.0"
     globals "^11.1.0"
     invariant "^2.2.0"
-    lodash "^4.17.5"
+    lodash "^4.17.11"
 
 "@babel/types@7.0.0-beta.51":
   version "7.0.0-beta.51"
@@ -89,7 +89,7 @@
   integrity sha1-2AK3tUO1g2x3iqaReXq/APPZfqk=
   dependencies:
     esutils "^2.0.2"
-    lodash "^4.17.5"
+    lodash "^4.17.11"
     to-fast-properties "^2.0.0"
 
 "@koa/cors@^2.2.1":
@@ -813,7 +813,7 @@ cli-table2@^0.2.0:
   resolved "https://registry.yarnpkg.com/cli-table2/-/cli-table2-0.2.0.tgz#2d1ef7f218a0e786e214540562d4bd177fe32d97"
   integrity sha1-LR738hig54biFFQFYtS9F3/jLZc=
   dependencies:
-    lodash "^3.10.1"
+    lodash "^^4.17.11"
     string-width "^1.0.1"
   optionalDependencies:
     colors "^1.1.2"
@@ -2178,12 +2178,12 @@ lodash.debounce@^4.0.8:
   resolved "https://registry.yarnpkg.com/lodash.debounce/-/lodash.debounce-4.0.8.tgz#82d79bff30a67c4005ffd5e2515300ad9ca4d7af"
   integrity sha1-gteb/zCmfEAF/9XiUVMArZyk168=
 
-lodash@^3.10.1:
+lodash@^4.17.11:
   version "3.10.1"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-3.10.1.tgz#5bf45e8e49ba4189e17d482789dfd15bd140b7b6"
   integrity sha1-W/Rejkm6QYnhfUgnid/RW9FAt7Y=
 
-lodash@^4.17.5, lodash@^4.3.0:
+lodash@^4.17.11, lodash@^^4.17.11:
   version "4.17.10"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.10.tgz#1b7793cf7259ea38fb3661d4d38b3260af8ae4e7"
   integrity sha512-UejweD1pDoXu+AD825lWwp4ZGtSwgnpZxb3JDViD7StjQz+Nb/6l093lx4OQ0foGWNRoc19mWy7BzL+UAK2iVg==
