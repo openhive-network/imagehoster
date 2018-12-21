@@ -104,7 +104,8 @@ export const imageBlacklist: Blacklist<string> = [
     'https://steemitimages.com/0x0/https://thumbs.gfycat.com/VacantSecondAmericancreamdraft-size_restricted.gif',
     'https://steemitimages.com/p/B69zEhWZA8UDm9f4vLWvxrdxXd6DUG2Qar42eSi5f31tZLynzFwHEChfPMdocTdSPQimwRzbSU5cQamxT6tqmD6tUgi8aEZL54rbtQjo',
     'https://images.steemitimages.com/p/B69zEhWZA8UDm9f4vLWvxrdxXd6DUG2Qar42eSi5f31tZLynzFwHEChfPMdocTdSPQimwRzbSU5cQamxT6tqmD6tUgi8aEZL54rbtQjo',
-    'https://steemitimages.com/p/B69zEhWZA8UDm9f4vLWvxrdxXd6DUG2Qar42eSi5f31tZLynzFwHEChfPMdocTdSPQimwRzbSU5cQamxT6tqmD6tUgi8aEZL54rbtQjo'
+    'https://steemitimages.com/p/B69zEhWZA8UDm9f4vLWvxrdxXd6DUG2Qar42eSi5f31tZLynzFwHEChfPMdocTdSPQimwRzbSU5cQamxT6tqmD6tUgi8aEZL54rbtQjo',
+    'https://thumbs.gfycat.com/VacantSecondAmericancreamdraft-size_restricted.gif'
 ]
 
 export const accountBlacklist: Blacklist<string> = [
