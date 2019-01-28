@@ -109,7 +109,9 @@ export const imageBlacklist: Blacklist<string> = [
     'https://steemitimages.com/Zskj9C56UondJxcjVaienfhVaNb7LJVWG6e787gZnmbYBznvscqW4i2YcBBmF1fmSPbre5tQSPTLneVgq9rKk9MWb4jfikDMk9dgRcUrt7w9npa98dtr',
     'https://images.steemitimages.com/Zskj9C56UondJxcjVaienfhVaNb7LJVWG6e787gZnmbYBznvscqW4i2YcBBmF1fmSPbre5tQSPTLneVgq9rKk9MWb4jfikDMk9dgRcUrt7w9npa98dtr',
     'https://steemitimages.com/p/Zskj9C56UondJxcjVaienfhVaNb7LJVWG6e787gZnmbYBznvscqW4i2YcBBmF1fmSPbre5tQSPTLneVgq9rKk9MWb4jfikDMk9dgRcUrt7w9npa98dtr',
-    'https://images.steemitimages.com/p/Zskj9C56UondJxcjVaienfhVaNb7LJVWG6e787gZnmbYBznvscqW4i2YcBBmF1fmSPbre5tQSPTLneVgq9rKk9MWb4jfikDMk9dgRcUrt7w9npa98dtr'
+    'https://images.steemitimages.com/p/Zskj9C56UondJxcjVaienfhVaNb7LJVWG6e787gZnmbYBznvscqW4i2YcBBmF1fmSPbre5tQSPTLneVgq9rKk9MWb4jfikDMk9dgRcUrt7w9npa98dtr',
+    'https://steemitimages.com/0x0/Zskj9C56UondJxcjVaienfhVaNb7LJVWG6e787gZnmbYBznvscqW4i2YcBBmF1fmSPbre5tQSPTLneVgq9rKk9MWb4jfikDMk9dgRcUrt7w9npa98dtr',
+    'https://images.steemitimages.com/0x0/Zskj9C56UondJxcjVaienfhVaNb7LJVWG6e787gZnmbYBznvscqW4i2YcBBmF1fmSPbre5tQSPTLneVgq9rKk9MWb4jfikDMk9dgRcUrt7w9npa98dtr'
 ]
 
 export const accountBlacklist: Blacklist<string> = [
