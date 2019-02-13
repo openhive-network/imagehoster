@@ -109,7 +109,13 @@ export const imageBlacklist: Blacklist<string> = [
     'https://steemitimages.com/p/Zskj9C56UondJxcjVaienfhVaNb7LJVWG6e787gZnmbYBznvscqW4i2YcBBmF1fmSPbre5tQSPTLneVgq9rKk9MWb4jfikDMk9dgRcUrt7w9npa98dtr',
     'https://images.steemitimages.com/p/Zskj9C56UondJxcjVaienfhVaNb7LJVWG6e787gZnmbYBznvscqW4i2YcBBmF1fmSPbre5tQSPTLneVgq9rKk9MWb4jfikDMk9dgRcUrt7w9npa98dtr',
     'https://steemitimages.com/DQmNWLhDfYhfSo9q13HtrABF3PcfSXwW1kJy6Y6F4TDcUSF/fgddsse.JPG',
-    'https://images.steemitimages.com/DQmNWLhDfYhfSo9q13HtrABF3PcfSXwW1kJy6Y6F4TDcUSF/fgddsse.JPG'
+    'https://images.steemitimages.com/DQmNWLhDfYhfSo9q13HtrABF3PcfSXwW1kJy6Y6F4TDcUSF/fgddsse.JPG',
+    'https://steemitimages.com/p/46aP2QLrGDNK3n68nd14vZA2N3ETTcefbAerc429rouaxkCHb3KfeMuuvzcifJUPZu5ZGMgUsBAYdrGYbLuijBuRVxyU',
+    'https://steemitimages.com/p/axopCyoueqqCsoxG83oySKXaFpfpKg2Myfc4NLdmWpigWZPhuD583cWDy2ke',
+    'https://images.steemitimages.com/p/46aP2QLrGDNK3n68nd14vZA2N3ETTcefbAerc429rouaxkCHb3KfeMuuvzcifJUPZu5ZGMgUsBAYdrGYbLuijBuRVxyU',
+    'https://images.steemitimages.com/p/axopCyoueqqCsoxG83oySKXaFpfpKg2Myfc4NLdmWpigWZPhuD583cWDy2ke',
+    'http://image.ibb.co/minGCF/aa_lenie_urbina_avielle_richman_meme.png',
+    'http://image.ibb.co/f1yWCF/aa_lenny_meme.png'
   ]
 
 export const accountBlacklist: Blacklist<string> = [
