@@ -10,6 +10,7 @@
     "no-var-requires": false,
     "object-literal-sort-keys": false,
     "quotemark": [true, "single", "avoid-escape"],
+    "radix": false,
     "semicolon": [true, "never"],
     "trailing-comma": [true, "never"],
     "triple-equals": [true, "allow-undefined-check"]
