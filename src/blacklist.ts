@@ -115,7 +115,9 @@ export const imageBlacklist: Blacklist<string> = [
     'https://images.steemitimages.com/p/46aP2QLrGDNK3n68nd14vZA2N3ETTcefbAerc429rouaxkCHb3KfeMuuvzcifJUPZu5ZGMgUsBAYdrGYbLuijBuRVxyU',
     'https://images.steemitimages.com/p/axopCyoueqqCsoxG83oySKXaFpfpKg2Myfc4NLdmWpigWZPhuD583cWDy2ke',
     'http://image.ibb.co/minGCF/aa_lenie_urbina_avielle_richman_meme.png',
-    'http://image.ibb.co/f1yWCF/aa_lenny_meme.png'
+    'http://image.ibb.co/f1yWCF/aa_lenny_meme.png',
+    'https://steemitimages.com/DQmV858o66qa9wSBQCD6nu7xv45UVsvcNzsQpu9K6FrV1c2/19.jpg',
+    'https://images.steemitimages.com/DQmV858o66qa9wSBQCD6nu7xv45UVsvcNzsQpu9K6FrV1c2/19.jpg'
   ]
 
 export const accountBlacklist: Blacklist<string> = [
