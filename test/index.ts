@@ -17,6 +17,11 @@ export const mockAccounts: any = {
             weight_threshold: 1,
             account_auths: [],
             key_auths: [[testKeys.foo.createPublic().toString(), 1]]
+        },
+        active: {
+            weight_threshold: 1,
+            account_auths: [],
+            key_auths: [[testKeys.foo.createPublic().toString(), 1]]
         }
     },
     bar: {
@@ -26,6 +31,11 @@ export const mockAccounts: any = {
             weight_threshold: 1,
             account_auths: [],
             key_auths: [[testKeys.bar.createPublic().toString(), 1]]
+        },
+        active: {
+            weight_threshold: 1,
+            account_auths: [],
+            key_auths: [[testKeys.foo.createPublic().toString(), 1]]
         }
     }
 }
