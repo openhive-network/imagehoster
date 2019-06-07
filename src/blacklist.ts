@@ -117,7 +117,12 @@ export const imageBlacklist: Blacklist<string> = [
     'http://image.ibb.co/minGCF/aa_lenie_urbina_avielle_richman_meme.png',
     'http://image.ibb.co/f1yWCF/aa_lenny_meme.png',
     'https://steemitimages.com/DQmV858o66qa9wSBQCD6nu7xv45UVsvcNzsQpu9K6FrV1c2/19.jpg',
-    'https://images.steemitimages.com/DQmV858o66qa9wSBQCD6nu7xv45UVsvcNzsQpu9K6FrV1c2/19.jpg'
+    'https://images.steemitimages.com/DQmV858o66qa9wSBQCD6nu7xv45UVsvcNzsQpu9K6FrV1c2/19.jpg',
+    'https://68.media.tumblr.com/45c47c89be6f5856851deb379a54d420/tumblr_ob8ccl51EN1rs7mnao1_500.jpg',
+    'https://68.media.tumblr.com/3e0190b78f662da8668a270f43534c7d/tumblr_ob8ccl51EN1rs7mnao7_500.jpg',
+    'https://68.media.tumblr.com/e5eefb65788c4125fbd186bbc7cd4ffd/tumblr_ob8ccl51EN1rs7mnao5_500.jpg',
+    'https://68.media.tumblr.com/d71364f2c1adac1ced066a25193c9fee/tumblr_ob8ccl51EN1rs7mnao4_500.jpg',
+    'https://68.media.tumblr.com/70352eab4db092ec434895ce02afbba4/tumblr_ob8ccl51EN1rs7mnao3_500.jpg'
   ]
 
 export const accountBlacklist: Blacklist<string> = [
