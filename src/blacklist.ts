@@ -122,7 +122,8 @@ export const imageBlacklist: Blacklist<string> = [
     'https://68.media.tumblr.com/3e0190b78f662da8668a270f43534c7d/tumblr_ob8ccl51EN1rs7mnao7_500.jpg',
     'https://68.media.tumblr.com/e5eefb65788c4125fbd186bbc7cd4ffd/tumblr_ob8ccl51EN1rs7mnao5_500.jpg',
     'https://68.media.tumblr.com/d71364f2c1adac1ced066a25193c9fee/tumblr_ob8ccl51EN1rs7mnao4_500.jpg',
-    'https://68.media.tumblr.com/70352eab4db092ec434895ce02afbba4/tumblr_ob8ccl51EN1rs7mnao3_500.jpg'
+    'https://68.media.tumblr.com/70352eab4db092ec434895ce02afbba4/tumblr_ob8ccl51EN1rs7mnao3_500.jpg',
+    'http://www.aquariumfish.net/images_01/congo_tetra_121104a2_w0640.jpg'
   ]
 
 export const accountBlacklist: Blacklist<string> = [
