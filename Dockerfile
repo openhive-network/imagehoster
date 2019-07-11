@@ -14,8 +14,9 @@ RUN apk add \
 
 RUN apk add \
     --no-cache \
-    --repository https://dl-4.alpinelinux.org/alpine/edge/main \
-    --repository http://dl-4.alpinelinux.org/alpine/edge/testing \
+    --repository https://alpine.global.ssl.fastly.net/alpine/edge/main \
+    --repository https://alpine.global.ssl.fastly.net/alpine/edge/testing \
+    --repository https://alpine.global.ssl.fastly.net/alpine/edge/community \
     vips-dev
 
 # install application dependencies
@@ -34,7 +35,11 @@ RUN yarn install --non-interactive --frozen-lockfile --production
 # copy built application to runtime image
 FROM node:10-alpine
 WORKDIR /app
-RUN apk add --no-cache --repository http://dl-4.alpinelinux.org/alpine/edge/testing \
+RUN apk add \
+    --no-cache \
+    --repository https://alpine.global.ssl.fastly.net/alpine/edge/main \
+    --repository https://alpine.global.ssl.fastly.net/alpine/edge/testing \
+    --repository https://alpine.global.ssl.fastly.net/alpine/edge/community \
     fftw vips
 COPY --from=build-stage /app/config config
 COPY --from=build-stage /app/lib lib
