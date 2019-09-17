@@ -125,7 +125,8 @@ export const imageBlacklist: Blacklist<string> = [
     'https://68.media.tumblr.com/70352eab4db092ec434895ce02afbba4/tumblr_ob8ccl51EN1rs7mnao3_500.jpg',
     'http://www.aquariumfish.net/images_01/congo_tetra_121104a2_w0640.jpg',
     'http://i.imgsafe.org/82229b8f14.jpg',
-    'http://twistedsifter.files.wordpress.com/2012/06/the-honeybees-final-sting.jpg'
+    'http://twistedsifter.files.wordpress.com/2012/06/the-honeybees-final-sting.jpg',
+    'https://steemitimages.com/DQmXJ3Npobr85AcHGth259mrkmesVq8UaJ8uvEJUCzPgsrn/gappi4.png'
   ]
 
 export const accountBlacklist: Blacklist<string> = [
