@@ -125,9 +125,17 @@ export async function uploadHandler(ctx: KoaContext) {
         throw new APIError({code: APIError.Code.InvalidSignature, cause})
     }
 
-    const threshold = account.posting.weight_threshold
+    const thresholdPosting = account.posting.weight_threshold
     for (const auth of account.posting.key_auths) {
-        if (auth[0] === publicKey && auth[1] >= threshold) {
+        if (auth[0] === publicKey && auth[1] >= thresholdPosting) {
+            validSignature = true
+            break
+        }
+    }
+
+    const thresholdActive = account.active.weight_threshold
+    for (const auth of account.active.key_auths) {
+        if (auth[0] === publicKey && auth[1] >= thresholdActive) {
             validSignature = true
             break
         }
