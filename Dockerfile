@@ -14,9 +14,7 @@ RUN apk add \
 
 RUN apk add \
     --no-cache \
-    --repository https://alpine.global.ssl.fastly.net/alpine/edge/main \
-    --repository https://alpine.global.ssl.fastly.net/alpine/edge/testing \
-    --repository https://alpine.global.ssl.fastly.net/alpine/edge/community \
+    --repository https://alpine.global.ssl.fastly.net/alpine/v3.10/community \
     vips-dev
 
 # install application dependencies
@@ -37,9 +35,7 @@ FROM node:10-alpine
 WORKDIR /app
 RUN apk add \
     --no-cache \
-    --repository https://alpine.global.ssl.fastly.net/alpine/edge/main \
-    --repository https://alpine.global.ssl.fastly.net/alpine/edge/testing \
-    --repository https://alpine.global.ssl.fastly.net/alpine/edge/community \
+    --repository https://alpine.global.ssl.fastly.net/alpine/v3.10/community \
     fftw vips
 COPY --from=build-stage /app/config config
 COPY --from=build-stage /app/lib lib
