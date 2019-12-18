@@ -325,7 +325,7 @@ export async function proxyHandler(ctx: KoaContext) {
                 if (!width) { width = maxWidth }
                 if (!height) { height = maxHeight }
 
-                image.rotate().resize(width, height).max().withoutEnlargement()
+                image.rotate().resize(width, height, { fit: 'inside', withoutEnlargement: true })
                 break
         }
 

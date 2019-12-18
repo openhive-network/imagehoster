@@ -42,7 +42,7 @@
     "@types/node": "^10.5.2",
     "@types/ratelimiter": "^2.1.28",
     "@types/redis": "^2.8.5",
-    "@types/sharp": "^0.17.6",
+    "@types/sharp": "^0.21.0",
     "lodash": "^4.17.12",
     "mocha": "^5.1.1",
     "mocha-junit-reporter": "^1.17.0",
