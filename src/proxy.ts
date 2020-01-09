@@ -319,13 +319,13 @@ export async function proxyHandler(ctx: KoaContext) {
 
         switch (options.mode) {
             case ScalingMode.Cover:
-                image.resize(width, height).crop()
+                image.rotate().resize(width, height, {fit: 'cover'})
                 break
             case ScalingMode.Fit:
                 if (!width) { width = maxWidth }
                 if (!height) { height = maxHeight }
 
-                image.resize(width, height).max().withoutEnlargement()
+                image.rotate().resize(width, height, { fit: 'inside', withoutEnlargement: true })
                 break
         }
 
