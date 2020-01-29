@@ -21,17 +21,28 @@ export async function avatarHandler(ctx: KoaContext) {
 
     const username = ctx.params['username']
     const size = AvatarSizes[ctx.params['size']] || AvatarSizes.medium
+    const qs = ctx.request.query
 
     const [account] = await rpcClient.database.getAccounts([username])
 
     APIError.assert(account, APIError.Code.NoSuchAccount)
 
     let metadata: any
-    try {
-        metadata = JSON.parse(account.json_metadata)
-    } catch (error) {
-        ctx.log.debug(error, 'unable to parse json_metadata for %s', account.name)
-        metadata = {}
+   
+    if (qs.beta === '1'){
+      try {
+          metadata = JSON.parse(account.posting_json_metadata)
+      } catch (error) {
+          ctx.log.debug(error, 'unable to parse posting_json_metadata for %s, remove the beta=1 query string to fall back to json_metadata.', account.name)
+          metadata = {}
+      }
+    } else {
+      try {
+          metadata = JSON.parse(account.json_metadata)
+      } catch (error) {
+          ctx.log.debug(error, 'unable to parse json_metadata for %s', account.name)
+          metadata = {}
+      }
     }
 
     let avatarUrl: string = DefaultAvatar
