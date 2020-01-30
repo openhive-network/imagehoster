@@ -25,9 +25,6 @@ export async function avatarHandler(ctx: KoaContext) {
 
     interface IExtendedAccount extends Account {
       posting_json_metadata?: string;
-      profile?: {
-        version: number
-      };
     }
 
     const [account]: IExtendedAccount[] = await rpcClient.database.getAccounts([username])
@@ -35,14 +32,26 @@ export async function avatarHandler(ctx: KoaContext) {
     APIError.assert(account, APIError.Code.NoSuchAccount)
 
     let metadata;
-    try {
-      metadata = account.posting_json_metadata  ? JSON.parse(account.posting_json_metadata) : JSON.parse(account.json_metadata)
-      if (metadata && metadata.profile && metadata.profile.version !== 2) {
-        metadata = JSON.parse(account.json_metadata)
+
+    // read from `posting_json_metadata` if version flag is set
+    if(account.posting_json_metadata) {
+      try {
+        metadata = JSON.parse(account.posting_json_metadata)
+        if(!metadata.profile || !metadata.profile.version) metadata = {}
+      } catch (error) {
+        ctx.log.debug(error, 'unable to parse json_metadata for %s', account.name)
+        metadata = {}
       }
-    } catch (error) {
-      ctx.log.debug(error, 'unable to parse json_metadata for %s', account.name)
-      metadata = {}
+    }
+
+    // otherwise, fall back to reading from `json_metadata`
+    if(!metadata) {
+      try {
+        metadata = JSON.parse(account.json_metadata)
+      } catch (error) {
+        ctx.log.debug(error, 'unable to parse json_metadata for %s', account.name)
+        metadata = {}
+      }
     }
 
     let avatarUrl: string = DefaultAvatar
