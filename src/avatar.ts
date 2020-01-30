@@ -22,10 +22,12 @@ export async function avatarHandler(ctx: KoaContext) {
 
     const username = ctx.params['username']
     const size = AvatarSizes[ctx.params['size']] || AvatarSizes.medium
-    const qs = ctx.request.query
 
     interface IExtendedAccount extends Account {
-      posting_json_metadata: string;
+      posting_json_metadata?: string;
+      profile?: {
+        version: number
+      };
     }
 
     const [account] : IExtendedAccount[] = await rpcClient.database.getAccounts([username])
@@ -34,7 +36,7 @@ export async function avatarHandler(ctx: KoaContext) {
 
     let metadata: any
    
-    if (qs.beta === '1'){
+    if (account && account.posting_json_metadata && account.profile && account.profile.version === 2){
       try {
           metadata = JSON.parse(account.posting_json_metadata)
       } catch (error) {
