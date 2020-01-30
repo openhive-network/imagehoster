@@ -5,6 +5,7 @@ import { base58Enc } from './utils'
 
 import {KoaContext, rpcClient} from './common'
 import {APIError} from './error'
+import { Account } from 'dsteem'
 
 const DefaultAvatar = config.get('default_avatar') as string
 const AvatarSizes: {[size: string]: number} = {
@@ -23,7 +24,11 @@ export async function avatarHandler(ctx: KoaContext) {
     const size = AvatarSizes[ctx.params['size']] || AvatarSizes.medium
     const qs = ctx.request.query
 
-    const [account] = await rpcClient.database.getAccounts([username])
+    interface IExtendedAccount extends Account {
+      posting_json_metadata: string;
+    }
+
+    const [account] : IExtendedAccount[] = await rpcClient.database.getAccounts([username])
 
     APIError.assert(account, APIError.Code.NoSuchAccount)
 
