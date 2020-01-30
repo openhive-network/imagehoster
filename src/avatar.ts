@@ -30,26 +30,19 @@ export async function avatarHandler(ctx: KoaContext) {
       };
     }
 
-    const [account] : IExtendedAccount[] = await rpcClient.database.getAccounts([username])
+    const [account]: IExtendedAccount[] = await rpcClient.database.getAccounts([username])
 
     APIError.assert(account, APIError.Code.NoSuchAccount)
 
-    let metadata: any
-   
-    if (account && account.posting_json_metadata && account.profile && account.profile.version === 2){
-      try {
-          metadata = JSON.parse(account.posting_json_metadata)
-      } catch (error) {
-          ctx.log.debug(error, 'unable to parse posting_json_metadata for %s, remove the beta=1 query string to fall back to json_metadata.', account.name)
-          metadata = {}
+    let metadata;
+    try {
+      metadata = account.posting_json_metadata  ? JSON.parse(account.posting_json_metadata) : JSON.parse(account.json_metadata)
+      if (metadata && metadata.profile && metadata.profile.version !== 2) {
+        metadata = JSON.parse(account.json_metadata)
       }
-    } else {
-      try {
-          metadata = JSON.parse(account.json_metadata)
-      } catch (error) {
-          ctx.log.debug(error, 'unable to parse json_metadata for %s', account.name)
-          metadata = {}
-      }
+    } catch (error) {
+      ctx.log.debug(error, 'unable to parse json_metadata for %s', account.name)
+      metadata = {}
     }
 
     let avatarUrl: string = DefaultAvatar
