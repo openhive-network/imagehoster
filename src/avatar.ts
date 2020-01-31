@@ -47,7 +47,7 @@ export async function avatarHandler(ctx: KoaContext) {
     }
 
     // otherwise, fall back to reading from `json_metadata`
-    if (!metadata) {
+    if (!metadata || !metadata.profile) {
       try {
         metadata = JSON.parse(account.json_metadata)
       } catch (error) {
