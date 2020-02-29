@@ -128,7 +128,10 @@ export const imageBlacklist: Blacklist<string> = [
     'http://twistedsifter.files.wordpress.com/2012/06/the-honeybees-final-sting.jpg',
     'http://twistedsifter.files.wordpress.com/2012/06/the-honeybees-final-sting.jpg?w=800&h=586',
     'https://steemitimages.com/0x0/http://twistedsifter.files.wordpress.com/2012/06/the-honeybees-final-sting.jpg?w=800&h=586',
-    'https://steemitimages.com/DQmXJ3Npobr85AcHGth259mrkmesVq8UaJ8uvEJUCzPgsrn/gappi4.png'
+    'https://steemitimages.com/DQmXJ3Npobr85AcHGth259mrkmesVq8UaJ8uvEJUCzPgsrn/gappi4.png',
+    'https://img-4.poringa.net/poringa/img/3/E/1/D/E/F/julioaa692002/4B8.jpg',
+    'https://steemitimages.com/p/MG5aEqKFcQi7Yq4C1fbxWCK1vQztgS26ZoqBgDTHViR39oTn2e2sxXV3GZ5JkoGkUuYGgYHPQDbz3P8AwPMmbgaeK9F4bvGea'
+    
   ]
 
 export const accountBlacklist: Blacklist<string> = [
