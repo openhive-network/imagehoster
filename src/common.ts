@@ -42,7 +42,7 @@ function loadStore(key: string): AbstractBlobStore {
     } else if (conf.type === 's3') {
         if (!S3Client) {
             const aws = require('aws-sdk')
-            S3Client = new aws.S3()
+            S3Client = new aws.S3(config.has('aws_sdk_config') ? config.get('aws_sdk_config') : {})
         }
         return require('s3-blob-store')({
             client: S3Client,
@@ -55,3 +55,9 @@ function loadStore(key: string): AbstractBlobStore {
 
 export const uploadStore = loadStore('upload_store')
 export const proxyStore = loadStore('proxy_store')
+
+export function getKeyNameFromHash(hash: string): string {
+    console.assert(hash.length == 47);
+    const partition = hash.substr(hash.length - 2);
+    return partition + '/' + hash;
+}

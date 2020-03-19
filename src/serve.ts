@@ -2,7 +2,7 @@
 
 import streamHead from 'stream-head/dist-es6'
 
-import {KoaContext, uploadStore} from './common'
+import {KoaContext, uploadStore, getKeyNameFromHash} from './common'
 import {APIError} from './error'
 import {mimeMagic} from './utils'
 
@@ -12,7 +12,11 @@ export async function serveHandler(ctx: KoaContext) {
     APIError.assert(ctx.method === 'GET', APIError.Code.InvalidMethod)
     APIError.assertParams(ctx.params, ['hash'])
 
-    const file = uploadStore.createReadStream(ctx.params['hash'])
+    const hash = ctx.params['hash'];
+    APIError.assert(hash.length == 47, APIError.Code.InvalidParam);
+    const keyName = getKeyNameFromHash(hash);
+
+    const file = uploadStore.createReadStream(keyName)
     file.on('error', (error) => {
         if (error.notFound || error.code === 'NoSuchKey') {
             ctx.res.writeHead(404, 'Not Found')

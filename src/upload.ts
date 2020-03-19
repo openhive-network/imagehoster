@@ -12,7 +12,7 @@ import * as RateLimiter from 'ratelimiter'
 import {URL} from 'url'
 
 import {accountBlacklist} from './blacklist'
-import {KoaContext, redisClient, rpcClient, uploadStore} from './common'
+import {KoaContext, redisClient, rpcClient, uploadStore, getKeyNameFromHash} from './common'
 import {APIError} from './error'
 import {readStream, storeExists, storeWrite} from './utils'
 
@@ -379,13 +379,14 @@ export async function uploadHandler(ctx: KoaContext) {
 
     APIError.assert(repLog10(account.reputation) >= UPLOAD_LIMITS.reputation, APIError.Code.Deplorable)
 
-    const key = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
-    const url = new URL(`${ key }/${ file.name }`, SERVICE_URL)
+    const contentHash = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
+    const url = new URL(`${ contentHash }/${ file.name }`, SERVICE_URL)
+    const keyName = getKeyNameFromHash(contentHash);
 
-    if (!(await storeExists(uploadStore, key))) {
-        await storeWrite(uploadStore, key, data)
+    if (!(await storeExists(uploadStore, keyName))) {
+        await storeWrite(uploadStore, keyName, data)
     } else {
-        ctx.log.debug('key %s already exists in store', key)
+        ctx.log.debug('key %s already exists in store', keyName)
     }
 
     ctx.log.info({uploader: account.name, size: data.byteLength}, 'image uploaded')

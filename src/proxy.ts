@@ -11,7 +11,7 @@ import streamHead from 'stream-head/dist-es6'
 import {URL} from 'url'
 
 import {imageBlacklist} from './blacklist'
-import {KoaContext, proxyStore, uploadStore} from './common'
+import {KoaContext, proxyStore, uploadStore, getKeyNameFromHash} from './common'
 import {APIError} from './error'
 import {base58Dec, mimeMagic, readStream, storeExists, storeWrite} from './utils'
 
@@ -187,7 +187,7 @@ export async function proxyHandler(ctx: KoaContext) {
         // if we are proxying or own image use the uploadStore directly
         // to avoid storing two copies of the same data
         origStore = uploadStore
-        origKey = url.pathname.slice(1).split('/')[0]
+        origKey = getKeyNameFromHash(url.pathname.slice(1).split('/')[0])
     } else {
         const urlHash = createHash('sha1')
             .update(url.toString())
@@ -199,6 +199,7 @@ export async function proxyHandler(ctx: KoaContext) {
     }
 
     const imageKey = getImageKey(origKey, options)
+    console.log("Checking imageKey", imageKey);
 
     // check if we already have a converted image for requested key
     if (await storeExists(proxyStore, imageKey)) {
