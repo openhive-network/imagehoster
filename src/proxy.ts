@@ -159,6 +159,8 @@ export async function proxyHandler(ctx: KoaContext) {
     const options = parseOptions(ctx.query)
     let url = parseUrl(ctx.params.url)
 
+    // console.log('url is: ',url);
+
     // resolve double proxied images
     while (url.origin === SERVICE_URL.origin && url.pathname.slice(0, 2) === '/p') {
         url = parseUrl(url.pathname.slice(3))
@@ -196,10 +198,12 @@ export async function proxyHandler(ctx: KoaContext) {
         origKey = 'U' + multihash.toB58String(
             multihash.encode(urlHash, 'sha1')
         )
+        origKey = getKeyNameFromHash(origKey);
+        // console.log('proxied image, using hash of url', url.toString(), 'which yields', origKey)
     }
 
     const imageKey = getImageKey(origKey, options)
-    console.log("Checking imageKey", imageKey);
+    // console.log("Checking imageKey", imageKey);
 
     // check if we already have a converted image for requested key
     if (await storeExists(proxyStore, imageKey)) {

@@ -56,8 +56,21 @@ function loadStore(key: string): AbstractBlobStore {
 export const uploadStore = loadStore('upload_store')
 export const proxyStore = loadStore('proxy_store')
 
+// convert a key like:
+//   U5dtZPvjpfzc3fgGtsoNQq7WLNv8sLT
+// into a subdirectories based on the last two characters
+//   LT/U5dtZPvjpfzc3fgGtsoNQq7WLNv8sLT
+// to make lookups more efficient
 export function getKeyNameFromHash(hash: string): string {
-    console.assert(hash.length == 47);
+    // we expect the hash to be either a data hash like:
+    //   DQmPpQ1mVrziWvgNyK5K64HmRZEMVjQCiNTjgAkBg8wHgJn
+    // for uploaded images, or a URL hash like:
+    //   U5dtZPvjpfzc3fgGtsoNQq7WLNv8sLT
+    // for proxied images.  In either case, the last two
+    // characters will be nice and random base58 characters,
+    // so this will evenly distribute the files over 
+    // 58^2 = 3364 partitions.
+    console.assert(hash.length == 47 || hash.length == 31);
     const partition = hash.substr(hash.length - 2);
     return partition + '/' + hash;
 }
