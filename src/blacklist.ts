@@ -130,7 +130,16 @@ export const imageBlacklist: Blacklist<string> = [
     'https://steemitimages.com/0x0/http://twistedsifter.files.wordpress.com/2012/06/the-honeybees-final-sting.jpg?w=800&h=586',
     'https://steemitimages.com/DQmXJ3Npobr85AcHGth259mrkmesVq8UaJ8uvEJUCzPgsrn/gappi4.png',
     'https://img-4.poringa.net/poringa/img/3/E/1/D/E/F/julioaa692002/4B8.jpg',
-    'https://steemitimages.com/p/MG5aEqKFcQi7Yq4C1fbxWCK1vQztgS26ZoqBgDTHViR39oTn2e2sxXV3GZ5JkoGkUuYGgYHPQDbz3P8AwPMmbgaeK9F4bvGea'
+    'https://steemitimages.com/p/MG5aEqKFcQi7Yq4C1fbxWCK1vQztgS26ZoqBgDTHViR39oTn2e2sxXV3GZ5JkoGkUuYGgYHPQDbz3P8AwPMmbgaeK9F4bvGea',
+    'https://files.peakd.com/file/peakd-hive/keitosama/ezA7Qeb7-6C49EF6E-3D78-42A7-AFD5-ABC2DFF285AB.jpeg',
+    'https://files.peakd.com/file/peakd-hive/keitosama/MzCHIW1D-852F1652-0BF7-4890-8CE0-7493C96B9C85.jpeg',
+    'https://files.peakd.com/file/peakd-hive/keitosama/cyJFPvJr-7966E44F-DE0A-4460-A83E-70AD912A911F.jpeg',
+    'https://files.peakd.com/file/peakd-hive/keitosama/uJTyx0sq-C500A565-80AB-4C74-BEFE-CAA6665D98D6.jpeg',
+    'https://files.peakd.com/file/peakd-hive/keitosama/2bVxVBBD-40534978-90F3-4423-B168-D562572A8C74.jpeg',
+    'https://files.peakd.com/file/peakd-hive/keitosama/jt2pO1Up-2937011E-A569-4B4E-ACEB-99EB84D7338E.jpeg',
+    'https://files.peakd.com/file/peakd-hive/keitosama/2hFgqkAR-BB22FD34-073B-4CC8-92AF-BFA4EF538AD6.jpeg',
+    'https://files.peakd.com/file/peakd-hive/keitosama/uxutlPV4-9C1D4EEB-2A82-403B-A5CD-A5CFB0E8C012.jpeg',
+    'https://files.peakd.com/file/peakd-hive/keitosama/i9jskuOZ-668CA97C-B1C8-4336-98E3-D325DCFF7047.jpeg'
   ]
 
 export const accountBlacklist: Blacklist<string> = [
