@@ -14,6 +14,12 @@ import {imageBlacklist} from './blacklist'
 import {KoaContext, proxyStore, uploadStore, getKeyNameFromHash} from './common'
 import {APIError} from './error'
 import {base58Dec, mimeMagic, readStream, storeExists, storeWrite} from './utils'
+import * as opentracing from 'opentracing';
+import * as jaegerClient from 'jaeger-client'
+
+const tracingConfig: jaegerClient.TracingConfig = {};
+const tracingOptions: jaegerClient.TracingOptions = {};
+const tracer = jaegerClient.initTracerFromEnv(tracingConfig, tracingOptions);
 
 const MAX_IMAGE_SIZE = Number.parseInt(config.get('max_image_size'))
 if (!Number.isFinite(MAX_IMAGE_SIZE)) {
@@ -151,6 +157,8 @@ export function safeParseInt(value: any): number | undefined {
 }
 
 export async function proxyHandler(ctx: KoaContext) {
+    const myContext = tracer.extract(opentracing.FORMAT_HTTP_HEADERS, ctx.headers)
+    const proxyHandlerSpan = tracer.startSpan('proxyHandler', {childOf: myContext ? myContext : undefined})
     ctx.tag({handler: 'proxy'})
 
     APIError.assert(ctx.method === 'GET', APIError.Code.InvalidMethod)
@@ -216,11 +224,14 @@ export async function proxyHandler(ctx: KoaContext) {
             ctx.res.end()
             file.destroy()
         })
+        const streamSpan = tracer.startSpan("streaming stored image", {childOf: proxyHandlerSpan})
         const {head, stream} = await streamHead(file, {bytes: 16384})
         const mimeType = await mimeMagic(head)
         ctx.set('Content-Type', mimeType)
         ctx.set('Cache-Control', 'public,max-age=29030400,immutable')
         ctx.body = stream
+        streamSpan.finish()
+        proxyHandlerSpan.finish()
         return
     }
 
@@ -229,12 +240,16 @@ export async function proxyHandler(ctx: KoaContext) {
     let contentType: string
     if (await storeExists(origStore, origKey)) {
         ctx.tag({store: 'original'})
+        const readSpan = tracer.startSpan("reading original image from store", {childOf: proxyHandlerSpan})
         origData = await readStream(origStore.createReadStream(origKey))
         contentType = await mimeMagic(origData)
+        readSpan.finish()
     } else {
         APIError.assert(origIsUpload === false, 'Upload not found')
         ctx.tag({store: 'fetch'})
         ctx.log.debug({url: url.toString()}, 'fetching image')
+
+        const fetchSourceSpan = tracer.startSpan("fetch image from source", {childOf: proxyHandlerSpan})
 
         let res: NeedleResponse
         try {
@@ -248,21 +263,9 @@ export async function proxyHandler(ctx: KoaContext) {
                 user_agent: 'HiveProxy/1.0 (+https://gitlab.syncad.com/hive/imagehoster)',
             } as any)
         } catch (cause) {
-            // old or non existing images, try to get from steemitimages server
-            try {
-                ctx.log.debug({url: url.toString()}, 'fetching from steemit server')
-                res = await fetchUrl(`https://steemitimages.com/0x0/${url.toString()}`, {
-                    open_timeout: 5 * 1000,
-                    response_timeout: 5 * 1000,
-                    read_timeout: 60 * 1000,
-                    compressed: true,
-                    parse_response: false,
-                    follow_max: 5,
-                    user_agent: 'SteemitProxy/1.0 (+https://github.com/steemit/imagehoster)',
-                } as any)
-            } catch (cause) {
-                throw new APIError({cause, code: APIError.Code.UpstreamError})
-            }
+            fetchSourceSpan.setTag(opentracing.Tags.ERROR, true)
+            fetchSourceSpan.finish()
+            throw new APIError({cause, code: APIError.Code.UpstreamError})
         }
 
         APIError.assert(res.bytes <= MAX_IMAGE_SIZE, APIError.Code.PayloadTooLarge)
@@ -278,7 +281,10 @@ export async function proxyHandler(ctx: KoaContext) {
         origData = res.body
 
         ctx.log.debug('storing original %s', origKey)
+        const storeOriginalSpan = tracer.startSpan("storing original in bucket", {childOf: fetchSourceSpan})
         await storeWrite(origStore, origKey, origData)
+        storeOriginalSpan.finish()
+        fetchSourceSpan.finish()
     }
 
     let rv: Buffer
@@ -292,6 +298,7 @@ export async function proxyHandler(ctx: KoaContext) {
         // this is needed since resizing gifs creates still images
         rv = origData
     } else {
+        const resizingSpan = tracer.startSpan("resizing", {childOf: proxyHandlerSpan})
         const image = Sharp(origData).jpeg({
             quality: 85,
             force: false,
@@ -368,10 +375,14 @@ export async function proxyHandler(ctx: KoaContext) {
 
         rv = await image.toBuffer()
         ctx.log.debug('storing converted %s', imageKey)
+        const storingResizedSpan = tracer.startSpan("storing resized image", {childOf: resizingSpan})
         await storeWrite(proxyStore, imageKey, rv)
+        storingResizedSpan.finish()
+        resizingSpan.finish()
     }
 
     ctx.set('Content-Type', contentType)
     ctx.set('Cache-Control', 'public,max-age=29030400,immutable')
     ctx.body = rv
+    proxyHandlerSpan.finish()
 }
