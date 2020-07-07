@@ -38,6 +38,7 @@ max_image_size = 10000000 # 10mb
 duration = 604800000 # in ms (=1 week)
 max = 300 # max requests within duration
 reputation = 10 # minimum reputation needed for upload
+app_account = 'hive.blog'
 
 # blob stores, valid types are: memory, s3
 # the s3 type additionally needs the s3_bucket key to be set and expects

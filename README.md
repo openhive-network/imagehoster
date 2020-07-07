@@ -146,12 +146,12 @@ Creating a signature (psuedocode):
 signature = secp256k1_sign(sha256('ImageSigningChallenge'+image_data), account_private_posting_key)
 ```
 
-Creating a signature (node.js & [dsteem](https://github.com/jnordberg/dsteem))
+Creating a signature (node.js & [dhive](https://github.com/openhive-network/dhive))
 
 ```js
 #!/usr/bin/env node
 
-const dsteem = require('dsteem')
+const dhive = require('@hiveio/dhive')
 const crypto = require('crypto')
 const fs = require('fs')
 
@@ -163,7 +163,7 @@ if (!wif || !file) {
 }
 
 const data = fs.readFileSync(file)
-const key = dsteem.PrivateKey.fromString(wif)
+const key = dhive.PrivateKey.fromString(wif)
 const imageHash = crypto.createHash('sha256')
     .update('ImageSigningChallenge')
     .update(data)

@@ -3,7 +3,7 @@
 import * as config from 'config'
 import { base58Enc } from './utils'
 
-import { Account } from 'dsteem'
+import { Account } from '@hiveio/dhive'
 import {KoaContext, rpcClient} from './common'
 import {APIError} from './error'
 
