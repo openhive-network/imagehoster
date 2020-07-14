@@ -2,7 +2,7 @@
 imagehoster
 ===========
 
-Steem-powered image hosting and proxying service.
+Hive-powered image hosting and proxying service.
 
 
 Developing
@@ -55,7 +55,21 @@ Returns a JSON object containing the url to the uploaded image, example:
 }
 ```
 
-Requires a signature from a Steem account in good standing, see the "Signing uploads" section below for more information.
+Requires a signature from a Hive account in good standing, see the "Signing uploads" section below for more information.
+
+#### `POST /hs/<accesstoken>` - upload an image with Hivesigner accessToken.
+
+Multipart image upload, will only consider first file if there are multiple.
+
+Returns a JSON object containing the url to the uploaded image, example:
+
+```json
+{
+    "url": "https://images.example.com/DQmZi174Xz96UrRVBMNRHb6A2FfU3z1HRPwPPQCgSMgdiUT/test.jpg"
+}
+```
+
+Requires a access token from a Hivesigner authorized account, for more info: https://hivesigner.com.
 
 
 #### `GET /<image_hash>/[<filename>]` - fetch an uploaded image.
@@ -138,7 +152,7 @@ Note that the avatars follow the same sizing rules as proxied images, so you are
 Signing uploads
 ---------------
 
-Uploads require a signature made with by a Steem account's posting authority, further that account has to be above a (service configurable) reputation threshold.
+Uploads require a signature made with by a Hive account's posting authority, further that account has to be above a (service configurable) reputation threshold.
 
 Creating a signature (psuedocode):
 
@@ -146,12 +160,12 @@ Creating a signature (psuedocode):
 signature = secp256k1_sign(sha256('ImageSigningChallenge'+image_data), account_private_posting_key)
 ```
 
-Creating a signature (node.js & [dsteem](https://github.com/jnordberg/dsteem))
+Creating a signature (node.js & [dhive](https://github.com/openhive-network/dhive))
 
 ```js
 #!/usr/bin/env node
 
-const dsteem = require('dsteem')
+const dhive = require('@hiveio/dhive')
 const crypto = require('crypto')
 const fs = require('fs')
 
@@ -163,7 +177,7 @@ if (!wif || !file) {
 }
 
 const data = fs.readFileSync(file)
-const key = dsteem.PrivateKey.fromString(wif)
+const key = dhive.PrivateKey.fromString(wif)
 const imageHash = crypto.createHash('sha256')
     .update('ImageSigningChallenge')
     .update(data)

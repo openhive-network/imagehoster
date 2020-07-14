@@ -3,11 +3,12 @@
 import * as Busboy from 'busboy'
 import * as config from 'config'
 import {createHash} from 'crypto'
-import {Client, Signature} from 'dsteem'
+import {Client, Signature} from '@hiveio/dhive'
 import * as http from 'http'
 import * as multihash from 'multihashes'
 import * as RateLimiter from 'ratelimiter'
 import {URL} from 'url'
+import * as hivesigner from 'hivesigner'
 
 import {accountBlacklist} from './blacklist'
 import {KoaContext, redisClient, rpcClient, uploadStore} from './common'
@@ -77,7 +78,122 @@ async function getRatelimit(account: string) {
         })
     })
 }
+const b64uLookup = {
+    '/': '_', _: '/', '+': '-', '-': '+', '=': '.', '.': '=',
+}
+function b64uToB64 (str: string) {
+    const tt = str.replace(/(-|_|\.)/g, function(m) { return b64uLookup[m]})
+    return tt
+}
+export async function uploadHsHandler(ctx: KoaContext) {
+    ctx.tag({handler: 'hsupload'})
+    let validSignature = false
 
+    APIError.assert(ctx.method === 'POST', {code: APIError.Code.InvalidMethod})
+    APIError.assertParams(ctx.params, ['accesstoken'])
+    APIError.assert(ctx.get('content-type').includes('multipart/form-data'),
+                    {message: 'Only multipart uploads are supported'})
+    const contentLength = Number.parseInt(ctx.get('content-length'))
+
+    APIError.assert(Number.isFinite(contentLength),
+                    APIError.Code.LengthRequired)
+
+    APIError.assert(contentLength <= MAX_IMAGE_SIZE,
+                    APIError.Code.PayloadTooLarge)
+
+    const file = await parseMultipart(ctx.req)
+    const data = await readStream(file.stream)
+
+    // extra check if client manges to lie about the content-length
+    APIError.assert((file.stream as any).truncated !== true,
+                    APIError.Code.PayloadTooLarge)
+
+    const imageHash = createHash('sha256')
+        .update('ImageSigningChallenge')
+        .update(data)
+        .digest()
+            
+    const token = ctx.params['accesstoken']
+    const decoded = Buffer.from(b64uToB64(token), 'base64').toString()
+    const tokenObj = JSON.parse(decoded)
+    const signedMessage = tokenObj.signed_message
+    if (
+        tokenObj.authors
+        && tokenObj.authors[0]
+        && tokenObj.signatures
+        && tokenObj.signatures[0]
+        && signedMessage
+        && signedMessage.type
+        && ['login', 'posting', 'offline', 'code', 'refresh']
+        .includes(signedMessage.type)
+        && signedMessage.app
+    ) {
+
+        const username = tokenObj.authors[0]
+
+        let account = {
+            name: '',
+            reputation: 0,
+        }
+        const cl = new hivesigner.Client({
+            app: UPLOAD_LIMITS.app_account,
+            accessToken: token,
+        })
+
+        await cl.me(function (err: any, res: any) {
+            if (!err && res) {
+                account = res.account
+                APIError.assert(account, APIError.Code.NoSuchAccount)
+
+                ctx.log.warn('uploading app %s', signedMessage.app)
+                APIError.assert(username === account.name, APIError.Code.InvalidSignature)
+                APIError.assert(signedMessage.app === UPLOAD_LIMITS.app_account, APIError.Code.InvalidSignature)
+                APIError.assert(res.scope.includes('comment'), APIError.Code.InvalidSignature)
+
+                if (account && account.name) {
+                    ['posting', 'active', 'owner'].forEach((type) => {
+                      account[type].account_auths.forEach((key: string[]) => {
+                        if (
+                          !validSignature
+                          && key[0] === UPLOAD_LIMITS.app_account
+                        ) {
+                          validSignature = true;
+                        }
+                      });
+                    });
+                }
+            }
+        });
+
+        APIError.assert(validSignature, APIError.Code.InvalidSignature)
+        APIError.assert(!accountBlacklist.includes(account.name), APIError.Code.Blacklisted)
+
+        let limit: RateLimit = {total: 0, remaining: Infinity, reset: 0}
+        try {
+            limit = await getRatelimit(account.name)
+        } catch (error) {
+            ctx.log.warn(error, 'unable to enforce upload rate limits')
+        }
+
+        APIError.assert(limit.remaining > 0, APIError.Code.QoutaExceeded)
+
+        APIError.assert(repLog10(account.reputation) >= UPLOAD_LIMITS.reputation, APIError.Code.Deplorable)
+
+        const key = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
+        const url = new URL(`${ key }/${ file.name }`, SERVICE_URL)
+
+        if (!(await storeExists(uploadStore, key))) {
+            await storeWrite(uploadStore, key, data)
+        } else {
+            ctx.log.debug('key %s already exists in store', key)
+        }
+
+        ctx.log.info({uploader: account.name, size: data.byteLength}, 'image uploaded')
+
+        ctx.status = 200
+        ctx.body = {url}
+    }
+}
 export async function uploadHandler(ctx: KoaContext) {
     ctx.tag({handler: 'upload'})
 

@@ -2,7 +2,7 @@
 
 import {AbstractBlobStore} from 'abstract-blob-store'
 import * as config from 'config'
-import {Client} from 'dsteem'
+import {Client} from '@hiveio/dhive'
 import {IRouterContext} from 'koa-router'
 import * as Redis from 'redis'
 

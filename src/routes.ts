@@ -7,7 +7,7 @@ import {KoaContext} from './common'
 import {legacyProxyHandler} from './legacy-proxy'
 import {proxyHandler} from './proxy'
 import {serveHandler} from './serve'
-import {uploadHandler} from './upload'
+import {uploadHandler, uploadHsHandler} from './upload'
 
 const version = require('./version')
 const router = new Router()
@@ -22,6 +22,7 @@ async function healthcheck(ctx: KoaContext) {
 router.get('/', healthcheck as any)
 router.get('/.well-known/healthcheck.json', healthcheck as any)
 router.get('/u/:username/avatar/:size?', avatarHandler as any)
+router.post('/hs/:accesstoken', uploadHsHandler as any)
 router.post('/:username/:signature', uploadHandler as any)
 router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', legacyProxyHandler as any)
 router.get('/p/:url', proxyHandler as any)
