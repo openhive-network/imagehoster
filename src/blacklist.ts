@@ -139,7 +139,8 @@ export const imageBlacklist: Blacklist<string> = [
     'https://files.peakd.com/file/peakd-hive/keitosama/jt2pO1Up-2937011E-A569-4B4E-ACEB-99EB84D7338E.jpeg',
     'https://files.peakd.com/file/peakd-hive/keitosama/2hFgqkAR-BB22FD34-073B-4CC8-92AF-BFA4EF538AD6.jpeg',
     'https://files.peakd.com/file/peakd-hive/keitosama/uxutlPV4-9C1D4EEB-2A82-403B-A5CD-A5CFB0E8C012.jpeg',
-    'https://files.peakd.com/file/peakd-hive/keitosama/i9jskuOZ-668CA97C-B1C8-4336-98E3-D325DCFF7047.jpeg'
+    'https://files.peakd.com/file/peakd-hive/keitosama/i9jskuOZ-668CA97C-B1C8-4336-98E3-D325DCFF7047.jpeg',
+    'https://images.hive.blog/DQmNvk94uq6VAgS3t4zAeQCezGCToqGNsUkv4fkPo4NwVDm/image.png'
   ]
 
 export const accountBlacklist: Blacklist<string> = [
