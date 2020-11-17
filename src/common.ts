@@ -48,6 +48,8 @@ function loadStore(key: string): AbstractBlobStore {
             client: S3Client,
             bucket: conf.get('s3_bucket'),
         })
+    } else if (conf.type === 'fs') {
+        return require('fs-blob-store')(conf.get('path'))
     } else {
         throw new Error(`Invalid storage type: ${ conf.type }`)
     }
