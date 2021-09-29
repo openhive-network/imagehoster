@@ -177,6 +177,16 @@ export const imageBlacklist: Blacklist<string> = [
     // I don't know if we should do anything more generic for peakd, for now just block the exact images referenced in the posts
     'https://files.peakd.com/file/peakd-hive/cpcensorshiptest/EnyxkPZGM7DGwFCVELyC1kK6RGuEsB2UvSEybaeykYXM3BqNRw68B5GS26JCskBuzM5.jpg',
     'https://files.peakd.com/file/peakd-hive/cpcensorshiptest/EnyumJPqtRevXJJucGNcoTvk1AevK6tveNwkDoqDj8kdgdqo1kb2hxbyU4J35igzVKw.jpg',
+
+    // Reported by cloudflare CSAM
+    // https://images.hive.blog/p/o1AJ9qDyyJNSg3wWvCPXkCcN4PX4LP3oeyUp6MR4d2dvGyUi2?format=match&mode=fit&width=1536
+    'o1AJ9qDyyJNSg3wWvCPXkCcN4PX4LP3oeyUp6MR4d2dvGyUi2',
+    'https://i.postimg.cc/ncH7t3Fs/01.jpg',
+
+    // https://images.hive.blog/p/3jpR3paJ37V8JxyWvtbhvcm5k3roJwHBR4WTALx7XaoRovswY2w48e3SNNzoCrjVy9nxDdx4sqv7tBU6LSEUrPMJ2bcWfSEGV6oU7XnumMtxvKeBFi5Ggw3nDYbUENURUuRzE
+    // which decodes to https://cdn.steemitimages.com/DQmeh61aqhbuhYDnEDtggEKcXxay9VN5JPYrBLP88EisaH8/Vietnamese_kids.jpg
+    '3jpR3paJ37V8JxyWvtbhvcm5k3roJwHBR4WTALx7XaoRovswY2w48e3SNNzoCrjVy9nxDdx4sqv7tBU6LSEUrPMJ2bcWfSEGV6oU7XnumMtxvKeBFi5Ggw3nDYbUENURUuRzE',
+    'DQmeh61aqhbuhYDnEDtggEKcXxay9VN5JPYrBLP88EisaH8',
   ]
 
 export const accountBlacklist: Blacklist<string> = [
