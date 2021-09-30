@@ -143,50 +143,56 @@ export const imageBlacklist: Blacklist<string> = [
     'https://images.hive.blog/DQmNvk94uq6VAgS3t4zAeQCezGCToqGNsUkv4fkPo4NwVDm/image.png',
 
     // cpcensorshiptest URLs
-    //'https://images.hive.blog/DQmeLKjpW89de2DqfCYxdTM4HPvUgurmpJuZYAN9SP2c9Q5/photo_2021-09-25_15-43-02.jpg',
-    //'https://images.ecency.com/DQmeLKjpW89de2DqfCYxdTM4HPvUgurmpJuZYAN9SP2c9Q5/photo_2021_09_25_15_43_02.jpg',
+    'https://images.hive.blog/DQmeLKjpW89de2DqfCYxdTM4HPvUgurmpJuZYAN9SP2c9Q5/photo_2021-09-25_15-43-02.jpg',
+    'https://images.ecency.com/DQmeLKjpW89de2DqfCYxdTM4HPvUgurmpJuZYAN9SP2c9Q5/photo_2021_09_25_15_43_02.jpg',
     // this should cover the two above and make them unnecessary
     'DQmeLKjpW89de2DqfCYxdTM4HPvUgurmpJuZYAN9SP2c9Q5',
 
-    //'https://images.hive.blog/DQmTmDoxS79uwiLbqBG4aFpS6TX8U3iNvG7bgJ66dQPZrJo/photo_2021-09-25_15-43-05.jpg',
+    'https://images.hive.blog/DQmTmDoxS79uwiLbqBG4aFpS6TX8U3iNvG7bgJ66dQPZrJo/photo_2021-09-25_15-43-05.jpg',
     // this should cover the above:
     'DQmTmDoxS79uwiLbqBG4aFpS6TX8U3iNvG7bgJ66dQPZrJo',
 
-    //'https://images.ecency.com/DQmXMRdjUdumHvg34EYZChhebeFyKb92HPZi959KGKv1xTS/photo_2021_09_25_15_36_53.jpg',
-    //'https://images.hive.blog/DQmXMRdjUdumHvg34EYZChhebeFyKb92HPZi959KGKv1xTS/photo_2021-09-25_15-36-53.jpg',
+    'https://images.ecency.com/DQmXMRdjUdumHvg34EYZChhebeFyKb92HPZi959KGKv1xTS/photo_2021_09_25_15_36_53.jpg',
+    'https://images.hive.blog/DQmXMRdjUdumHvg34EYZChhebeFyKb92HPZi959KGKv1xTS/photo_2021-09-25_15-36-53.jpg',
     // this should cover the two above and make them unnecessary
     'DQmXMRdjUdumHvg34EYZChhebeFyKb92HPZi959KGKv1xTS',
 
-    //'https://images.ecency.com/DQmSkwCjA6UC3yWJzPdMw7FfoQSSshZixxH1evSyAgMKwYJ/photo_2021_09_25_15_43_01.jpg',
+    'https://images.ecency.com/DQmSkwCjA6UC3yWJzPdMw7FfoQSSshZixxH1evSyAgMKwYJ/photo_2021_09_25_15_43_01.jpg',
     // this should cover the above:
     'DQmSkwCjA6UC3yWJzPdMw7FfoQSSshZixxH1evSyAgMKwYJ',
 
-    //'https://images.ecency.com/DQmXMfH8of2foUPTGeokvzUEzKoD2EmXSV5RbRZQC9dxC8V/photo_2021_09_25_15_40_29.jpg',
+    'https://images.ecency.com/DQmXMfH8of2foUPTGeokvzUEzKoD2EmXSV5RbRZQC9dxC8V/photo_2021_09_25_15_40_29.jpg',
     // this should cover the above:
     'DQmXMfH8of2foUPTGeokvzUEzKoD2EmXSV5RbRZQC9dxC8V',
 
     // the hash 7258xSVeJbKmTr9Z4jhbPhjS9pMWA2mTwBMDbXqkBFLELxxrbCGVrTBP3mNK6SqrYEryH5BuRxRXFm7G64HB5dCojiFuLGkWWXbamni4RxKnyRtcY475WF9yMRsMKFXLPrkhWdPnCYbR8
     // is base58 for https://images.ecency.com/DQmXMRdjUdumHvg34EYZChhebeFyKb92HPZi959KGKv1xTS/photo_2021_09_25_15_36_53.jpg
     // so this blocks proxying these avatar images:
-    //'https://images.hive.blog/p/7258xSVeJbKmTr9Z4jhbPhjS9pMWA2mTwBMDbXqkBFLELxxrbCGVrTBP3mNK6SqrYEryH5BuRxRXFm7G64HB5dCojiFuLGkWWXbamni4RxKnyRtcY475WF9yMRsMKFXLPrkhWdPnCYbR8?format=match&mode=fit&width=2048&height=512',
-    //'https://images.hive.blog/p/7258xSVeJbKmTr9Z4jhbPhjS9pMWA2mTwBMDbXqkBFLELxxrbCGVrTBP3mNK6SqrYEryH5BuRxRXFm7G64HB5dCojiFuLGkWWXbamni4RxKnyRtcY475WF9yMRsMKFXLPrkhWdPnCYbR8?width=128&height=128',
-    //'https://images.hive.blog/p/7258xSVeJbKmTr9Z4jhbPhjS9pMWA2mTwBMDbXqkBFLELxxrbCGVrTBP3mNK6SqrYEryH5BuRxRXFm7G64HB5dCojiFuLGkWWXbamni4RxKnyRtcY475WF9yMRsMKFXLPrkhWdPnCYbR8?width=64&height=64',
+    'https://images.hive.blog/p/7258xSVeJbKmTr9Z4jhbPhjS9pMWA2mTwBMDbXqkBFLELxxrbCGVrTBP3mNK6SqrYEryH5BuRxRXFm7G64HB5dCojiFuLGkWWXbamni4RxKnyRtcY475WF9yMRsMKFXLPrkhWdPnCYbR8?format=match&mode=fit&width=2048&height=512',
+    'https://images.hive.blog/p/7258xSVeJbKmTr9Z4jhbPhjS9pMWA2mTwBMDbXqkBFLELxxrbCGVrTBP3mNK6SqrYEryH5BuRxRXFm7G64HB5dCojiFuLGkWWXbamni4RxKnyRtcY475WF9yMRsMKFXLPrkhWdPnCYbR8?width=128&height=128',
+    'https://images.hive.blog/p/7258xSVeJbKmTr9Z4jhbPhjS9pMWA2mTwBMDbXqkBFLELxxrbCGVrTBP3mNK6SqrYEryH5BuRxRXFm7G64HB5dCojiFuLGkWWXbamni4RxKnyRtcY475WF9yMRsMKFXLPrkhWdPnCYbR8?width=64&height=64',
     // this should cover the three above, but I'm not sure that it does
     '7258xSVeJbKmTr9Z4jhbPhjS9pMWA2mTwBMDbXqkBFLELxxrbCGVrTBP3mNK6SqrYEryH5BuRxRXFm7G64HB5dCojiFuLGkWWXbamni4RxKnyRtcY475WF9yMRsMKFXLPrkhWdPnCYbR8',
+    'https://images.ecency.com/DQmXMRdjUdumHvg34EYZChhebeFyKb92HPZi959KGKv1xTS/photo_2021_09_25_15_36_53.jpg',
 
     // I don't know if we should do anything more generic for peakd, for now just block the exact images referenced in the posts
     'https://files.peakd.com/file/peakd-hive/cpcensorshiptest/EnyxkPZGM7DGwFCVELyC1kK6RGuEsB2UvSEybaeykYXM3BqNRw68B5GS26JCskBuzM5.jpg',
     'https://files.peakd.com/file/peakd-hive/cpcensorshiptest/EnyumJPqtRevXJJucGNcoTvk1AevK6tveNwkDoqDj8kdgdqo1kb2hxbyU4J35igzVKw.jpg',
 
     // Reported by cloudflare CSAM
-    // https://images.hive.blog/p/o1AJ9qDyyJNSg3wWvCPXkCcN4PX4LP3oeyUp6MR4d2dvGyUi2?format=match&mode=fit&width=1536
+    'https://images.hive.blog/p/o1AJ9qDyyJNSg3wWvCPXkCcN4PX4LP3oeyUp6MR4d2dvGyUi2?format=match&mode=fit&width=1536',
     'o1AJ9qDyyJNSg3wWvCPXkCcN4PX4LP3oeyUp6MR4d2dvGyUi2',
     'https://i.postimg.cc/ncH7t3Fs/01.jpg',
 
-    // https://images.hive.blog/p/3jpR3paJ37V8JxyWvtbhvcm5k3roJwHBR4WTALx7XaoRovswY2w48e3SNNzoCrjVy9nxDdx4sqv7tBU6LSEUrPMJ2bcWfSEGV6oU7XnumMtxvKeBFi5Ggw3nDYbUENURUuRzE
-    // which decodes to https://cdn.steemitimages.com/DQmeh61aqhbuhYDnEDtggEKcXxay9VN5JPYrBLP88EisaH8/Vietnamese_kids.jpg
+    'https://images.hive.blog/p/3jpR3paJ37V8JxyWvtbhvcm5k3roJwHBR4WTALx7XaoRovswY2w48e3SNNzoCrjVy9nxDdx4sqv7tBU6LSEUrPMJ2bcWfSEGV6oU7XnumMtxvKeBFi5Ggw3nDYbUENURUuRzE',
+    'https://cdn.steemitimages.com/DQmeh61aqhbuhYDnEDtggEKcXxay9VN5JPYrBLP88EisaH8/Vietnamese_kids.jpg',
     '3jpR3paJ37V8JxyWvtbhvcm5k3roJwHBR4WTALx7XaoRovswY2w48e3SNNzoCrjVy9nxDdx4sqv7tBU6LSEUrPMJ2bcWfSEGV6oU7XnumMtxvKeBFi5Ggw3nDYbUENURUuRzE',
     'DQmeh61aqhbuhYDnEDtggEKcXxay9VN5JPYrBLP88EisaH8',
+
+    'https://images.hive.blog//p/8SzwQc8j2KJb4ARrxQxCjX4jizub4U5CAK3WwB89vZGZQ92WwiK3N67ELqXRj4E3FEzHQ1n4vWo4Zw31hJm1QGvN3c6wWDTZMyj8xCxZqwaehcgkRa6?format=match&mode=fit&width=15360',
+    'https://steemitimages.com/DQmdadwpGNPf6Vmp5b1A4PEYEgednq1RAVjMmjdYFo2F6TU/image.jpeg',
+    '8SzwQc8j2KJb4ARrxQxCjX4jizub4U5CAK3WwB89vZGZQ92WwiK3N67ELqXRj4E3FEzHQ1n4vWo4Zw31hJm1QGvN3c6wWDTZMyj8xCxZqwaehcgkRa6',
+    'DQmdadwpGNPf6Vmp5b1A4PEYEgednq1RAVjMmjdYFo2F6TU',
   ]
 
 export const accountBlacklist: Blacklist<string> = [
