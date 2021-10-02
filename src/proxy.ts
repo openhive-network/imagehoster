@@ -185,7 +185,12 @@ export async function proxyHandler(ctx: KoaContext) {
     ctx.set('Cache-Control', 'public,max-age=600')
 
     // refuse to proxy images on blacklist
-    APIError.assert(imageBlacklist.includes(url.toString()) === false, APIError.Code.Blacklisted)
+    if (imageBlacklist.includes(url.toString())) {
+        ctx.log.debug('URL %s is blacklisted', url.toString());
+        APIError.assert(!imageBlacklist.includes(url.toString()), APIError.Code.Blacklisted)
+    } else {
+        ctx.log.debug('URL %s is not blacklisted', url.toString());
+    }
 
     // where the original image is/will be stored
     let origStore: AbstractBlobStore
