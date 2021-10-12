@@ -193,6 +193,24 @@ export const imageBlacklist: Blacklist<string> = [
     'https://steemitimages.com/DQmdadwpGNPf6Vmp5b1A4PEYEgednq1RAVjMmjdYFo2F6TU/image.jpeg',
     '8SzwQc8j2KJb4ARrxQxCjX4jizub4U5CAK3WwB89vZGZQ92WwiK3N67ELqXRj4E3FEzHQ1n4vWo4Zw31hJm1QGvN3c6wWDTZMyj8xCxZqwaehcgkRa6',
     'DQmdadwpGNPf6Vmp5b1A4PEYEgednq1RAVjMmjdYFo2F6TU',
+
+    'https://images.hive.blog/p/2HeX3ZbobrcGJJWd7UZfqY3VApCrn7bghrTViJaRxFXT1RbQjHM9pZHzm6mdodXfYmCu3?format=match&mode=fit',
+    '2HeX3ZbobrcGJJWd7UZfqY3VApCrn7bghrTViJaRxFXT1RbQjHM9pZHzm6mdodXfYmCu3',
+    'http://www.newfapchan.org/gif/src/133548929949.gif',
+
+    'https://images.hive.blog/p/Zskj9C56UonZ32EJw6nMctrTQ6kTQ3swaDmbMFvajTxMqeFa3wbEn6QdiZEDzEJqWvswRL4CD4AdSHW2R18U1YMSr3kGmAh1CHzYbdHzvyRNEb17Lutr?format=match&mode=fit&width=256&height=512',
+    'https://images.hive.blog/DQmf9cyCvip3J46Ka7E1pxGhktaT5XHMcAWn8TqWrZbTJ9c/10%20(3).jpg',
+    'DQmf9cyCvip3J46Ka7E1pxGhktaT5XHMcAWn8TqWrZbTJ9c',
+
+    'https://images.hive.blog/p/3W72119s5BjVtYhc8EyUCS1n2TpsbpKuDhBkZTQTi2NsGVP3cuDYfbsXixUxSQkPZKURJojjJKAKuNJXgAU6yys7PgiQ4KPScNhUYBo4tHB6RBzCqYqc4W?format=match&mode=fit&width=256&height=512',
+    'https://d1vof77qrk4l5q.cloudfront.net/img/c8b99e626a3677b609e689ddff91a2acb6ec6ce5.jpg',
+
+    'https://images.hive.blog/p/Pufd3b1W2k72XA2c2nnrxvGbQcUrjcux2nvVowfgitjnLDDN1BNJLsWe?width=1600&height=1200&format=webp&mode=fit',
+    'Pufd3b1W2k72XA2c2nnrxvGbQcUrjcux2nvVowfgitjnLDDN1BNJLsWe',
+    'https://www.scrolller.com/media/3cd8b.jpg',
+    'https://images.hive.blog/p/o1AJ9qDyyJNYmDFCuF91XUDoYykMeuM61uxdsjp4PhMYjTQTx?width=1600&height=1200&format=webp&mode=fit',
+    'o1AJ9qDyyJNYmDFCuF91XUDoYykMeuM61uxdsjp4PhMYjTQTx',
+    'https://scrolller.com/media/1f04.jpg',
   ]
 
 export const accountBlacklist: Blacklist<string> = [
