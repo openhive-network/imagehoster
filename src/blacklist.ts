@@ -211,6 +211,10 @@ export const imageBlacklist: Blacklist<string> = [
     'https://images.hive.blog/p/o1AJ9qDyyJNYmDFCuF91XUDoYykMeuM61uxdsjp4PhMYjTQTx?width=1600&height=1200&format=webp&mode=fit',
     'o1AJ9qDyyJNYmDFCuF91XUDoYykMeuM61uxdsjp4PhMYjTQTx',
     'https://scrolller.com/media/1f04.jpg',
+
+    'https://images.hive.blog/p/qjrE4yyfw5pERVWyiNwowNg8EoSdJrEPVKNJccQCAeSJrvDBWr1QbpMmN2XTjFMr3gwjyJAyTGakg2qe8CrsGs9YiWwRfmJioy1emJ8fbwpiryoioKAkkq1Y?format=match&mode=fit&width=768',
+    'qjrE4yyfw5pERVWyiNwowNg8EoSdJrEPVKNJccQCAeSJrvDBWr1QbpMmN2XTjFMr3gwjyJAyTGakg2qe8CrsGs9YiWwRfmJioy1emJ8fbwpiryoioKAkkq1Y',
+    'https://coliriodemacho.com.br/wordpress/wp-content/uploads/2020/05/pata-de-camelo-10.jpg',
   ]
 
 export const accountBlacklist: Blacklist<string> = [
