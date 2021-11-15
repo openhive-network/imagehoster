@@ -215,6 +215,24 @@ export const imageBlacklist: Blacklist<string> = [
     'https://images.hive.blog/p/qjrE4yyfw5pERVWyiNwowNg8EoSdJrEPVKNJccQCAeSJrvDBWr1QbpMmN2XTjFMr3gwjyJAyTGakg2qe8CrsGs9YiWwRfmJioy1emJ8fbwpiryoioKAkkq1Y?format=match&mode=fit&width=768',
     'qjrE4yyfw5pERVWyiNwowNg8EoSdJrEPVKNJccQCAeSJrvDBWr1QbpMmN2XTjFMr3gwjyJAyTGakg2qe8CrsGs9YiWwRfmJioy1emJ8fbwpiryoioKAkkq1Y',
     'https://coliriodemacho.com.br/wordpress/wp-content/uploads/2020/05/pata-de-camelo-10.jpg',
+
+    'https://images.hive.blog/p/Zskj9C56UonWToSX8tGXNY8jeXKSedJ2aRhGRj6HDecqreZedDBNGMamG62ZYCsMs6Wa2ivzXMoS5CWRnyyLanXgKtVvB55E4UHPQzMY6CJ1RnebAhbk?format=match&mode=fit',
+    'Zskj9C56UonWToSX8tGXNY8jeXKSedJ2aRhGRj6HDecqreZedDBNGMamG62ZYCsMs6Wa2ivzXMoS5CWRnyyLanXgKtVvB55E4UHPQzMY6CJ1RnebAhbk',
+    'https://cdn.steemitimages.com/DQmQJkZ8w5thW6ZQdfRjBG59a4ugDWFMeJ54LQxeAfG458Y/071.jpg',
+    'DQmQJkZ8w5thW6ZQdfRjBG59a4ugDWFMeJ54LQxeAfG458Y',
+
+
+    'https://images.hive.blog/p/LcTxR7u1XKaa3e4T1EBuBP18JezPvjFFo8gNuE9CiKHBn4KM97CaW6UAH5AhbY7GkyxjjxymyLwatrSNb6GAsSfoCbcVphDnvZBGZP4E82KZkn8WL6tRTAZW2hw31kpzWH887ygTKwYhGUkYAhWVqGCpW?format=match&mode=fit',
+    'LcTxR7u1XKaa3e4T1EBuBP18JezPvjFFo8gNuE9CiKHBn4KM97CaW6UAH5AhbY7GkyxjjxymyLwatrSNb6GAsSfoCbcVphDnvZBGZP4E82KZkn8WL6tRTAZW2hw31kpzWH887ygTKwYhGUkYAhWVqGCpW',
+    'https://cdn.steemitimages.com/DQmZoXTCXoxYBYoV41hNqrw4XaxThSwVgRTrTHPzn7M3rT7/biljana_djurdjevic_serbia_pain.jpg',
+
+    'https://images.hive.blog/p/MvwLKy3SfvJwXFKCRMDAFrt961XwzxrWjToDjWfT4?format=match&mode=fit&width=1536',
+    'MvwLKy3SfvJwXFKCRMDAFrt961XwzxrWjToDjWfT4',
+    'http://i.imgur.com/vfpmfn8.jpg',
+
+    'https://images.hive.blog/p/LcTxR7u1XKaa3e4T1EBuBP18JezPvjFFo8gNuE9CiKHBn42YPyRWsExigLY2voQwdNSq869WdkV6GtiEQqvw27ZCARWYkfXr8vPcmXnKKzJh65QLatikrwXeiTuGrPeqfspA99StRRwACudB7v81zLVMg?format=match&mode=fit&width=256&height=512',
+    'https://cdn.steemitimages.com/DQmXiQhKjseyhRu54ughWdGs1wX4oFAMKE9aNvDPdndwtAr/biljana_djurdjevic_serbia_pain.jpg',
+    'DQmXiQhKjseyhRu54ughWdGs1wX4oFAMKE9aNvDPdndwtAr',
   ]
 
 export const accountBlacklist: Blacklist<string> = [
