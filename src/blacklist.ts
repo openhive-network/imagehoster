@@ -233,6 +233,28 @@ export const imageBlacklist: Blacklist<string> = [
     'https://images.hive.blog/p/LcTxR7u1XKaa3e4T1EBuBP18JezPvjFFo8gNuE9CiKHBn42YPyRWsExigLY2voQwdNSq869WdkV6GtiEQqvw27ZCARWYkfXr8vPcmXnKKzJh65QLatikrwXeiTuGrPeqfspA99StRRwACudB7v81zLVMg?format=match&mode=fit&width=256&height=512',
     'https://cdn.steemitimages.com/DQmXiQhKjseyhRu54ughWdGs1wX4oFAMKE9aNvDPdndwtAr/biljana_djurdjevic_serbia_pain.jpg',
     'DQmXiQhKjseyhRu54ughWdGs1wX4oFAMKE9aNvDPdndwtAr',
+
+    'https://images.hive.blog/p/JLypLpqVPBaPBxeyDtHtGjoPy8Qta67mkQmiiTmDbahnbsLRJQpfh3JfJt7y8Sg42MEm35hLcZMxTSh9zEmtZkMM3qiJsoXALj47xYE6sAvQaP4zxuJZTEKGNWYfD9RniQhu3wA88taGUp7Zkv3eSodTKbPNetVpafLpzpkqKsVc9vMX3X3QaFAjkLeFiRMn93?format=match&mode=fit',
+    'https://images.hive.blog/p/JLypLpqVPBaPBxeyDtHtGjoPy8Qta67mkQmiiTmDbahnbsLRJQpfh3JfJt7y8Sg42MEm35hLcZMxTSh9zEmtZkMM3qiJsoXALj47xYE6sAvQaP4zxuJZTEKGNWYfD9RniQhu3wA88taGUp7Zkv3eSodTKbPNetVpafLpzpkqKsVc9vMX3X3QaFAjkLeFiRMn93?format=match&mode=fit&width=256&height=512',
+    'https://steemitimages.com/DQmcoXZitkKm8PBBPrtAFLnUvypGStL4astLKFNUecdCKP7/d6e6386f92499dcaea1b8ed76facbbcd18050a0ec7064f24f4096ffd5af77022.gif',
+    'DQmcoXZitkKm8PBBPrtAFLnUvypGStL4astLKFNUecdCKP7',
+
+
+    'https://images.hive.blog/p/3zpz8WQe4SNH8q6FEif2uzpmXjQNog2n2huWTcwn9q9DfuvNGBFtDDiDBKbEx6eUVYp14TCMzk65HCBAXy6zKfJtzAG1xU6inCKXCgHacKt1Zw5UoA6ZPXVLcF3pxFC9JdnY9d25GQNYdSdzVcDK?format=match&mode=fit',
+
+    'https://images.hive.blog/p/3RTd4iuWD6NUeJEn5AVrJUoyatFqBqfcCJi1N7UixR4g2KPKN7w8NpZJKFS97GUWwiV9wsPgufk27sZrDmdwg8bDjvQrDotb9jzJ4x4pkBt7v2osMsvGX5AUfDjiXT5Y6fqVhmrHoaH931TyeLWnJQ95L696Gf2r5c7CGYdRzYHRup?format=match&mode=fit',
+    'https://images.hive.blog/p/3RTd4iuWD6NUeJEn5AVrJUoyatFqBqfcCJi1N7UixR4g2KPKN7w8NpZJKFS97GUWwiV9wsPgufk27sZrDmdwg8bDjvQrDotb9jzJ4x4pkBt7v2osMsvGX5AUfDjiXT5Y6fqVhmrHoaH931TyeLWnJQ95L696Gf2r5c7CGYdRzYHRup?width=1600&height=1200&format=webp&mode=fit',
+    'https://images.hive.blog/p/3RTd4iuWD6NUeJEn5AVrJUoyatFqBqfcCJi1N7UixR4g2KPKN7w8NpZJKFS97GUWwiV9wsPgufk27sZrDmdwg8bDjvQrDotb9jzJ4x4pkBt7v2osMsvGX5AUfDjiXT5Y6fqVhmrHoaH931TyeLWnJQ95L696Gf2r5c7CGYdRzYHRup?format=match&mode=fit&width=256&height=512',
+    'https://images.hive.blog/p/3RTd4iuWD6NUeJEn5AVrJUoyatFqBqfcCJi1N7UixR4g2KPKN7w8NpZJKFS97GUWwiV9wsPgufk27sZrDmdwg8bDjvQrDotb9jzJ4x4pkBt7v2osMsvGX5AUfDjiXT5Y6fqVhmrHoaH931TyeLWnJQ95L696Gf2r5c7CGYdRzYHRup?format=match&mode=fit&width=768',
+    'https://images.hive.blog/p/3RTd4iuWD6NUeJEn5AVrJUoyatFqBqfcCJi1N7UixR4g2KPKN7w8NpZJKFS97GUWwiV9wsPgufk27sZrDmdwg8bDjvQrDotb9jzJ4x4pkBt7v2osMsvGX5AUfDjiXT5Y6fqVhmrHoaH931TyeLWnJQ95L696Gf2r5c7CGYdRzYHRup',
+    'https://files.peakd.com/file/peakd-hive/bandarpenguin/23wX1BBvWHBpgQRzBkoAqNZLj8effJ6riPzYeMh4iKn6S6z53L6HHtsQaPnZJcnYzGdB6.jpg',
+
+    'https://images.hive.blog/p/7258xRzWfA8KeoSSdHZphgmokaKMtBy8ZAimjMTPf22ghbovy2FLLmGdgFfdsyN4bGuLPSQe8rrYA6K8G5xugtxFwfCkcNkZ6NBKqqAai981RZr73hpbxfaV1kg78ibBKfmKnuKy5e3tA?format=match&mode=fit&width=768',
+    'http://1.bp.blogspot.com/-mcWgeFvKy4Y/VSbfStWvfSI/AAAAAAAACpc/X3xKI63GD1w/s640/MUJERES+CULONAS+-018.jpg',
+
+    'https://images.hive.blog/p/6VvuHGsoU2QD2aHbJiivbVZV6nAA4BJrX2xi1YbtyeQs462kuKaTU67TB4PJbm6jfPF5bmQLcnaR597t9VuAQVp8bbpKDfrp95Y47r8hsmBJtJxcJnQsfpsMDY5bt2?format=match&mode=fit',
+    'https://steemitimages.com/DQmWXC3dgg1at4wSHLDocVY3KuerTzvTQS2ErCdSjymtTc6/podesta%20art1.jpg',
+    'DQmWXC3dgg1at4wSHLDocVY3KuerTzvTQS2ErCdSjymtTc6',
   ]
 
 export const accountBlacklist: Blacklist<string> = [
