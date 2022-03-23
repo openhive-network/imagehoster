@@ -1,8 +1,8 @@
 /** Misc shared instances. */
 
+import {Client} from '@hiveio/dhive'
 import {AbstractBlobStore} from 'abstract-blob-store'
 import * as config from 'config'
-import {Client} from '@hiveio/dhive'
 import {IRouterContext} from 'koa-router'
 import * as Redis from 'redis'
 
@@ -33,7 +33,10 @@ if (config.has('redis_url')) {
 let S3Client: any
 function loadStore(key: string): AbstractBlobStore {
     const conf = config.get(key) as any
-    if (conf.type === 'memory') {
+    if (conf.type === 'fs') {
+        logger.warn('using file store for %s', key)
+        return require('fs-blob-store')('/tmp')
+    } else if (conf.type === 'memory') {
         logger.warn('using memory store for %s', key)
         return require('abstract-blob-store')()
     } else if (conf.type === 's3') {

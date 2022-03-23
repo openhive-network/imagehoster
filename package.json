@@ -16,6 +16,7 @@
     "bunyan": "^2.0.2",
     "busboy": "^0.2.14",
     "config": "^1.29.4",
+    "fs-blob-store": "^6.0.0",
     "hivesigner": "^3.2.0",
     "koa": "^2.3.0",
     "koa-router": "^7.4.0",
@@ -49,8 +50,8 @@
     "mocha-junit-reporter": "^1.17.0",
     "nyc": "^14.1.1",
     "onchange": "^6.1.0",
-    "ts-node": "^7.0.0",
+    "ts-node": "^8.10.2",
     "tslint": "^5.16.0",
-    "typescript": "^2.7.1"
+    "typescript": "^3.9.6"
   }
 }

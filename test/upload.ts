@@ -1,14 +1,12 @@
-import 'mocha'
 import * as assert from 'assert'
+import * as crypto from 'crypto'
+import * as fs from 'fs'
 import * as http from 'http'
+import 'mocha'
 import * as needle from 'needle'
 import * as path from 'path'
-import * as fs from 'fs'
-import * as crypto from 'crypto'
-import {PrivateKey} from '@hiveio/dhive'
 
 import {app} from './../src/app'
-import {rpcClient} from './../src/common'
 
 import {testKeys} from './index'
 
@@ -27,17 +25,23 @@ export async function uploadImage(data: Buffer, port: number) {
             },
         }
         const signature = testKeys.foo.sign(hash).toString()
-        needle.post(`:${ port }/foo/${ signature }`, payload, {multipart: true}, function (error, response, body) {
-            if (error) {
-                reject(error)
-            } else {
-                resolve({response, body})
-            }
-        })
+        const url = `http://localhost:${ port }/foo/${ signature }`
+        needle.post(
+            url,
+            payload,
+    {multipart: true},
+            (error, response, body) => {
+                if (error) {
+                    reject(error)
+                } else {
+                    resolve({response, body})
+                }
+            },
+        )
     })
 }
 
-describe('upload', function() {
+describe('upload', () => {
     const port = 63205
     const server = http.createServer(app.callback())
 

@@ -2,8 +2,13 @@ num_workers = 0
 port = 3234
 proxy = true
 log_level = 'info'
-rpc_node = 'https://api.steemit.com'
+rpc_node = 'https://api.hive.blog'
+service_url = 'http://localhost:3234'
 [upload_store]
-type = 's3'
+type = 'fs'
+fs_store_path = '/tmp'
+s3_bucket = ''
 [proxy_store]
-type = 's3'
+type = 'fs'
+fs_store_path = '/tmp'
+s3_bucket = ''
