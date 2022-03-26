@@ -12,7 +12,7 @@ import * as RateLimiter from 'ratelimiter'
 import {URL} from 'url'
 
 import {accountBlacklist} from './blacklist'
-import {KoaContext, redisClient, rpcClient, uploadStore, getKeyNameFromHash} from './common'
+import {getKeyNameFromHash, KoaContext, redisClient, rpcClient, uploadStore} from './common'
 import {APIError} from './error'
 import {readStream, storeExists, storeWrite} from './utils'
 
@@ -186,7 +186,7 @@ export async function uploadHsHandler(ctx: KoaContext) {
 
         const contentHash = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
         const url = new URL(`${ contentHash }/${ file.name }`, SERVICE_URL)
-        const keyName = getKeyNameFromHash(contentHash);
+        const keyName = getKeyNameFromHash(contentHash)
 
         if (!(await storeExists(uploadStore, keyName))) {
             await storeWrite(uploadStore, keyName, data)
@@ -382,7 +382,7 @@ export async function uploadHandler(ctx: KoaContext) {
 
     const contentHash = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
     const url = new URL(`${ contentHash }/${ file.name }`, SERVICE_URL)
-    const keyName = getKeyNameFromHash(contentHash);
+    const keyName = getKeyNameFromHash(contentHash)
 
     if (!(await storeExists(uploadStore, keyName))) {
         await storeWrite(uploadStore, keyName, data)

@@ -221,7 +221,6 @@ export const imageBlacklist: Blacklist<string> = [
     'https://cdn.steemitimages.com/DQmQJkZ8w5thW6ZQdfRjBG59a4ugDWFMeJ54LQxeAfG458Y/071.jpg',
     'DQmQJkZ8w5thW6ZQdfRjBG59a4ugDWFMeJ54LQxeAfG458Y',
 
-
     'https://images.hive.blog/p/LcTxR7u1XKaa3e4T1EBuBP18JezPvjFFo8gNuE9CiKHBn4KM97CaW6UAH5AhbY7GkyxjjxymyLwatrSNb6GAsSfoCbcVphDnvZBGZP4E82KZkn8WL6tRTAZW2hw31kpzWH887ygTKwYhGUkYAhWVqGCpW?format=match&mode=fit',
     'LcTxR7u1XKaa3e4T1EBuBP18JezPvjFFo8gNuE9CiKHBn4KM97CaW6UAH5AhbY7GkyxjjxymyLwatrSNb6GAsSfoCbcVphDnvZBGZP4E82KZkn8WL6tRTAZW2hw31kpzWH887ygTKwYhGUkYAhWVqGCpW',
     'https://cdn.steemitimages.com/DQmZoXTCXoxYBYoV41hNqrw4XaxThSwVgRTrTHPzn7M3rT7/biljana_djurdjevic_serbia_pain.jpg',
@@ -238,7 +237,6 @@ export const imageBlacklist: Blacklist<string> = [
     'https://images.hive.blog/p/JLypLpqVPBaPBxeyDtHtGjoPy8Qta67mkQmiiTmDbahnbsLRJQpfh3JfJt7y8Sg42MEm35hLcZMxTSh9zEmtZkMM3qiJsoXALj47xYE6sAvQaP4zxuJZTEKGNWYfD9RniQhu3wA88taGUp7Zkv3eSodTKbPNetVpafLpzpkqKsVc9vMX3X3QaFAjkLeFiRMn93?format=match&mode=fit&width=256&height=512',
     'https://steemitimages.com/DQmcoXZitkKm8PBBPrtAFLnUvypGStL4astLKFNUecdCKP7/d6e6386f92499dcaea1b8ed76facbbcd18050a0ec7064f24f4096ffd5af77022.gif',
     'DQmcoXZitkKm8PBBPrtAFLnUvypGStL4astLKFNUecdCKP7',
-
 
     'https://images.hive.blog/p/3zpz8WQe4SNH8q6FEif2uzpmXjQNog2n2huWTcwn9q9DfuvNGBFtDDiDBKbEx6eUVYp14TCMzk65HCBAXy6zKfJtzAG1xU6inCKXCgHacKt1Zw5UoA6ZPXVLcF3pxFC9JdnY9d25GQNYdSdzVcDK?format=match&mode=fit',
 

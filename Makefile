@@ -36,7 +36,7 @@ ci-test: node_modules reports
 # @TODO update and test packages
 #	yarn audit
 	tslint -p tsconfig.json -c tslint.json
-	NODE_ENV=test nyc -r lcov -e .ts -i ts-node/register \
+	JAEGER_DISABLED=true NODE_ENV=test nyc -r lcov -e .ts -i ts-node/register \
 		--report-dir reports/coverage \
 		mocha --require ts-node/register \
 		--timeout 30000 \

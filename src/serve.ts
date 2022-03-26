@@ -2,10 +2,10 @@
 
 import streamHead from 'stream-head/dist-es6'
 
-import {KoaContext, uploadStore, getKeyNameFromHash} from './common'
+import {imageBlacklist} from './blacklist'
+import {getKeyNameFromHash, KoaContext, uploadStore} from './common'
 import {APIError} from './error'
 import {mimeMagic} from './utils'
-import {imageBlacklist} from './blacklist'
 
 export async function serveHandler(ctx: KoaContext) {
     ctx.tag({handler: 'serve'})
@@ -13,18 +13,18 @@ export async function serveHandler(ctx: KoaContext) {
     APIError.assert(ctx.method === 'GET', APIError.Code.InvalidMethod)
     APIError.assertParams(ctx.params, ['hash'])
 
-    const hash = ctx.params['hash'];
-    APIError.assert(hash.length == 47, APIError.Code.InvalidParam);
+    const hash = ctx.params['hash']
+    APIError.assert(hash.length === 47, APIError.Code.InvalidParam)
 
     // refuse to proxy image hashes on blacklist
     if (imageBlacklist.includes(hash)) {
-        ctx.log.debug('Image hash %s is blacklisted', hash);
+        ctx.log.debug('Image hash %s is blacklisted', hash)
         APIError.assert(!imageBlacklist.includes(hash), APIError.Code.Blacklisted)
     } else {
-        ctx.log.debug('Image hash %s is not blacklisted', hash);
+        ctx.log.debug('Image hash %s is not blacklisted', hash)
     }
 
-    const keyName = getKeyNameFromHash(hash);
+    const keyName = getKeyNameFromHash(hash)
 
     const file = uploadStore.createReadStream(keyName)
     file.on('error', (error) => {

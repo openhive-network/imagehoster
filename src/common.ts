@@ -69,9 +69,9 @@ export function getKeyNameFromHash(hash: string): string {
     //   U5dtZPvjpfzc3fgGtsoNQq7WLNv8sLT
     // for proxied images.  In either case, the last two
     // characters will be nice and random base58 characters,
-    // so this will evenly distribute the files over 
+    // so this will evenly distribute the files over
     // 58^2 = 3364 partitions.
-    console.assert(hash.length == 47 || hash.length == 31);
-    const partition = hash.substr(hash.length - 2);
-    return partition + '/' + hash;
+    // console.assert(hash.length == 47 || hash.length == 31);
+    const partition = hash.substr(hash.length - 2)
+    return partition + '/' + hash
 }

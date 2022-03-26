@@ -50,6 +50,10 @@ app_account = 'hive.blog'
 [upload_store]
 type = 'memory'
 
+# where to keep pre-fork uploaded images
+[pre_fork_upload_store]
+type = 'memory'
+
 # where to keep proxied images
 [proxy_store]
 type = 'memory'
