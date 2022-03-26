@@ -1,2 +1,4 @@
 log_level = 'fatal'
 service_url = 'http://localhost:63205'
+port = 63205
+rpc_node = 'https://api.hive.blog'

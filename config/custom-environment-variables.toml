@@ -7,11 +7,15 @@ service_url = 'SERVICE_URL'
 default_avatar = 'DEFAULT_AVATAR'
 redis_url = 'REDIS_URL'
 rpc_node = 'RPC_NODE'
+
 [upload_store]
 type = 'UPLOAD_STORAGE_TYPE'
+fs_store_path = 'UPLOAD_STORAGE_FS_PATH'
 s3_bucket = 'UPLOAD_S3_BUCKET'
+
 [proxy_store]
 type = 'PROXY_STORAGE_TYPE'
+fs_store_path = 'UPLOAD_PROXY_FS_PATH'
 s3_bucket = 'PROXY_S3_BUCKET'
 max_image_width = 'PROXY_MAX_IMAGE_WIDTH'
 max_image_height = 'PROXY_MAX_IMAGE_HEIGHT'

@@ -1,14 +1,15 @@
 /** Uploads file to blob store. */
 
+import {Client, Signature} from '@hiveio/dhive'
 import * as Busboy from 'busboy'
 import * as config from 'config'
 import {createHash} from 'crypto'
-import {Client, Signature} from '@hiveio/dhive'
+// @ts-ignore
+import * as hivesigner from 'hivesigner'
 import * as http from 'http'
 import * as multihash from 'multihashes'
 import * as RateLimiter from 'ratelimiter'
 import {URL} from 'url'
-import * as hivesigner from 'hivesigner'
 
 import {accountBlacklist} from './blacklist'
 import {KoaContext, redisClient, rpcClient, uploadStore} from './common'
@@ -78,13 +79,15 @@ async function getRatelimit(account: string) {
         })
     })
 }
-const b64uLookup = {
-    '/': '_', _: '/', '+': '-', '-': '+', '=': '.', '.': '=',
+const b64uLookup: Record<string, string> = {
+    '/': '_', '_': '/', '+': '-', '-': '+', '=': '.', '.': '=',
 }
-function b64uToB64 (str: string) {
-    const tt = str.replace(/(-|_|\.)/g, function(m) { return b64uLookup[m]})
+function b64uToB64(str: string) {
+    const tt = str.replace(/(-|_|\.)/g, (m) => b64uLookup[m])
     return tt
 }
+
+/** Handling upload with HiveSigner */
 export async function uploadHsHandler(ctx: KoaContext) {
     ctx.tag({handler: 'hsupload'})
     let validSignature = false
@@ -112,7 +115,7 @@ export async function uploadHsHandler(ctx: KoaContext) {
         .update('ImageSigningChallenge')
         .update(data)
         .digest()
-            
+
     const token = ctx.params['accesstoken']
     const decoded = Buffer.from(b64uToB64(token), 'base64').toString()
     const tokenObj = JSON.parse(decoded)
@@ -140,7 +143,7 @@ export async function uploadHsHandler(ctx: KoaContext) {
             accessToken: token,
         })
 
-        await cl.me(function (err: any, res: any) {
+        await cl.me((err: any, res: any) => {
             if (!err && res) {
                 account = res.account
                 APIError.assert(account, APIError.Code.NoSuchAccount)
@@ -152,18 +155,20 @@ export async function uploadHsHandler(ctx: KoaContext) {
 
                 if (account && account.name) {
                     ['posting', 'active', 'owner'].forEach((type) => {
-                      account[type].account_auths.forEach((key: string[]) => {
+                        // @ts-ignore
+                        // tslint:disable-next-line:no-shadowed-variable
+                        account[type].account_auths.forEach((key: string[]) => {
                         if (
                           !validSignature
                           && key[0] === UPLOAD_LIMITS.app_account
                         ) {
-                          validSignature = true;
+                          validSignature = true
                         }
-                      });
-                    });
+                      })
+                    })
                 }
             }
-        });
+        })
 
         APIError.assert(validSignature, APIError.Code.InvalidSignature)
         APIError.assert(!accountBlacklist.includes(account.name), APIError.Code.Blacklisted)
@@ -194,6 +199,104 @@ export async function uploadHsHandler(ctx: KoaContext) {
         ctx.body = {url}
     }
 }
+
+/** Handling upload by signing image checksum */
+export async function uploadCsHandler(ctx: KoaContext) {
+    ctx.tag({handler: 'upload'})
+
+    APIError.assert(ctx.method === 'POST', {code: APIError.Code.InvalidMethod})
+    APIError.assertParams(ctx.params, ['username', 'signature'])
+
+    let signature: Signature
+    try {
+        signature = Signature.fromString(ctx.params['signature'])
+    } catch (cause) {
+        throw new APIError({code: APIError.Code.InvalidSignature, cause})
+    }
+
+    APIError.assert(ctx.get('content-type').includes('multipart/form-data'),
+        {message: 'Only multipart uploads are supported'})
+
+    const contentLength = Number.parseInt(ctx.get('content-length'))
+
+    APIError.assert(Number.isFinite(contentLength),
+        APIError.Code.LengthRequired)
+
+    APIError.assert(contentLength <= MAX_IMAGE_SIZE,
+        APIError.Code.PayloadTooLarge)
+
+    const file = await parseMultipart(ctx.req)
+    const fileData = await readStream(file.stream)
+    const fileHash = createHash('sha256')
+        .update(fileData)
+        .digest()
+
+        // extra check if client manges to lie about the content-length
+    APIError.assert((file.stream as any).truncated !== true,
+        APIError.Code.PayloadTooLarge)
+
+    const imageHash = createHash('sha256')
+        .update('ImageSigningChallenge')
+        .update(fileHash)
+        .digest()
+
+    const [account] = await rpcClient.database.getAccounts([ctx.params['username']])
+    APIError.assert(account, APIError.Code.NoSuchAccount)
+
+    let validSignature = false
+    let publicKey
+    try {
+        publicKey = signature.recover(imageHash).toString()
+    } catch (cause) {
+        throw new APIError({code: APIError.Code.InvalidSignature, cause})
+    }
+
+    const thresholdPosting = account.posting.weight_threshold
+    for (const auth of account.posting.key_auths) {
+        if (auth[0] === publicKey && auth[1] >= thresholdPosting) {
+            validSignature = true
+            break
+        }
+    }
+
+    const thresholdActive = account.active.weight_threshold
+    for (const auth of account.active.key_auths) {
+        if (auth[0] === publicKey && auth[1] >= thresholdActive) {
+            validSignature = true
+            break
+        }
+    }
+
+    APIError.assert(validSignature, APIError.Code.InvalidSignature)
+    APIError.assert(!accountBlacklist.includes(account.name), APIError.Code.Blacklisted)
+
+    let limit: RateLimit = {total: 0, remaining: Infinity, reset: 0}
+    try {
+        limit = await getRatelimit(account.name)
+    } catch (error) {
+        ctx.log.warn(error, 'unable to enforce upload rate limits')
+    }
+
+    APIError.assert(limit.remaining > 0, APIError.Code.QoutaExceeded)
+
+    APIError.assert(repLog10(account.reputation) >= UPLOAD_LIMITS.reputation, APIError.Code.Deplorable)
+
+    const key = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
+    const url = new URL(`${ key }/${ file.name }`, SERVICE_URL)
+
+    if (!(await storeExists(uploadStore, key))) {
+        await storeWrite(uploadStore, key, fileData)
+    } else {
+        ctx.log.debug('key %s already exists in store', key)
+    }
+
+    ctx.log.info({uploader: account.name, size: fileData.byteLength}, 'image uploaded')
+
+    ctx.status = 200
+    ctx.body = {url}
+}
+
+/** Handling upload by signing image data */
 export async function uploadHandler(ctx: KoaContext) {
     ctx.tag({handler: 'upload'})
 
@@ -217,7 +320,6 @@ export async function uploadHandler(ctx: KoaContext) {
 
     APIError.assert(contentLength <= MAX_IMAGE_SIZE,
                     APIError.Code.PayloadTooLarge)
-
     const file = await parseMultipart(ctx.req)
     const data = await readStream(file.stream)
 
@@ -236,11 +338,10 @@ export async function uploadHandler(ctx: KoaContext) {
     let validSignature = false
     let publicKey
     try {
-         publicKey = signature.recover(imageHash).toString()
+        publicKey = signature.recover(imageHash).toString()
     } catch (cause) {
         throw new APIError({code: APIError.Code.InvalidSignature, cause})
     }
-
     const thresholdPosting = account.posting.weight_threshold
     for (const auth of account.posting.key_auths) {
         if (auth[0] === publicKey && auth[1] >= thresholdPosting) {

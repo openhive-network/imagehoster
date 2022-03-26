@@ -1,0 +1,19 @@
+version: "3.7"
+services:
+    imagehoster:
+        build:
+            context: .
+        container_name: imagehoster
+        ports:
+            - 8800:8800
+            - 3234:3234
+#        volumes:
+#            - ./yarn.lock:/app/yarn.lock:delegated
+#            - ./package.json:/app/package.json:delegated
+#            - ./Makefile:/app/Makefile:delegated
+#            - ./test:/app/test:delegated
+#            - ./src:/app/src:delegated
+#            - ./config:/app/config:delegated
+#            - ./.git:/app/.git:delegated
+#            - ./tsconfig.json:/app/tsconfig.json:delegated
+#            - ./tslint.json:/app/tslint.json:delegated

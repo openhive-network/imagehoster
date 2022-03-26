@@ -46,7 +46,7 @@ before(() => {
     _client.call = async (api: string, method: string, params = []) => {
         const apiMethod = `${ api }-${ method }`
         switch (apiMethod) {
-            case 'database_api-get_accounts':
+            case 'condenser_api-get_accounts':
                 assert.equal(params.length, 1, 'can only mock single account lookups')
                 return [mockAccounts[params[0]]]
             default:
