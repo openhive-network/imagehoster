@@ -4,6 +4,16 @@ services:
         build:
             context: .
         container_name: imagehoster
+        environment:
+            UPLOAD_PROXY_FS_PATH: /tmp
+            UPLOAD_STORAGE_FS_PATH: /tmp
+            UPLOAD_STORAGE_TYPE: fs
+            PROXY_STORAGE_TYPE: fs
+            UPLOAD_S3_BUCKET:
+            PROXY_S3_BUCKET:
+            PORT: 3234
+            SERVICE_URL: http://localhost:3234
+            RPC_NODE: https://api.hive.blog
         ports:
             - 8800:8800
             - 3234:3234
