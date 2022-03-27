@@ -199,6 +199,7 @@ export async function proxyHandler(ctx: KoaContext) {
     const origIsUpload = SERVICE_URL.origin === url.origin && url.pathname[1] === 'D'
     ctx.tag({is_upload: origIsUpload})
     if (origIsUpload) {
+        // ctx.log.debug('origIsUpload')
         // if we are proxying or own image use the uploadStore directly
         // to avoid storing two copies of the same data
         origStore = uploadStore
@@ -212,11 +213,10 @@ export async function proxyHandler(ctx: KoaContext) {
             multihash.encode(urlHash, 'sha1')
         )
         origKey = getKeyNameFromHash(origKey);
-        // console.log('proxied image, using hash of url', url.toString(), 'which yields', origKey)
     }
 
     const imageKey = getImageKey(origKey, options)
-    // console.log("Checking imageKey", imageKey);
+    // ctx.log.debug('Checking imageKey %s (origKey = %s)', imageKey, origKey)
 
     // check if we already have a converted image for requested key
     if (await storeExists(proxyStore, imageKey)) {
@@ -240,6 +240,7 @@ export async function proxyHandler(ctx: KoaContext) {
         return
     }
 
+    // ctx.log.debug('we don\'t already have a resized image to stream')
     // check if we have the original
     let origData: Buffer
     let contentType: string
