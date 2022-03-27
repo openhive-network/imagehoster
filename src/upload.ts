@@ -231,13 +231,20 @@ export async function uploadCsHandler(ctx: KoaContext) {
         .update(fileData)
         .digest()
 
-        // extra check if client manges to lie about the content-length
+    // extra check if client manages to lie about the content-length
     APIError.assert((file.stream as any).truncated !== true,
         APIError.Code.PayloadTooLarge)
 
-    const imageHash = createHash('sha256')
+    // Expecting the signature to be based on the integrity checksum of the image
+    const expectedSignature = createHash('sha256')
         .update('ImageSigningChallenge')
         .update(fileHash)
+        .digest()
+
+    // Used to generate the image storage key
+    const imageHash = createHash('sha256')
+        .update('ImageSigningChallenge')
+        .update(fileData)
         .digest()
 
     const [account] = await rpcClient.database.getAccounts([ctx.params['username']])
@@ -246,7 +253,7 @@ export async function uploadCsHandler(ctx: KoaContext) {
     let validSignature = false
     let publicKey
     try {
-        publicKey = signature.recover(imageHash).toString()
+        publicKey = signature.recover(expectedSignature).toString()
     } catch (cause) {
         throw new APIError({code: APIError.Code.InvalidSignature, cause})
     }
