@@ -3,12 +3,7 @@ port = 3234
 proxy = true
 log_level = 'info'
 rpc_node = 'https://api.hive.blog'
-service_url = 'http://localhost:3234'
 [upload_store]
-type = 'fs'
-fs_store_path = '/tmp'
-s3_bucket = ''
+type = 's3'
 [proxy_store]
-type = 'fs'
-fs_store_path = '/tmp'
-s3_bucket = ''
+type = 's3'
