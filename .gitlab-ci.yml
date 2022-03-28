@@ -1,0 +1,23 @@
+# ! stages which aren't defined here won't be available in gitlab CI/CD
+# define CI/CD stages here
+stages:
+  - build
+
+# Stage: build
+# in this stage we are building the app from scratch
+build:
+  stage: build
+  tags:
+    - secure-runner-docker
+  image: docker:19.03.11
+  services:
+    - docker:19.03.11-dind
+  variables:
+    GIT_DEPTH: 1
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_STRATEGY: clone
+  allow_failure: false
+  script:
+    - "docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY"
+    - "docker build --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA ."
+    - "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
