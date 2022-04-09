@@ -298,6 +298,11 @@ export const imageBlacklist: Blacklist<string> = [
     'https://files.peakd.com/file/peakd-hive/alanpaul07/23vsJFXW6qzS4htNSywwSMGSkzfgBzVACeoDdwUkYDxTkhSsmYTPaTPFS6CKVxE5CfocY.jpeg',
     '23vsJFXW6qzS4htNSywwSMGSkzfgBzVACeoDdwUkYDxTkhSsmYTPaTPFS6CKVxE5CfocY',
     'https://images.hive.blog/p/8DAuGnTQCLptZgjHUrRAJGcW4y1D4A5QVJJ7zjzqqKdfVHSS6NapSCC5zCTL1EHY7RpLAnW66pXa8MhJe8hYdapkCVAzyakmGsVWbsbrtBeU3z5oKcmnMJxrgzDgwqUkWhjgX5UdUhGcb2Lb2MTSZWpNfGR551bzHdLjpALKa2i?format=match&mode=fit&width=768',
+
+    'https://images.hive.blog/p/7DceLgR4szFwuusec1aUUGiCkRKcxKhJbpHr6K1gNaBsrnmHn6zgrH8qaYt7gGRjugCHzR4xDzWWjgtJFWJHU?format=match&mode=fit&width=1536',
+    'https://images.hive.blog/p/7DceLgR4szFwuusec1aUUGiCkRKcxKhJbpHr6K1gNaBsrnmHn6zgrH8qaYt7gGRjugCHzR4xDzWWjgtJFWJHU',
+    'https://femto.scrolller.com/safiya-darr-cexntuzfwl-645x900.jpg',
+    '7DceLgR4szFwuusec1aUUGiCkRKcxKhJbpHr6K1gNaBsrnmHn6zgrH8qaYt7gGRjugCHzR4xDzWWjgtJFWJHU',
   ]
 
 export const accountBlacklist: Blacklist<string> = [
