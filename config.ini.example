@@ -1,0 +1,6 @@
+[varnish]
+host = 127.0.0.1
+proto = http
+[cloudflare]
+key = cloudflare-access-token-goes-here
+zone = cloudflare-zone-goes-here
