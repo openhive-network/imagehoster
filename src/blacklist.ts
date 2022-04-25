@@ -1,11 +1,40 @@
-/** Upload and proxying blacklists. In the future this will live on-chain. */
+import * as config from 'config'
+import * as fs from 'fs'
+import {logger} from './logger'
 
-interface Blacklist<T> {
-    includes: (item: T) => boolean
+/** Upload and proxying blacklists. In the future this will live on-chain. */
+class Blacklist {
+  private staticList: string[]
+  private dynamicList: string[]
+  private dynamicListFilename?: string
+  constructor(staticList: string[], dynamicListFilename?: string) {
+    this.staticList = staticList
+    this.dynamicListFilename = dynamicListFilename
+    this.dynamicList = []
+    this.reloadDynamicList()
+    if (this.dynamicListFilename) {
+      fs.watchFile(this.dynamicListFilename, (curr, prev) => {
+        this.reloadDynamicList()
+      })
+    }
+  }
+  public reloadDynamicList() {
+    if (this.dynamicListFilename) {
+      logger.info('Reloading dynamic blacklist from file', this.dynamicListFilename)
+      this.dynamicList = JSON.parse(fs.readFileSync(this.dynamicListFilename, 'utf8'))
+      logger.info('Loaded dynamic blacklist containing', this.dynamicList.length, 'items')
+    }
+  }
+  public includes(item: string) {
+    if (this.staticList.includes(item)) {
+      return true
+    }
+    return this.dynamicList.includes(item)
+  }
 }
 
 /* tslint:disable:max-line-length */
-export const imageBlacklist: Blacklist<string> = [
+const initialImageBlackList: string[] = [
     'http://avivas.ru/img/topic/23850/20.jpg',
     'http://bogleech.com/nature/fly-microdon.jpg',
     'http://customerceobook.com/wp-content/uploads/2012/12/noahpozner420peoplemagazine.jpg',
@@ -305,9 +334,13 @@ export const imageBlacklist: Blacklist<string> = [
     '7DceLgR4szFwuusec1aUUGiCkRKcxKhJbpHr6K1gNaBsrnmHn6zgrH8qaYt7gGRjugCHzR4xDzWWjgtJFWJHU',
   ]
 
-export const accountBlacklist: Blacklist<string> = [
+export let imageBlacklist: Blacklist = new Blacklist(initialImageBlackList, config.has('blacklist.imageBlackList') ? config.get('blacklist.imageBlackList') : undefined)
+
+const initialAccountBlacklist: string[] = [
     'mpspringer',
     'aplomb',
     'iamgod',
     'cpcensorshiptest'
 ]
+
+export let accountBlacklist: Blacklist = new Blacklist(initialAccountBlacklist, config.has('blacklist.accountBlackList') ? config.get('blacklist.accountBlackList') : undefined)
