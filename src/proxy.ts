@@ -239,7 +239,7 @@ export async function proxyHandler(ctx: KoaContext) {
                 compressed: true,
                 parse_response: false,
                 follow_max: 5,
-                user_agent: 'SteemitProxy/1.0 (+https://github.com/steemit/imagehoster)',
+                user_agent: 'HiveProxy/1.0 (+https://gitlab.syncad.com/hive/imagehoster)',
             } as any)
         } catch (cause) {
             throw new APIError({cause, code: APIError.Code.UpstreamError})
