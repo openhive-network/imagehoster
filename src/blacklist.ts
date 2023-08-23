@@ -383,6 +383,22 @@ const initialImageBlackList: string[] = [
     'https://img100.fappic.com/i/01147/c4bm0fda1aka_t.jpg',
     'https://img100.fappic.com/i/01147/j4q9rfban8p8_t.jpg',
     'https://steemitimages.com/DQmY3qVBLz8kjemwji4L5aM1N28dfK9xgV2MajwFZkWAXJ7/grafik.png',
+    'https://images.hive.blog/p/2r8F9rJF8BjaqNYuRfKokaqfoAwLadUB7ekQruWBgdCxuG2DuM6pNc6EGxo4FxLBFskGEnrPxaEsw3M95NFua7rTh1TN3wPhGAJxTmvBGcopnCRDNuhyQYUBpwPbifn4e?format=match&mode=fit&width=768',
+    'http://78.media.tumblr.com/3ebbbb8f6cd4f82c6ca8ac90db01f49f/tumblr_oq280hLdMM1v7dt6vo1_500.jpg',
+
+    'https://images.hive.blog/p/o1AJ9qDyyJNSpZWhUgGYc3MngFqoAMeR6TJcjAo7HsavrHGZU?format=match&mode=fit&width=768',
+    'https://images.hive.blog/p/o1AJ9qDyyJNSpZWhUgGYc3MngFqoAMeR6TJcjAo7HsavrHGZU',
+    'https://img.esteem.ws/3js3jogk3w.jpg',
+
+    'https://images.hive.blog/p/7258xSVeJbKnFEnBwjKLhL15SoynbgJKpQxRUZ8n3rzgLPUBVpnu5dMm76a2gr1Q5G7RpRttY8RuJZa6zgvJSzsUpYBhzPDRpCFDJP32tGAQ2YcQt4hp5ByeqtSpC5YhTiMkMcD1UTKat?format=match&mode=fit',
+    'https://images.hive.blog/p/7258xSVeJbKnFEnBwjKLhL15SoynbgJKpQxRUZ8n3rzgLPUBVpnu5dMm76a2gr1Q5G7RpRttY8RuJZa6zgvJSzsUpYBhzPDRpCFDJP32tGAQ2YcQt4hp5ByeqtSpC5YhTiMkMcD1UTKat',
+    'https://steemitimages.com/0x0/http:/gateway.ipfs.io/ipfs/QmUpCPmamnqaiMPwRoT1rgRjPysqoRUBr3Zex8UqSCxFau',
+    'http:/gateway.ipfs.io/ipfs/QmUpCPmamnqaiMPwRoT1rgRjPysqoRUBr3Zex8UqSCxFau',
+    'QmUpCPmamnqaiMPwRoT1rgRjPysqoRUBr3Zex8UqSCxFau',
+
+    'https://images.hive.blog/p/Pufd3b1W2k6xH2Xgr2kCkZ2donxEpXa7wDMuzXNpcDH7QTxcxncr7owL?format=match&mode=fit&width=768',
+    'https://images.hive.blog/p/Pufd3b1W2k6xH2Xgr2kCkZ2donxEpXa7wDMuzXNpcDH7QTxcxncr7owL',
+    'https://i.postimg.cc/pLjTvDQs/hivebtt.png',
   ]
 
 export let imageBlacklist: Blacklist = new Blacklist(initialImageBlackList, config.has('blacklist.imageBlackList') ? config.get('blacklist.imageBlackList') : undefined)
