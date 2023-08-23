@@ -9,9 +9,9 @@ build:
   stage: build
   tags:
     - secure-runner-docker
-  image: docker:19.03.11
+  image: docker:24.0.5
   services:
-    - docker:19.03.11-dind
+    - docker:24.0.5-dind
   variables:
     GIT_DEPTH: 1
     GIT_SUBMODULE_STRATEGY: recursive
