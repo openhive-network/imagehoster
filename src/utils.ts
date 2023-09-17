@@ -1,10 +1,8 @@
 /** Misc utils. */
 
 import {AbstractBlobStore, BlobKey} from 'abstract-blob-store'
-import {Magic, MAGIC_MIME_TYPE} from 'mmmagic'
+import {fromBuffer} from 'file-type'
 import * as multihash from 'multihashes'
-
-const magic = new Magic(MAGIC_MIME_TYPE)
 
 /** Parse boolean value from string. */
 export function parseBool(input: any): boolean {
@@ -51,13 +49,9 @@ export function readStream(stream: NodeJS.ReadableStream) {
 }
 
 /** Return mimetype of data. */
-export function mimeMagic(data: Buffer) {
-    return new Promise<string>((resolve, reject) => {
-        magic.detect(data, (error, result) => {
-            if (error) { reject(error) } else { resolve(result) }
-        })
-    })
-
+export async function mimeMagic(data: Buffer) {
+    const mimeInfo = await fromBuffer(data)
+    return mimeInfo?.mime || 'application/octet-stream'
 }
 
 /** Async version of abstract-blob-store exists. */
