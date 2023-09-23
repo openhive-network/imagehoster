@@ -7,6 +7,7 @@ import {KoaContext} from './common'
 import {legacyProxyHandler} from './legacy-proxy'
 import {proxyHandler} from './proxy'
 import {serveHandler} from './serve'
+import {shareHandler} from './share'
 import {uploadCsHandler, uploadHandler, uploadHsHandler} from './upload'
 
 const version = require('./version')
@@ -28,5 +29,6 @@ router.post('/cs/:username/:signature', uploadCsHandler as any)
 router.get('/:width(\\d+)x:height(\\d+)/:url(.*)', legacyProxyHandler as any)
 router.get('/p/:url', proxyHandler as any)
 router.get('/:hash/:filename?', serveHandler as any)
+router.post('/p2p', shareHandler as any)
 
 export const routes = router.routes()

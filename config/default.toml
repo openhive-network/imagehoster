@@ -1,5 +1,7 @@
 # default configuration, override in config/local-development.toml
 
+nodes=['https://google.com']
+
 # port to listen on
 port = 8800
 

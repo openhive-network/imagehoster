@@ -12,6 +12,7 @@ import {APIError, errorMiddleware} from './error'
 import {logger, loggerMiddleware} from './logger'
 import {routes} from './routes'
 import {parseBool} from './utils'
+import {startShare} from './share'
 
 export const app = new Koa()
 export const version = require('./version')
@@ -40,6 +41,8 @@ app.use((ctx: Koa.Context) => {
 })
 
 async function main() {
+    startShare()
+    
     if (cluster.isMaster) {
         logger.info({version}, 'starting service')
     }
