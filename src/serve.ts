@@ -15,6 +15,7 @@ export async function serveHandler(ctx: KoaContext) {
     const file = uploadStore.createReadStream(ctx.params['hash'])
     file.on('error', (error) => {
         if (error.notFound || error.code === 'NoSuchKey') {
+            // TODO: Add a case here to check other nodes to see if they have the image first, and grab it from there and then send it before giving up
             ctx.res.writeHead(404, 'Not Found')
         } else {
             ctx.log.error(error, 'unable to read %s', ctx.params['hash'])

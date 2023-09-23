@@ -81,6 +81,7 @@ export function storeWrite(store: AbstractBlobStore, key: BlobKey, data: Buffer 
         })
         stream.write(data)
         stream.end()
+        // TODO: Call share to network function here
     })
 }
 
