@@ -272,7 +272,7 @@ export async function proxyHandler(ctx: KoaContext) {
         // this is needed since resizing gifs creates still images
         rv = origData
     } else {
-        const image = Sharp(origData).jpeg({
+        const image = Sharp(origData, { animated : contentType === 'image/gif'  }).jpeg({
             quality: 85,
             force: false,
         }).png({
@@ -281,6 +281,9 @@ export async function proxyHandler(ctx: KoaContext) {
         }).webp({
             alphaQuality: 100,
             force: false,
+        }).gif({
+            force : false,
+            effort : 7
         })
 
         let metadata: Sharp.Metadata
