@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "make ci-test"
+    "test": "make lib ci-test"
   },
   "engines": {
     "node": ">=8"
