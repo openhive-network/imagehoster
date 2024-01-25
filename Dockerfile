@@ -17,7 +17,7 @@ RUN apk add \
     --repository https://dl-3.alpinelinux.org/alpine/edge/testing/ \
     vips-dev
 
-    # install application dependencies
+# install application dependencies
 COPY package.json yarn.lock ./
 RUN JOBS=max yarn install --non-interactive --frozen-lockfile
 
