@@ -242,7 +242,7 @@ export async function proxyHandler(ctx: KoaContext) {
                 user_agent: 'HiveProxy/1.0 (+https://gitlab.syncad.com/hive/imagehoster)',
             } as any)
         } catch (cause) {
-            // old or non existing images get from steemitimages server
+            // old or non existing images, try to get from steemitimages server
             try {
                 ctx.log.debug({url: url.toString()}, 'fetching from steemit server')
                 res = await fetchUrl(`https://steemitimages.com/0x0/${url.toString()}`, {
