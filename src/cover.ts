@@ -8,6 +8,8 @@ import {KoaContext, rpcClient} from './common'
 import {APIError} from './error'
 
 const DefaultCover = config.get('default_cover') as string
+const sizeW = 1344
+const sizeH = 240
 
 export async function coverHandler(ctx: KoaContext) {
     ctx.tag({handler: 'cover'})
@@ -58,5 +60,5 @@ export async function coverHandler(ctx: KoaContext) {
     }
 
     ctx.set('Cache-Control', 'public,max-age=600')
-    ctx.redirect(`/p/${ base58Enc(coverUrl) }?width=${ size }&height=${ size }`)
+    ctx.redirect(`/p/${ base58Enc(coverUrl) }?width=${ sizeW }&height=${ sizeH }`)
 }
