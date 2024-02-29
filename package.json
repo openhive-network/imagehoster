@@ -18,7 +18,7 @@
     "config": "^1.29.4",
     "fs-blob-store": "^6.0.0",
     "hivesigner": "^3.2.0",
-    "koa": "^2.3.0",
+    "koa": "^2.15.0",
     "koa-router": "^7.4.0",
     "mmmagic": "^0.5.0",
     "multihashes": "^0.4.13",
