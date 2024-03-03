@@ -90,7 +90,7 @@ function parseUrl(value: string): URL {
     return url
 }
 
-function parseOptions(query: {[key: string]: any}): ProxyOptions {
+function parseOptions(query: {[key: string]: any}, acceptOptions: string): ProxyOptions {
     const width = Number.parseInt(query['width']) || undefined
     const height = Number.parseInt(query['height']) || undefined
     let mode: ScalingMode
@@ -108,6 +108,13 @@ function parseOptions(query: {[key: string]: any}): ProxyOptions {
     let format: OutputFormat
     switch (query['format']) {
         case undefined:
+        case 'auto':
+            if (acceptOptions.includes("image/webp")){
+                format = OutputFormat.WEBP
+            } else {
+                format = OutputFormat.Match
+            }
+            break
         case 'match':
             format = OutputFormat.Match
             break
@@ -154,8 +161,7 @@ export async function proxyHandler(ctx: KoaContext) {
 
     APIError.assert(ctx.method === 'GET', APIError.Code.InvalidMethod)
     APIError.assertParams(ctx.params, ['url'])
-
-    const options = parseOptions(ctx.query)
+    const options = parseOptions(ctx.query, ctx.headers.accept)
     let url = parseUrl(ctx.params.url)
 
     // resolve double proxied images
