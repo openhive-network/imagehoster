@@ -30,7 +30,7 @@ export async function legacyProxyHandler(ctx: KoaContext) {
     }
 
     const options: {[key: string]: any} = {
-        format: 'match',
+        format: 'webp',
         mode: 'fit',
     }
     if (width > 0) { options['width'] = width }
