@@ -27,7 +27,13 @@ export async function avatarHandler(ctx: KoaContext) {
       posting_json_metadata?: string
     }
 
-    const [account]: ExtendedAccount[] = await rpcClient.database.getAccounts([username])
+    let account: ExtendedAccount
+    try {
+      account = (await rpcClient.database.getAccounts([username]))[0]
+    } catch (e) {
+      ctx.log.error(e, 'getAccounts() threw for %s', username)
+      throw e
+    }
 
     APIError.assert(account, APIError.Code.NoSuchAccount)
 
