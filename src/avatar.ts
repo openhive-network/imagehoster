@@ -69,6 +69,9 @@ export async function avatarHandler(ctx: KoaContext) {
         avatarUrl = metadata.profile.profile_image
     }
 
-    ctx.set('Cache-Control', 'public,max-age=600')
+    // avatars aren't immutable, of course, but we're marking them as immutable to have them
+    // cached forever by varnish/cloudflare.  We run a helper application that monitors accounts
+    // for updates, and purges the cache for those accounts whenever that happens.
+    ctx.set('Cache-Control', 'public,max-age=29030400,immutable')
     ctx.redirect(`/p/${ base58Enc(avatarUrl) }?width=${ size }&height=${ size }`)
 }
