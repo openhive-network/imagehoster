@@ -7,6 +7,8 @@ import { Account } from '@hiveio/dhive'
 import {KoaContext, rpcClient} from './common'
 import {APIError} from './error'
 
+import {performance} from 'perf_hooks'
+
 const DefaultAvatar = config.get('default_avatar') as string
 const AvatarSizes: {[size: string]: number} = {
     small: 64,
@@ -27,6 +29,7 @@ export async function avatarHandler(ctx: KoaContext) {
       posting_json_metadata?: string
     }
 
+    const timeBeforeGetAccounts = performance.now()
     let account: ExtendedAccount
     try {
       account = (await rpcClient.database.getAccounts([username]))[0]
@@ -34,6 +37,7 @@ export async function avatarHandler(ctx: KoaContext) {
       ctx.log.error(e, 'getAccounts() threw for %s', username)
       throw e
     }
+    const timeAfterGetAccounts = performance.now()
 
     APIError.assert(account, APIError.Code.NoSuchAccount)
 
@@ -73,5 +77,7 @@ export async function avatarHandler(ctx: KoaContext) {
     // cached forever by varnish/cloudflare.  We run a helper application that monitors accounts
     // for updates, and purges the cache for those accounts whenever that happens.
     ctx.set('Cache-Control', 'public,max-age=29030400,immutable')
+
+    ctx.set('Server-Timing', `api;dur=${(timeAfterGetAccounts - timeBeforeGetAccounts).toFixed(3)};desc="get_accounts API call"`)
     ctx.redirect(`/p/${ base58Enc(avatarUrl) }?width=${ size }&height=${ size }`)
 }
