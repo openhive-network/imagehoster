@@ -40,5 +40,6 @@ export async function legacyProxyHandler(ctx: KoaContext) {
     const b58url = multihash.toB58String(Buffer.from(url.toString()))
 
     ctx.status = 301
+    ctx.set('Cache-Control', 'public,max-age=29030400,immutable')
     ctx.redirect(`/p/${ b58url }?${ qs }`)
 }
