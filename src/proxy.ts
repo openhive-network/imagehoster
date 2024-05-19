@@ -27,6 +27,7 @@ const AcceptedContentTypes = [
     'image/jpeg',
     'image/png',
     'image/webp',
+    'image/svg+xml'
 ]
 
 interface NeedleResponse extends http.IncomingMessage {
