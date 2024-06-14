@@ -36,7 +36,7 @@ WORKDIR /app
 RUN apk add \
     --no-cache \
     --repository https://alpine.global.ssl.fastly.net/alpine/v3.10/community \
-    fftw vips
+    fftw vips vips-cpp
 COPY --from=build-stage /app/config config
 COPY --from=build-stage /app/lib lib
 COPY --from=build-stage /app/node_modules node_modules

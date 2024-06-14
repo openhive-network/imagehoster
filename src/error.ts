@@ -111,10 +111,13 @@ export async function errorMiddleware(ctx: KoaContext, next: () => Promise<any>)
     try {
         await next()
     } catch (error) {
-        if (!(error instanceof APIError)) {
-            error = new APIError({cause: error})
+        if (!(error instanceof Error)) {
+            error = Error('unexpected error')
         }
-        ctx.status = error.statusCode
+        if (!(error instanceof APIError)) {
+            error = new APIError({cause: error as Error})
+        }
+        ctx.status = (error as APIError).statusCode
         ctx['api_error'] = error
         ctx.body = {error}
         ctx.app.emit('error', error, ctx.app)

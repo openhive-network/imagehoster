@@ -2,9 +2,10 @@
 
 import * as Router from 'koa-router'
 
+import {KoaContext} from './common'
+
 import {avatarHandler} from './avatar'
 import {coverHandler} from './cover'
-import {KoaContext} from './common'
 import {legacyProxyHandler} from './legacy-proxy'
 import {proxyHandler} from './proxy'
 import {serveHandler} from './serve'

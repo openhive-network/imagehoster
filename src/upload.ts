@@ -212,7 +212,10 @@ export async function uploadCsHandler(ctx: KoaContext) {
     try {
         signature = Signature.fromString(ctx.params['signature'])
     } catch (cause) {
-        throw new APIError({code: APIError.Code.InvalidSignature, cause})
+        if (!(cause instanceof Error)) {
+            cause = Error('unexpected error')
+        }
+        throw new APIError({code: APIError.Code.InvalidSignature, cause : cause as Error})
     }
 
     APIError.assert(ctx.get('content-type').includes('multipart/form-data'),
@@ -256,7 +259,10 @@ export async function uploadCsHandler(ctx: KoaContext) {
     try {
         publicKey = signature.recover(expectedSignature).toString()
     } catch (cause) {
-        throw new APIError({code: APIError.Code.InvalidSignature, cause})
+        if (!(cause instanceof Error)) {
+            cause = Error('unexpected error')
+        }
+        throw new APIError({code: APIError.Code.InvalidSignature, cause : cause as Error})
     }
 
     const thresholdPosting = account.posting.weight_threshold
@@ -316,7 +322,10 @@ export async function uploadHandler(ctx: KoaContext) {
     try {
         signature = Signature.fromString(ctx.params['signature'])
     } catch (cause) {
-        throw new APIError({code: APIError.Code.InvalidSignature, cause})
+        if (!(cause instanceof Error)) {
+            cause = Error('unexpected error')
+        }
+        throw new APIError({code: APIError.Code.InvalidSignature, cause : cause as Error})
     }
 
     APIError.assert(ctx.get('content-type').includes('multipart/form-data'),
@@ -349,7 +358,10 @@ export async function uploadHandler(ctx: KoaContext) {
     try {
         publicKey = signature.recover(imageHash).toString()
     } catch (cause) {
-        throw new APIError({code: APIError.Code.InvalidSignature, cause})
+        if (!(cause instanceof Error)) {
+            cause = Error('unexpected error')
+        }
+        throw new APIError({code: APIError.Code.InvalidSignature, cause : cause as Error})
     }
     const thresholdPosting = account.posting.weight_threshold
     for (const auth of account.posting.key_auths) {

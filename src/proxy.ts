@@ -92,7 +92,10 @@ function parseUrl(value: string): URL {
     try {
         url = new URL(base58Dec(value))
     } catch (cause) {
-        throw new APIError({cause, code: APIError.Code.InvalidProxyUrl})
+        if (!(cause instanceof Error)) {
+            cause = Error('unexpected error')
+        }
+        throw new APIError({cause: cause as Error, code: APIError.Code.InvalidProxyUrl})
     }
     return url
 }
@@ -271,7 +274,10 @@ export async function proxyHandler(ctx: KoaContext) {
         } catch (cause) {
             fetchSourceSpan.setTag(opentracing.Tags.ERROR, true)
             fetchSourceSpan.finish()
-            throw new APIError({cause, code: APIError.Code.UpstreamError})
+            if (!(cause instanceof Error)) {
+                cause = Error('unexpected error')
+            }
+            throw new APIError({cause: cause as Error, code: APIError.Code.UpstreamError})
         }
 
         APIError.assert(res.bytes <= MAX_IMAGE_SIZE, APIError.Code.PayloadTooLarge)
@@ -320,7 +326,10 @@ export async function proxyHandler(ctx: KoaContext) {
         try {
             metadata = await image.metadata()
         } catch (cause) {
-            throw new APIError({cause, code: APIError.Code.InvalidImage})
+            if (!(cause instanceof Error)) {
+                cause = Error('unexpected error')
+            }
+            throw new APIError({cause: cause as Error, code: APIError.Code.InvalidImage})
         }
 
         APIError.assert(metadata.width && metadata.height, APIError.Code.InvalidImage)

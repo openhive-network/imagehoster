@@ -26,7 +26,11 @@ export async function legacyProxyHandler(ctx: KoaContext) {
         urlStr = urlStr.replace('steemit.com/ipfs/', 'ipfs.io/ipfs/')
         url = new URL(urlStr)
     } catch (cause) {
-        throw new APIError({cause, code: APIError.Code.InvalidProxyUrl})
+        if (cause instanceof Error) {
+            throw new APIError({cause, code: APIError.Code.InvalidProxyUrl})
+        } else {
+            throw new APIError({cause: Error('unexpected error'), code: APIError.Code.InvalidProxyUrl})
+        }
     }
 
     const options: {[key: string]: any} = {

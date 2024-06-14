@@ -45,7 +45,7 @@ async function main() {
     }
 
     const server = http.createServer(app.callback())
-    const listen = util.promisify(server.listen).bind(server)
+    const listen: any = util.promisify(server.listen).bind(server)
     const close = util.promisify(server.close).bind(server)
 
     let numWorkers = Number.parseInt(config.get('num_workers'))
