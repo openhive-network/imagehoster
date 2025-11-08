@@ -23,11 +23,7 @@ export async function avatarHandler(ctx: KoaContext) {
     const username = ctx.params['username']
     const size = AvatarSizes[ctx.params['size']] || AvatarSizes.medium
 
-    interface ExtendedAccount extends Account {
-      posting_json_metadata?: string
-    }
-
-    const [account]: ExtendedAccount[] = await rpcClient.database.getAccounts([username])
+    const [account]: Account[] = await rpcClient.database.getAccounts([username])
 
     APIError.assert(account, APIError.Code.NoSuchAccount)
 
