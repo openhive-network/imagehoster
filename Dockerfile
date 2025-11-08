@@ -1,4 +1,4 @@
-FROM node:18-alpine as build-stage
+FROM node:24-alpine AS build-stage
 
 WORKDIR /app
 
@@ -31,11 +31,11 @@ RUN make lib ci-test
 RUN yarn install --non-interactive --frozen-lockfile --production
 
 # copy built application to runtime image
-FROM node:18-alpine
+FROM node:24-alpine
 WORKDIR /app
 RUN apk add \
     --no-cache \
-    --repository https://alpine.global.ssl.fastly.net/alpine/v3.10/community \
+    --repository https://alpine.global.ssl.fastly.net/alpine/v3.22/community \
     fftw vips
 COPY --from=build-stage /app/config config
 COPY --from=build-stage /app/lib lib
