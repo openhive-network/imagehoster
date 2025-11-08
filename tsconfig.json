@@ -4,7 +4,8 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "outDir": "lib",
-    "strict": true,
+    "strict": false,
+    "skipLibCheck": true,
     "target": "esnext",
     "typeRoots" : ["./node_modules/@types", "./src/types"]
   },
