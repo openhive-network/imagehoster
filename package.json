@@ -15,7 +15,7 @@
     "aws-sdk": "^2.188.0",
     "bunyan": "^2.0.2",
     "busboy": "^0.2.14",
-    "config": "^1.29.4",
+    "config": "^4.1.1",
     "file-type": "^16.5.4",
     "fs-blob-store": "^6.0.0",
     "hivesigner": "^3.2.0",
