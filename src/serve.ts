@@ -26,10 +26,10 @@ export async function serveHandler(ctx: KoaContext) {
     const {head, stream} = await streamHead(file, {bytes: 16384})
     const bodyStream: any = stream
     let mimeType = await mimeMagic(head)
-    if (mimeType === 'image/heic') {
-        const toJPEG = Sharp().toFormat('jpeg').jpeg({quality: 80})
-        mimeType = 'image/jpeg'
-        stream.pipe(toJPEG).pipe(bodyStream)
+    if (mimeType === 'image/webp') {
+        const toWebp = Sharp().toFormat('webp').webp({quality: 80})
+        mimeType = 'image/webp'
+        stream.pipe(toWebp).pipe(bodyStream)
     }
     ctx.response.set('Content-Type', mimeType)
     ctx.response.set('Cache-Control', 'public,max-age=29030400,immutable')
