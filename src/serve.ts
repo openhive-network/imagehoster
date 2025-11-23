@@ -26,7 +26,7 @@ export async function serveHandler(ctx: KoaContext) {
     const {head, stream} = await streamHead(file, {bytes: 16384})
     const bodyStream: any = stream
     let mimeType = await mimeMagic(head)
-    if (mimeType === 'image/webp') {
+    if (mimeType === 'image/heic') {
         const toWebp = Sharp().toFormat('webp').webp({quality: 80})
         mimeType = 'image/webp'
         stream.pipe(toWebp).pipe(bodyStream)
