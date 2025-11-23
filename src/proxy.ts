@@ -27,6 +27,7 @@ const AcceptedContentTypes = [
     'image/jpeg',
     'image/png',
     'image/webp',
+    'image/svg+xml'
 ]
 
 interface NeedleResponse extends http.IncomingMessage {
@@ -242,7 +243,21 @@ export async function proxyHandler(ctx: KoaContext) {
                 user_agent: 'HiveProxy/1.0 (+https://gitlab.syncad.com/hive/imagehoster)',
             } as any)
         } catch (cause) {
-            throw new APIError({cause, code: APIError.Code.UpstreamError})
+            // old or non existing images, try to get from steemitimages server
+            try {
+                ctx.log.debug({url: url.toString()}, 'fetching from steemit server')
+                res = await fetchUrl(`https://steemitimages.com/0x0/${url.toString()}`, {
+                    open_timeout: 5 * 1000,
+                    response_timeout: 5 * 1000,
+                    read_timeout: 60 * 1000,
+                    compressed: true,
+                    parse_response: false,
+                    follow_max: 5,
+                    user_agent: 'SteemitProxy/1.0 (+https://github.com/steemit/imagehoster)',
+                } as any)
+            } catch (cause) {
+                throw new APIError({cause, code: APIError.Code.UpstreamError})
+            }
         }
 
         APIError.assert(res.bytes <= MAX_IMAGE_SIZE, APIError.Code.PayloadTooLarge)

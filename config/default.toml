@@ -20,6 +20,8 @@ service_url = 'http://localhost:8800'
 
 # default user avatar, should be a png minimum 512x512
 default_avatar = 'https://images.hive.blog/DQmb2HNSGKN3pakguJ4ChCRjgkVuDN9WniFRPmrxoJ4sjR4'
+# default user cover, should be a png minimum 1344x240
+default_cover = 'https://images.ecency.com/DQmdA9wjRyGmDwrTza59yLSjCWMEc9sFD5sC4ZU5kL9UMqo/cover_fallback_day.png'
 
 # log level to output at
 log_level = 'debug'

@@ -12,6 +12,11 @@ RUN apk add \
     make \
     py-pip
 
+RUN apk add \
+    --no-cache \
+    --repository https://dl-3.alpinelinux.org/alpine/edge/testing/ \
+    vips-dev
+
 # install application dependencies
 COPY package.json yarn.lock ./
 RUN JOBS=max yarn install --non-interactive --frozen-lockfile
@@ -31,7 +36,7 @@ WORKDIR /app
 RUN apk add \
     --no-cache \
     --repository https://alpine.global.ssl.fastly.net/alpine/v3.10/community \
-    fftw
+    fftw vips
 COPY --from=build-stage /app/config config
 COPY --from=build-stage /app/lib lib
 COPY --from=build-stage /app/node_modules node_modules

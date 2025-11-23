@@ -3,6 +3,7 @@
 import * as Router from 'koa-router'
 
 import {avatarHandler} from './avatar'
+import {coverHandler} from './cover'
 import {KoaContext} from './common'
 import {legacyProxyHandler} from './legacy-proxy'
 import {proxyHandler} from './proxy'
@@ -22,6 +23,7 @@ async function healthcheck(ctx: KoaContext) {
 router.get('/', healthcheck as any)
 router.get('/.well-known/healthcheck.json', healthcheck as any)
 router.get('/u/:username/avatar/:size?', avatarHandler as any)
+router.get('/u/:username/cover', coverHandler as any)
 router.post('/hs/:accesstoken', uploadHsHandler as any)
 router.post('/:username/:signature', uploadHandler as any)
 router.post('/cs/:username/:signature', uploadCsHandler as any)
