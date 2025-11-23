@@ -71,7 +71,7 @@ describe('proxy', function() {
     it('should proxy directly from upload store', async function() {
         this.slow(1000)
         serveImage = false
-        const uploaded = await uploadImage(fs.readFileSync(path.resolve(__dirname, 'test.jpg')), port)
+        const uploaded = await uploadImage("test.jpg", fs.readFileSync(path.resolve(__dirname, 'test.jpg')), 'image/jpeg', port)
         const [key, fname] = uploaded.body.url.split('/').slice(-2)
         const res = await needle('get', `http://localhost:${ port }/0x0/${ uploaded.body.url }`)
         const image = sharp(res.body)
