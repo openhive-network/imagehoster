@@ -8,7 +8,7 @@ stages:
 build:
   stage: build
   tags:
-    - secure-runner-docker
+    - public-runner-docker
   image: docker:24.0.5
   services:
     - docker:24.0.5-dind
