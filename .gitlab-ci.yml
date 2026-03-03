@@ -9,18 +9,26 @@ build:
   stage: build
   tags:
     - public-runner-docker
-  image: docker:24.0.5
+  image: registry.gitlab.syncad.com/hive/common-ci-configuration/docker-builder:latest
   services:
-    - docker:24.0.5-dind
+    - name: registry.gitlab.syncad.com/hive/common-ci-configuration/docker-dind:latest
+      alias: docker
   variables:
     DOCKER_DRIVER: overlay2
-    DOCKER_TLS_CERTDIR: ""
-    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: "/certs"
+    FF_NETWORK_PER_BUILD: "true"
     GIT_DEPTH: 1
     GIT_SUBMODULE_STRATEGY: recursive
     GIT_STRATEGY: clone
   allow_failure: false
-  script:
+  before_script:
+    - |
+      for i in $(seq 1 30); do
+        docker info >/dev/null 2>&1 && break
+        echo "Waiting for docker daemon... ($i/30)"
+        sleep 2
+      done
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
     - "docker build --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA ."
     - "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
