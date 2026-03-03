@@ -42,16 +42,18 @@ max = 300 # max requests within duration
 reputation = 10 # minimum reputation needed for upload
 app_account = 'hive.blog'
 
+# Enable 2-character directory partitioning for stored images.
+# When true, images are stored under XX/hash instead of flat hash.
+# WARNING: changing this on an existing deployment will make existing
+# images inaccessible unless files are migrated into subdirectories.
+# storage_partitioning = false
+
 # blob stores, valid types are: memory, s3
 # the s3 type additionally needs the s3_bucket key to be set and expects
 # the proper AWS credentials to be configured (see aws-sdk for more info)
 
 # where to keep uploaded images
 [upload_store]
-type = 'memory'
-
-# where to keep pre-fork uploaded images
-[pre_fork_upload_store]
 type = 'memory'
 
 # where to keep proxied images

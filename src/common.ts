@@ -63,6 +63,9 @@ export const proxyStore = loadStore('proxy_store')
 //   LT/U5dtZPvjpfzc3fgGtsoNQq7WLNv8sLT
 // to make lookups more efficient
 export function getKeyNameFromHash(hash: string): string {
+    if (!config.has('storage_partitioning') || !config.get('storage_partitioning')) {
+        return hash
+    }
     // we expect the hash to be either a data hash like:
     //   DQmPpQ1mVrziWvgNyK5K64HmRZEMVjQCiNTjgAkBg8wHgJn
     // for uploaded images, or a URL hash like:
