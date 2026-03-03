@@ -10,11 +10,12 @@ import * as Sharp from 'sharp'
 import streamHead from 'stream-head/dist-es6'
 import {URL} from 'url'
 
+import * as opentracing from 'opentracing'
+
 import {imageBlacklist} from './blacklist'
-import {KoaContext, proxyStore, uploadStore, getKeyNameFromHash} from './common'
+import {getKeyNameFromHash, KoaContext, proxyStore, uploadStore} from './common'
 import {APIError} from './error'
 import {base58Dec, mimeMagic, readStream, storeExists, storeWrite} from './utils'
-import * as opentracing from 'opentracing';
 
 let tracer: opentracing.Tracer
 if (process.env.JAEGER_SERVICE_NAME) {
@@ -192,10 +193,10 @@ export async function proxyHandler(ctx: KoaContext) {
 
     // refuse to proxy images on blacklist
     if (imageBlacklist.includes(url.toString())) {
-        ctx.log.debug('URL %s is blacklisted', url.toString());
+        ctx.log.debug('URL %s is blacklisted', url.toString())
         APIError.assert(!imageBlacklist.includes(url.toString()), APIError.Code.Blacklisted)
     } else {
-        ctx.log.debug('URL %s is not blacklisted', url.toString());
+        ctx.log.debug('URL %s is not blacklisted', url.toString())
     }
 
     // where the original image is/will be stored
@@ -218,7 +219,7 @@ export async function proxyHandler(ctx: KoaContext) {
         origKey = 'U' + multihash.toB58String(
             multihash.encode(urlHash, 'sha1')
         )
-        origKey = getKeyNameFromHash(origKey);
+        origKey = getKeyNameFromHash(origKey)
     }
 
     const imageKey = getImageKey(origKey, options)
@@ -235,7 +236,7 @@ export async function proxyHandler(ctx: KoaContext) {
             ctx.res.end()
             file.destroy()
         })
-        const streamSpan = tracer.startSpan("streaming stored image", {childOf: proxyHandlerSpan})
+        const streamSpan = tracer.startSpan('streaming stored image', {childOf: proxyHandlerSpan})
         const {head, stream} = await streamHead(file, {bytes: 16384})
         const mimeType = await mimeMagic(head)
         ctx.set('Content-Type', mimeType)
@@ -252,7 +253,7 @@ export async function proxyHandler(ctx: KoaContext) {
     let contentType: string
     if (await storeExists(origStore, origKey)) {
         ctx.tag({store: 'original'})
-        const readSpan = tracer.startSpan("reading original image from store", {childOf: proxyHandlerSpan})
+        const readSpan = tracer.startSpan('reading original image from store', {childOf: proxyHandlerSpan})
         origData = await readStream(origStore.createReadStream(origKey))
         contentType = await mimeMagic(origData)
         readSpan.finish()
@@ -261,7 +262,7 @@ export async function proxyHandler(ctx: KoaContext) {
         ctx.tag({store: 'fetch'})
         ctx.log.debug({url: url.toString()}, 'fetching image')
 
-        const fetchSourceSpan = tracer.startSpan("fetch image from source", {childOf: proxyHandlerSpan})
+        const fetchSourceSpan = tracer.startSpan('fetch image from source', {childOf: proxyHandlerSpan})
 
         let res: NeedleResponse
         try {
@@ -296,7 +297,7 @@ export async function proxyHandler(ctx: KoaContext) {
         origData = res.body
 
         ctx.log.debug('storing original %s', origKey)
-        const storeOriginalSpan = tracer.startSpan("storing original in bucket", {childOf: fetchSourceSpan})
+        const storeOriginalSpan = tracer.startSpan('storing original in bucket', {childOf: fetchSourceSpan})
         await storeWrite(origStore, origKey, origData)
         storeOriginalSpan.finish()
         fetchSourceSpan.finish()
@@ -313,7 +314,7 @@ export async function proxyHandler(ctx: KoaContext) {
         // this is needed since resizing gifs creates still images
         rv = origData
     } else {
-        const resizingSpan = tracer.startSpan("resizing", {childOf: proxyHandlerSpan})
+        const resizingSpan = tracer.startSpan('resizing', {childOf: proxyHandlerSpan})
         const image = Sharp(origData).jpeg({
             quality: 85,
             force: false,
@@ -393,7 +394,7 @@ export async function proxyHandler(ctx: KoaContext) {
 
         rv = await image.toBuffer()
         ctx.log.debug('storing converted %s', imageKey)
-        const storingResizedSpan = tracer.startSpan("storing resized image", {childOf: resizingSpan})
+        const storingResizedSpan = tracer.startSpan('storing resized image', {childOf: resizingSpan})
         await storeWrite(proxyStore, imageKey, rv)
         storingResizedSpan.finish()
         resizingSpan.finish()
