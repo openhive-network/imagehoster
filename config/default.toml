@@ -56,6 +56,11 @@ app_account = 'hive.blog'
 [upload_store]
 type = 'memory'
 
+# proxy whitelist: only serve proxy URLs referenced on the Hive blockchain
+[whitelist]
+enabled = false
+
+
 # where to keep proxied images
 [proxy_store]
 type = 'memory'

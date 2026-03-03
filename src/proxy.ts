@@ -16,6 +16,7 @@ import {imageBlacklist} from './blacklist'
 import {getKeyNameFromHash, KoaContext, proxyStore, uploadStore} from './common'
 import {APIError} from './error'
 import {base58Dec, mimeMagic, readStream, storeExists, storeWrite} from './utils'
+import {isUrlBlacklisted, isWhitelisted, validateProxyAuthToken} from './whitelist'
 
 let tracer: opentracing.Tracer
 if (process.env.JAEGER_SERVICE_NAME) {
@@ -220,6 +221,38 @@ export async function proxyHandler(ctx: KoaContext) {
             multihash.encode(urlHash, 'sha1')
         )
         origKey = getKeyNameFromHash(origKey)
+    }
+
+    // Whitelist check: only serve proxy requests for URLs referenced on the blockchain
+    if (!origIsUpload) {
+        // Check for editor preview auth token (bypasses whitelist)
+        const token = ctx.query['token'] as string | undefined
+        let tokenValid = false
+        if (token) {
+            const tokenUser = await validateProxyAuthToken(token)
+            if (tokenUser) {
+                tokenValid = true
+                ctx.tag({proxy_auth_user: tokenUser})
+            }
+        }
+
+        if (!tokenValid) {
+            const originalUrl = url.toString()
+            // Check URL blacklist first (permanently blocked URLs)
+            if (await isUrlBlacklisted(originalUrl)) {
+                ctx.status = 451
+                ctx.set('Cache-Control', 'public, max-age=86400')
+                proxyHandlerSpan.finish()
+                return
+            }
+            // Check whitelist (URL must be referenced on-chain)
+            if (!await isWhitelisted(originalUrl)) {
+                ctx.status = 451
+                ctx.set('Cache-Control', 'no-cache, no-store')
+                proxyHandlerSpan.finish()
+                return
+            }
+        }
     }
 
     const imageKey = getImageKey(origKey, options)
