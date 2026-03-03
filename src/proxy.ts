@@ -15,11 +15,14 @@ import {KoaContext, proxyStore, uploadStore, getKeyNameFromHash} from './common'
 import {APIError} from './error'
 import {base58Dec, mimeMagic, readStream, storeExists, storeWrite} from './utils'
 import * as opentracing from 'opentracing';
-import * as jaegerClient from 'jaeger-client'
 
-const tracingConfig: jaegerClient.TracingConfig = {};
-const tracingOptions: jaegerClient.TracingOptions = {};
-const tracer = jaegerClient.initTracerFromEnv(tracingConfig, tracingOptions);
+let tracer: opentracing.Tracer
+if (process.env.JAEGER_SERVICE_NAME) {
+    const jaegerClient = require('jaeger-client')
+    tracer = jaegerClient.initTracerFromEnv({}, {})
+} else {
+    tracer = new opentracing.Tracer()
+}
 
 const MAX_IMAGE_SIZE = Number.parseInt(config.get('max_image_size'))
 if (!Number.isFinite(MAX_IMAGE_SIZE)) {
