@@ -80,7 +80,10 @@ export async function proxyAuthHandler(ctx: KoaContext) {
     try {
         publicKey = signature.recover(challengeHash).toString()
     } catch (cause) {
-        throw new APIError({code: APIError.Code.InvalidSignature, cause})
+        if (!(cause instanceof Error)) {
+            cause = Error('unexpected error')
+        }
+        throw new APIError({code: APIError.Code.InvalidSignature, cause: cause as Error})
     }
 
     const thresholdPosting = account.posting.weight_threshold
