@@ -2,15 +2,48 @@ import * as config from 'config'
 import * as fs from 'fs'
 import {logger} from './logger'
 
+/**
+ * Dynamic blacklist file format (blacklist.json):
+ *
+ * Can be either a flat array of exact-match strings (legacy format):
+ *   ["https://example.com/bad.jpg", "https://example.com/other.jpg"]
+ *
+ * Or an object with separate exact and pattern lists:
+ *   {
+ *     "urls": ["https://example.com/bad.jpg"],
+ *     "patterns": ["^https?://([^/]*\\.)?fotas\\.cc/"]
+ *   }
+ *
+ * Patterns are JavaScript regular expressions tested against the full resolved URL.
+ * Useful for blocking entire domains.
+ */
+
+interface BlacklistData {
+  urls: string[]
+  patterns: RegExp[]
+}
+
+function parseBlacklistFile(data: any): BlacklistData {
+  if (Array.isArray(data)) {
+    // Legacy format: flat array of exact URLs
+    return { urls: data, patterns: [] }
+  }
+  const urls: string[] = data.urls || []
+  const patterns: RegExp[] = (data.patterns || []).map((p: string) => new RegExp(p))
+  return { urls, patterns }
+}
+
 /** Upload and proxying blacklists. In the future this will live on-chain. */
 class Blacklist {
   private staticList: string[]
-  private dynamicList: string[]
+  private dynamicUrls: string[]
+  private dynamicPatterns: RegExp[]
   private dynamicListFilename?: string
   constructor(staticList: string[], dynamicListFilename?: string) {
     this.staticList = staticList
     this.dynamicListFilename = dynamicListFilename
-    this.dynamicList = []
+    this.dynamicUrls = []
+    this.dynamicPatterns = []
     this.reloadDynamicList()
     if (this.dynamicListFilename) {
       fs.watchFile(this.dynamicListFilename, (curr, prev) => {
@@ -21,15 +54,30 @@ class Blacklist {
   public reloadDynamicList() {
     if (this.dynamicListFilename) {
       logger.info('Reloading dynamic blacklist from file', this.dynamicListFilename)
-      this.dynamicList = JSON.parse(fs.readFileSync(this.dynamicListFilename, 'utf8'))
-      logger.info('Loaded dynamic blacklist containing', this.dynamicList.length, 'items')
+      try {
+        const raw = JSON.parse(fs.readFileSync(this.dynamicListFilename, 'utf8'))
+        const parsed = parseBlacklistFile(raw)
+        this.dynamicUrls = parsed.urls
+        this.dynamicPatterns = parsed.patterns
+        logger.info('Loaded dynamic blacklist:', this.dynamicUrls.length, 'URLs,', this.dynamicPatterns.length, 'patterns')
+      } catch (e) {
+        logger.error('Failed to parse blacklist file', this.dynamicListFilename, e)
+      }
     }
   }
   public includes(item: string) {
     if (this.staticList.includes(item)) {
       return true
     }
-    return this.dynamicList.includes(item)
+    if (this.dynamicUrls.includes(item)) {
+      return true
+    }
+    for (const pattern of this.dynamicPatterns) {
+      if (pattern.test(item)) {
+        return true
+      }
+    }
+    return false
   }
 }
 
