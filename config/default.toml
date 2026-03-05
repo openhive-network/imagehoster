@@ -59,6 +59,7 @@ type = 'memory'
 # proxy whitelist: only serve proxy URLs referenced on the Hive blockchain
 [whitelist]
 enabled = false
+# apiUrl = 'http://localhost:7015'  # PostgREST API for whitelist checks
 
 
 # where to keep proxied images
