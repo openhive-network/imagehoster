@@ -4,13 +4,8 @@ import * as config from 'config'
 import {redisClient} from './common'
 import {logger} from './logger'
 
-// Use node-fetch for Node < 18, native fetch for Node >= 18
-let fetchFn: typeof fetch
-try {
-    fetchFn = globalThis.fetch
-} catch {
-    fetchFn = require('node-fetch')
-}
+// Node 20+ has native fetch; declare the type since @types/node is outdated
+declare function fetch(url: string, init?: {method?: string; headers?: Record<string, string>; body?: string}): Promise<{json(): Promise<any>}>
 
 /**
  * Check if a URL is in the proxy whitelist (referenced in a Hive post).
@@ -26,7 +21,7 @@ export async function isWhitelisted(url: string): Promise<boolean> {
         return true
     }
     try {
-        const resp = await fetchFn(
+        const resp = await fetch(
             `${apiUrl}/whitelist/check`,
             {
                 method: 'POST',
@@ -56,7 +51,7 @@ export async function isUrlBlacklisted(url: string): Promise<boolean> {
         return false
     }
     try {
-        const resp = await fetchFn(
+        const resp = await fetch(
             `${apiUrl}/whitelist/url-blacklisted`,
             {
                 method: 'POST',
