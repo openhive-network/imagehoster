@@ -5,7 +5,10 @@ import {redisClient} from './common'
 import {logger} from './logger'
 
 // Node 20+ has native fetch; declare the type since @types/node is outdated
-declare function fetch(url: string, init?: {method?: string; headers?: Record<string, string>; body?: string}): Promise<{json(): Promise<any>}>
+// tslint:disable-next-line:no-any
+declare function fetch(url: string, init?: {
+    method?: string; headers?: Record<string, string>; body?: string;
+}): Promise<{json(): Promise<any>}>
 
 /**
  * Check if a URL is in the proxy whitelist (referenced in a Hive post).
