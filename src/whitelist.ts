@@ -10,18 +10,21 @@ declare function fetch(url: string, init?: {
     method?: string; headers?: Record<string, string>; body?: string;
 }): Promise<{json(): Promise<any>}>
 
+export type UrlStatus = 'whitelisted' | 'blacklisted' | 'unknown'
+
 /**
- * Check if a URL is in the proxy whitelist (referenced in a Hive post).
- * Calls the PostgREST API endpoint.
- * Returns true if whitelisted OR if the feature is disabled/API unavailable (fail-open).
+ * Combined whitelist + blacklist check in a single API call.
+ * Returns 'whitelisted', 'blacklisted', or 'unknown'.
+ * On error or if disabled, returns 'whitelisted' (fail-open).
  */
-export async function isWhitelisted(url: string): Promise<boolean> {
+export async function checkUrl(url: string): Promise<UrlStatus> {
     if (!config.get('whitelist.enabled')) {
-        return true
+        return 'whitelisted'
     }
-    const apiUrl = config.has('whitelist.apiUrl') ? config.get('whitelist.apiUrl') as string : ''
+    const apiUrl = config.has('whitelist.apiUrl')
+        ? config.get('whitelist.apiUrl') as string : ''
     if (!apiUrl) {
-        return true
+        return 'whitelisted'
     }
     try {
         const resp = await fetch(
@@ -32,41 +35,14 @@ export async function isWhitelisted(url: string): Promise<boolean> {
                 body: JSON.stringify({url}),
             }
         )
-        const result = await resp.json()
-        return result === true
+        const result = await resp.json() as string
+        if (result === 'blacklisted' || result === 'unknown') {
+            return result
+        }
+        return 'whitelisted'
     } catch (err) {
         logger.warn(err, 'whitelist check failed, allowing request (fail-open)')
-        return true
-    }
-}
-
-/**
- * Check if a URL is permanently blocked via the URL blacklist.
- * Calls the PostgREST API endpoint.
- * Returns false if the feature is disabled/API unavailable (fail-open).
- */
-export async function isUrlBlacklisted(url: string): Promise<boolean> {
-    if (!config.get('whitelist.enabled')) {
-        return false
-    }
-    const apiUrl = config.has('whitelist.apiUrl') ? config.get('whitelist.apiUrl') as string : ''
-    if (!apiUrl) {
-        return false
-    }
-    try {
-        const resp = await fetch(
-            `${apiUrl}/whitelist/url-blacklisted`,
-            {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({url}),
-            }
-        )
-        const result = await resp.json()
-        return result === true
-    } catch (err) {
-        logger.warn(err, 'URL blacklist check failed, allowing request (fail-open)')
-        return false
+        return 'whitelisted'
     }
 }
 

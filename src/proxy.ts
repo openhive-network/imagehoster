@@ -16,7 +16,7 @@ import {imageBlacklist} from './blacklist'
 import {getKeyNameFromHash, KoaContext, proxyStore, uploadStore} from './common'
 import {APIError} from './error'
 import {base58Dec, mimeMagic, readStream, storeExists, storeWrite} from './utils'
-import {isUrlBlacklisted, isWhitelisted, validateProxyAuthToken} from './whitelist'
+import {checkUrl, validateProxyAuthToken} from './whitelist'
 
 let tracer: opentracing.Tracer
 if (process.env.JAEGER_SERVICE_NAME) {
@@ -238,15 +238,14 @@ export async function proxyHandler(ctx: KoaContext) {
 
         if (!tokenValid) {
             const originalUrl = url.toString()
-            // Check URL blacklist first (permanently blocked URLs)
-            if (await isUrlBlacklisted(originalUrl)) {
+            const urlStatus = await checkUrl(originalUrl)
+            if (urlStatus === 'blacklisted') {
                 ctx.status = 451
                 ctx.set('Cache-Control', 'public, max-age=86400')
                 proxyHandlerSpan.finish()
                 return
             }
-            // Check whitelist (URL must be referenced on-chain)
-            if (!await isWhitelisted(originalUrl)) {
+            if (urlStatus === 'unknown') {
                 ctx.status = 451
                 ctx.set('Cache-Control', 'no-cache, no-store')
                 proxyHandlerSpan.finish()
