@@ -1,4 +1,4 @@
-FROM node:20-alpine as build-stage
+FROM registry.gitlab.syncad.com/hive/imagehoster/node:20-alpine as build-stage
 
 WORKDIR /app
 
@@ -31,7 +31,7 @@ RUN make lib ci-test
 RUN yarn install --non-interactive --frozen-lockfile --production
 
 # copy built application to runtime image
-FROM node:20-alpine
+FROM registry.gitlab.syncad.com/hive/imagehoster/node:20-alpine
 WORKDIR /app
 RUN apk add \
     --no-cache \
