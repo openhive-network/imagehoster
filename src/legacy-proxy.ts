@@ -40,10 +40,20 @@ export async function legacyProxyHandler(ctx: KoaContext) {
     if (width > 0) { options['width'] = width }
     if (height > 0) { options['height'] = height }
 
+    if (ctx.query['token']) {
+        options['token'] = ctx.query['token']
+        // Remove token from extracted URL so it doesn't affect the base58 hash
+        url.searchParams.delete('token')
+    }
+
     const qs = querystring.stringify(options)
     const b58url = multihash.toB58String(Buffer.from(url.toString()))
 
     ctx.status = 301
-    ctx.set('Cache-Control', 'public,max-age=29030400,immutable')
+    if (ctx.query['token']) {
+        ctx.set('Cache-Control', 'private,no-store')
+    } else {
+        ctx.set('Cache-Control', 'public,max-age=29030400,immutable')
+    }
     ctx.redirect(`/p/${ b58url }?${ qs }`)
 }
