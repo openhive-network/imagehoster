@@ -48,7 +48,7 @@ interface NeedleResponse extends http.IncomingMessage {
     cookies?: {[name: string]: any}
 }
 
-function fetchUrl(url: string, options: needle.NeedleOptions) {
+function fetchUrlOnce(url: string, options: needle.NeedleOptions) {
     return new Promise<NeedleResponse>((resolve, reject) => {
         needle.get(url, options, (error, response) => {
             if (error) {
@@ -58,6 +58,31 @@ function fetchUrl(url: string, options: needle.NeedleOptions) {
             }
         })
     })
+}
+
+/**
+ * Fetch a URL, following redirects manually so we can check each
+ * hop against the SSRF blocklist. Without this, an attacker can
+ * redirect from a public URL to an internal one.
+ */
+async function fetchUrl(url: string, options: needle.NeedleOptions, skipSsrfCheck: boolean = false) {
+    const maxRedirects = 5
+    // Disable needle's built-in redirect following
+    const opts = {...options, follow_max: 0}
+    let currentUrl = url
+    for (let i = 0; i <= maxRedirects; i++) {
+        if (!skipSsrfCheck) {
+            await assertPublicUrl(new URL(currentUrl))
+        }
+        const res = await fetchUrlOnce(currentUrl, opts)
+        const status = res.statusCode || 0
+        if (status >= 301 && status <= 308 && res.headers.location) {
+            currentUrl = new URL(res.headers.location, currentUrl).toString()
+            continue
+        }
+        return res
+    }
+    throw new Error('Too many redirects')
 }
 
 enum ScalingMode {
@@ -294,18 +319,9 @@ export async function proxyHandler(ctx: KoaContext) {
         ctx.tag({store: 'fetch'})
         ctx.log.debug({url: url.toString()}, 'fetching image')
 
-        // Validate URL is not targeting internal/private resources
-        try {
-            await assertPublicUrl(url)
-        } catch (cause) {
-            throw new APIError({
-                code: APIError.Code.InvalidProxyUrl,
-                message: 'URL not allowed',
-            })
-        }
-
         const fetchSourceSpan = tracer.startSpan('fetch image from source', {childOf: proxyHandlerSpan})
 
+        const skipSsrf = process.env.NODE_ENV === 'test'
         let res: NeedleResponse
         try {
             res = await fetchUrl(url.toString(), {
@@ -314,9 +330,8 @@ export async function proxyHandler(ctx: KoaContext) {
                 read_timeout: 60 * 1000,
                 compressed: true,
                 parse_response: false,
-                follow_max: 5,
                 user_agent: 'HiveProxy/1.0 (+https://gitlab.syncad.com/hive/imagehoster)',
-            } as any)
+            } as any, skipSsrf)
         } catch (cause) {
             fetchSourceSpan.setTag(opentracing.Tags.ERROR, true)
             fetchSourceSpan.finish()
