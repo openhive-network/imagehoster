@@ -15,7 +15,7 @@ import * as opentracing from 'opentracing'
 import {imageBlacklist} from './blacklist'
 import {getKeyNameFromHash, KoaContext, proxyStore, uploadStore} from './common'
 import {APIError} from './error'
-import {base58Dec, mimeMagic, readStream, storeExists, storeWrite} from './utils'
+import {assertPublicUrl, base58Dec, mimeMagic, readStream, storeExists, storeWrite} from './utils'
 import {checkUrl, validateProxyAuthToken} from './whitelist'
 
 let tracer: opentracing.Tracer
@@ -293,6 +293,16 @@ export async function proxyHandler(ctx: KoaContext) {
         APIError.assert(origIsUpload === false, 'Upload not found')
         ctx.tag({store: 'fetch'})
         ctx.log.debug({url: url.toString()}, 'fetching image')
+
+        // Validate URL is not targeting internal/private resources
+        try {
+            await assertPublicUrl(url)
+        } catch (cause) {
+            throw new APIError({
+                code: APIError.Code.InvalidProxyUrl,
+                message: 'URL not allowed',
+            })
+        }
 
         const fetchSourceSpan = tracer.startSpan('fetch image from source', {childOf: proxyHandlerSpan})
 

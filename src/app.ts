@@ -33,7 +33,14 @@ app.on('error', (error, ctx: KoaContext) => {
 
 app.use(loggerMiddleware as any)
 app.use(errorMiddleware as any)
-app.use(cors())
+app.use(async (ctx, next) => {
+    ctx.set('X-Content-Type-Options', 'nosniff')
+    await next()
+})
+app.use(cors({
+    allowMethods: ['GET', 'POST', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+}))
 app.use(routes)
 app.use((ctx: Koa.Context) => {
     throw new APIError({code: APIError.Code.NotFound})

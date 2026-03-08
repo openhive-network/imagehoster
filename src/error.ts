@@ -87,7 +87,7 @@ export class APIError extends Error {
     public readonly info?: {[key: string]: string}
 
     constructor(options: APIErrorOptions) {
-        const code = options.code || ErrorCode.InternalError
+        const code = options.code !== undefined ? options.code : ErrorCode.InternalError
         super(options.message || ErrorCode[code])
         this.cause = options.cause
         this.code = code
