@@ -52,8 +52,19 @@ export async function proxyAuthHandler(ctx: KoaContext) {
     const username = ctx.params['username']
     const sig = ctx.params['signature']
 
-    // Parse timestamp from body
-    const body = (ctx.request as any).body || {}
+    // Parse JSON body manually (no global body parser — uploads use busboy)
+    const rawBody = await new Promise<string>((resolve, reject) => {
+        let data = ''
+        ctx.req.on('data', (chunk: Buffer) => { data += chunk.toString() })
+        ctx.req.on('end', () => resolve(data))
+        ctx.req.on('error', reject)
+    })
+    let body: any = {}
+    try {
+        body = JSON.parse(rawBody)
+    } catch (e) {
+        // will fail timestamp assertion below
+    }
     const timestamp = body.timestamp
     APIError.assert(timestamp && typeof timestamp === 'number',
                     {message: 'Request body must include numeric timestamp'})
