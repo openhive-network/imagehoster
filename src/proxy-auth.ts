@@ -39,7 +39,7 @@ function repLog10(rep2: any): number {
  * Verifies that the caller holds the posting key for :username,
  * then issues a short-lived Redis token that bypasses the proxy whitelist.
  *
- * The signature is over SHA256("ProxySigningChallenge" + timestamp),
+ * The signature is over SHA256("Authorize image proxy preview for {username} at {ISO timestamp}"),
  * where timestamp is provided in the JSON body.
  */
 export async function proxyAuthHandler(ctx: KoaContext) {
@@ -75,9 +75,9 @@ export async function proxyAuthHandler(ctx: KoaContext) {
                     {message: 'Timestamp too far from current time'})
 
     // Verify signature
+    const challenge = `Authorize image proxy preview for ${username} at ${new Date(timestamp).toISOString()}`
     const challengeHash = createHash('sha256')
-        .update('ProxySigningChallenge')
-        .update(String(timestamp))
+        .update(challenge)
         .digest()
 
     const signature = Signature.fromString(sig)
