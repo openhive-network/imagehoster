@@ -6,6 +6,7 @@ import * as multihash from 'multihashes'
 import * as path from 'path'
 import * as fs from 'fs'
 import * as sharp from 'sharp'
+import {URL} from 'url'
 
 import {app} from './../src/app'
 import {proxyStore, uploadStore} from './../src/common'
