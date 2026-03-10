@@ -224,6 +224,7 @@ export async function proxyHandler(ctx: KoaContext) {
     }
 
     // Whitelist check: only serve proxy requests for URLs referenced on the blockchain
+    let tokenBypassed = false
     if (!origIsUpload) {
         // Check for editor preview auth token (bypasses whitelist)
         const token = ctx.query['token'] as string | undefined
@@ -232,6 +233,7 @@ export async function proxyHandler(ctx: KoaContext) {
             const tokenUser = await validateProxyAuthToken(token)
             if (tokenUser) {
                 tokenValid = true
+                tokenBypassed = true
                 ctx.tag({proxy_auth_user: tokenUser})
             }
         }
@@ -272,7 +274,9 @@ export async function proxyHandler(ctx: KoaContext) {
         const {head, stream} = await streamHead(file, {bytes: 16384})
         const mimeType = await mimeMagic(head)
         ctx.set('Content-Type', mimeType)
-        ctx.set('Cache-Control', 'public,max-age=29030400,immutable')
+        ctx.set('Cache-Control', tokenBypassed
+            ? 'private, no-store'
+            : 'public,max-age=29030400,immutable')
         ctx.body = stream
         streamSpan.finish()
         proxyHandlerSpan.finish()
@@ -433,7 +437,9 @@ export async function proxyHandler(ctx: KoaContext) {
     }
 
     ctx.set('Content-Type', contentType)
-    ctx.set('Cache-Control', 'public,max-age=29030400,immutable')
+    ctx.set('Cache-Control', tokenBypassed
+        ? 'private, no-store'
+        : 'public,max-age=29030400,immutable')
     ctx.body = rv
     proxyHandlerSpan.finish()
 }
