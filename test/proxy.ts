@@ -97,20 +97,20 @@ describe('proxy', function() {
     it('should block blacklisted URL with query params appended', async function() {
         // Pick a URL from the static blacklist
         const blacklistedUrl = 'https://i.imgur.com/0XObSlG.jpg'
-        // Verify the exact URL is blocked
+        // Verify the exact URL is blocked (Blacklisted = HTTP 451)
         const exactUrl = base58Enc(blacklistedUrl)
         const res1 = await needle('get', `http://localhost:${ port }/p/${ exactUrl }`)
-        assert.equal(res1.statusCode, 403)
+        assert.equal(res1.statusCode, 451)
 
         // Verify appending query params doesn't bypass the blacklist
         const bypassUrl = base58Enc(blacklistedUrl + '?_=1')
         const res2 = await needle('get', `http://localhost:${ port }/p/${ bypassUrl }`)
-        assert.equal(res2.statusCode, 403)
+        assert.equal(res2.statusCode, 451)
 
         // Verify appending fragment doesn't bypass the blacklist
         const fragmentUrl = base58Enc(blacklistedUrl + '#bypass')
         const res3 = await needle('get', `http://localhost:${ port }/p/${ fragmentUrl }`)
-        assert.equal(res3.statusCode, 403)
+        assert.equal(res3.statusCode, 451)
     })
 
     it('should block blacklisted bare hash in path segments', function() {
