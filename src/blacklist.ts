@@ -1,5 +1,6 @@
 import * as config from 'config'
 import * as fs from 'fs'
+import {URL} from 'url'
 import {logger} from './logger'
 
 /**
@@ -97,7 +98,7 @@ class Blacklist {
     // Extract path segments that look like content hashes (>=30 chars, alphanumeric)
     // This catches bare entries like 'DQmeLKjpW89de2DqfCYxdTM4HPvUgurmpJuZYAN9SP2c9Q5'
     const segments = url.pathname.split('/').filter(
-      (s) => s.length >= 30 && /^[A-Za-z0-9]+$/.test(s)
+      (s: string) => s.length >= 30 && /^[A-Za-z0-9]+$/.test(s)
     )
     for (const seg of segments) {
       candidates.push(seg)
