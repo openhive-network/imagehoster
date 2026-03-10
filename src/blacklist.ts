@@ -79,6 +79,37 @@ class Blacklist {
     }
     return false
   }
+
+  /**
+   * Check if a URL matches the blacklist, accounting for query param / fragment variations.
+   * Checks: (1) full URL as-is, (2) URL without query/fragment, (3) path segments
+   * that look like content hashes (for bare-hash entries in the blacklist).
+   */
+  public matchesUrl(url: URL): boolean {
+    const candidates: string[] = [url.toString()]
+
+    // URL without query string and fragment
+    const bare = url.origin + url.pathname
+    if (bare !== url.toString()) {
+      candidates.push(bare)
+    }
+
+    // Extract path segments that look like content hashes (>=30 chars, alphanumeric)
+    // This catches bare entries like 'DQmeLKjpW89de2DqfCYxdTM4HPvUgurmpJuZYAN9SP2c9Q5'
+    const segments = url.pathname.split('/').filter(
+      (s) => s.length >= 30 && /^[A-Za-z0-9]+$/.test(s)
+    )
+    for (const seg of segments) {
+      candidates.push(seg)
+    }
+
+    for (const candidate of candidates) {
+      if (this.includes(candidate)) {
+        return true
+      }
+    }
+    return false
+  }
 }
 
 /* tslint:disable:max-line-length */

@@ -9,6 +9,7 @@ import * as sharp from 'sharp'
 
 import {app} from './../src/app'
 import {proxyStore, uploadStore} from './../src/common'
+import {imageBlacklist} from './../src/blacklist'
 import {storeExists, base58Enc} from './../src/utils'
 
 import {uploadImage} from './upload'
@@ -90,6 +91,38 @@ describe('proxy', function() {
         assert.equal(meta.height, 100)
         assert.equal(meta.format, 'webp')
         assert.equal(meta.space, 'srgb')
+    })
+
+    it('should block blacklisted URL with query params appended', async function() {
+        // Pick a URL from the static blacklist
+        const blacklistedUrl = 'https://i.imgur.com/0XObSlG.jpg'
+        // Verify the exact URL is blocked
+        const exactUrl = base58Enc(blacklistedUrl)
+        const res1 = await needle('get', `http://localhost:${ port }/p/${ exactUrl }`)
+        assert.equal(res1.statusCode, 403)
+
+        // Verify appending query params doesn't bypass the blacklist
+        const bypassUrl = base58Enc(blacklistedUrl + '?_=1')
+        const res2 = await needle('get', `http://localhost:${ port }/p/${ bypassUrl }`)
+        assert.equal(res2.statusCode, 403)
+
+        // Verify appending fragment doesn't bypass the blacklist
+        const fragmentUrl = base58Enc(blacklistedUrl + '#bypass')
+        const res3 = await needle('get', `http://localhost:${ port }/p/${ fragmentUrl }`)
+        assert.equal(res3.statusCode, 403)
+    })
+
+    it('should block blacklisted bare hash in path segments', function() {
+        // Bare hash from the static blacklist
+        const hash = 'DQmeLKjpW89de2DqfCYxdTM4HPvUgurmpJuZYAN9SP2c9Q5'
+        // A URL containing the hash as a path segment should match
+        const url = new URL(`https://images.example.com/${ hash }/image.jpg`)
+        assert.equal(imageBlacklist.matchesUrl(url), true)
+    })
+
+    it('should not block non-blacklisted URLs', function() {
+        const url = new URL('https://example.com/totally-fine-image.jpg?_=1')
+        assert.equal(imageBlacklist.matchesUrl(url), false)
     })
 
     it('should resolve double proxied images', async function() {
