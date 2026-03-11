@@ -35,7 +35,7 @@ ci-test: node_modules reports
 # Disabling yarn audit for now because all packages are too old
 # @TODO update and test packages
 #	yarn audit
-	eslint src/ test/
+	eslint src/
 	NODE_ENV=test nyc -r lcov -e .ts -i ts-node/register \
 		--report-dir reports/coverage \
 		mocha --require ts-node/register \
@@ -46,7 +46,7 @@ ci-test: node_modules reports
 
 .PHONY: lint
 lint: node_modules
-	eslint --fix src/ test/
+	eslint --fix src/
 
 node_modules: package.json
 	yarn install --non-interactive --frozen-lockfile

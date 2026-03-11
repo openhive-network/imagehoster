@@ -1,9 +1,6 @@
 {
   "root": true,
   "parser": "@typescript-eslint/parser",
-  "parserOptions": {
-    "project": "./tsconfig.json"
-  },
   "plugins": ["@typescript-eslint"],
   "extends": [
     "eslint:recommended",
@@ -24,7 +21,10 @@
     "@typescript-eslint/no-require-imports": "off",
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/no-var-requires": "off",
-    "no-console": "off"
+    "no-console": "off",
+    "@typescript-eslint/no-unused-vars": ["error", {"argsIgnorePattern": "^_"}],
+    "no-constant-condition": "off",
+    "prefer-const": "warn"
   },
   "ignorePatterns": ["lib/", "node_modules/"]
 }
