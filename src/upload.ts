@@ -117,88 +117,103 @@ export async function uploadHsHandler(ctx: KoaContext) {
         .digest()
 
     const token = ctx.params['accesstoken']
-    const decoded = Buffer.from(b64uToB64(token), 'base64').toString()
-    const tokenObj = JSON.parse(decoded)
+    let tokenObj: any
+    try {
+        const decoded = Buffer.from(b64uToB64(token), 'base64').toString()
+        tokenObj = JSON.parse(decoded)
+    } catch (error) {
+        throw new APIError({code: APIError.Code.InvalidSignature, message: 'Invalid access token'})
+    }
+
     const signedMessage = tokenObj.signed_message
-    if (
-        tokenObj.authors
-        && tokenObj.authors[0]
-        && tokenObj.signatures
-        && tokenObj.signatures[0]
-        && signedMessage
-        && signedMessage.type
-        && ['login', 'posting', 'offline', 'code', 'refresh']
-        .includes(signedMessage.type)
-        && signedMessage.app
-    ) {
+    APIError.assert(
+        Array.isArray(tokenObj.authors) && typeof tokenObj.authors[0] === 'string',
+        {code: APIError.Code.InvalidSignature, message: 'Token missing authors'}
+    )
+    APIError.assert(
+        Array.isArray(tokenObj.signatures) && typeof tokenObj.signatures[0] === 'string',
+        {code: APIError.Code.InvalidSignature, message: 'Token missing signatures'}
+    )
+    APIError.assert(
+        signedMessage && typeof signedMessage === 'object',
+        {code: APIError.Code.InvalidSignature, message: 'Token missing signed_message'}
+    )
+    APIError.assert(
+        signedMessage.type && ['login', 'posting', 'offline', 'code', 'refresh'].includes(signedMessage.type),
+        {code: APIError.Code.InvalidSignature, message: 'Invalid token type'}
+    )
+    APIError.assert(
+        signedMessage.app && typeof signedMessage.app === 'string',
+        {code: APIError.Code.InvalidSignature, message: 'Token missing app'}
+    )
 
-        const username = tokenObj.authors[0]
+    const username = tokenObj.authors[0]
 
-        let account = {
-            name: '',
-            reputation: 0,
-        }
-        const cl = new hivesigner.Client({
-            app: UPLOAD_LIMITS.app_account,
-            accessToken: token,
-        })
+    const cl = new hivesigner.Client({
+        app: UPLOAD_LIMITS.app_account,
+        accessToken: token,
+    })
 
-        await cl.me((err: any, res: any) => {
-            if (!err && res) {
-                account = res.account
-                APIError.assert(account, APIError.Code.NoSuchAccount)
+    let meResponse: any
+    try {
+        meResponse = await cl.me()
+    } catch (error) {
+        ctx.log.error(error, 'HiveSigner API error')
+        throw new APIError({code: APIError.Code.InvalidSignature, message: 'Token verification failed'})
+    }
 
-                ctx.log.warn('uploading app %s', signedMessage.app)
-                APIError.assert(username === account.name, APIError.Code.InvalidSignature)
-                APIError.assert(signedMessage.app === UPLOAD_LIMITS.app_account, APIError.Code.InvalidSignature)
-                APIError.assert(res.scope.includes('comment'), APIError.Code.InvalidSignature)
+    APIError.assert(meResponse && meResponse.account, APIError.Code.NoSuchAccount)
+    const account = meResponse.account
 
-                if (account && account.name) {
-                    ['posting', 'active', 'owner'].forEach((type) => {
-                        // @ts-ignore
-                        // tslint:disable-next-line:no-shadowed-variable
-                        account[type].account_auths.forEach((key: string[]) => {
-                        if (
-                          !validSignature
-                          && key[0] === UPLOAD_LIMITS.app_account
-                        ) {
-                          validSignature = true
-                        }
-                      })
-                    })
+    ctx.log.warn('uploading app %s', signedMessage.app)
+    APIError.assert(username === account.name, APIError.Code.InvalidSignature)
+    APIError.assert(signedMessage.app === UPLOAD_LIMITS.app_account, APIError.Code.InvalidSignature)
+    APIError.assert(meResponse.scope && meResponse.scope.includes('comment'), APIError.Code.InvalidSignature)
+
+    if (account && account.name) {
+        for (const type of ['posting', 'active'] as const) {
+            // @ts-ignore
+            const authority = account[type]
+            if (authority && Array.isArray(authority.account_auths)) {
+                for (const auth of authority.account_auths) {
+                    if (Array.isArray(auth) && auth[0] === UPLOAD_LIMITS.app_account) {
+                        validSignature = true
+                        break
+                    }
                 }
             }
-        })
-
-        APIError.assert(validSignature, APIError.Code.InvalidSignature)
-        APIError.assert(!accountBlacklist.includes(account.name), APIError.Code.Blacklisted)
-
-        let limit: RateLimit = {total: 0, remaining: Infinity, reset: 0}
-        try {
-            limit = await getRatelimit(account.name)
-        } catch (error) {
-            ctx.log.warn(error, 'unable to enforce upload rate limits')
+            if (validSignature) { break }
         }
-
-        APIError.assert(limit.remaining > 0, APIError.Code.QoutaExceeded)
-
-        APIError.assert(repLog10(account.reputation) >= UPLOAD_LIMITS.reputation, APIError.Code.Deplorable)
-
-        const contentHash = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
-        const url = new URL(`${ contentHash }/${ file.name }`, SERVICE_URL)
-        const keyName = getKeyNameFromHash(contentHash)
-
-        if (!(await storeExists(uploadStore, keyName))) {
-            await storeWrite(uploadStore, keyName, data)
-        } else {
-            ctx.log.debug('key %s already exists in store', keyName)
-        }
-
-        ctx.log.info({uploader: account.name, size: data.byteLength}, 'image uploaded')
-
-        ctx.status = 200
-        ctx.body = {url}
     }
+
+    APIError.assert(validSignature, APIError.Code.InvalidSignature)
+    APIError.assert(!accountBlacklist.includes(account.name), APIError.Code.Blacklisted)
+
+    let limit: RateLimit = {total: 0, remaining: Infinity, reset: 0}
+    try {
+        limit = await getRatelimit(account.name)
+    } catch (error) {
+        ctx.log.warn(error, 'unable to enforce upload rate limits')
+    }
+
+    APIError.assert(limit.remaining > 0, APIError.Code.QoutaExceeded)
+
+    APIError.assert(repLog10(account.reputation) >= UPLOAD_LIMITS.reputation, APIError.Code.Deplorable)
+
+    const contentHash = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
+    const url = new URL(`${ contentHash }/${ file.name }`, SERVICE_URL)
+    const keyName = getKeyNameFromHash(contentHash)
+
+    if (!(await storeExists(uploadStore, keyName))) {
+        await storeWrite(uploadStore, keyName, data)
+    } else {
+        ctx.log.debug('key %s already exists in store', keyName)
+    }
+
+    ctx.log.info({uploader: account.name, size: data.byteLength}, 'image uploaded')
+
+    ctx.status = 200
+    ctx.body = {url}
 }
 
 /** Handling upload by signing image checksum */
