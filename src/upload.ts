@@ -36,7 +36,7 @@ async function parseMultipart(request: http.IncomingMessage) {
             headers: request.headers,
             limits: {
                 files: 1,
-                fileSize: MAX_IMAGE_SIZE,
+                fileSize: MAX_IMAGE_SIZE
             }
         })
         form.on('file', (field, stream, name, encoding, mime) => {
@@ -68,7 +68,7 @@ async function getRatelimit(account: string) {
             db: redisClient,
             duration: UPLOAD_LIMITS.duration,
             id: account,
-            max: UPLOAD_LIMITS.max,
+            max: UPLOAD_LIMITS.max
         })
         limit.get((error, result) => {
             if (error) {
@@ -80,7 +80,7 @@ async function getRatelimit(account: string) {
     })
 }
 const b64uLookup: Record<string, string> = {
-    '/': '_', '_': '/', '+': '-', '-': '+', '=': '.', '.': '=',
+    '/': '_', '_': '/', '+': '-', '-': '+', '=': '.', '.': '='
 }
 function b64uToB64(str: string) {
     const tt = str.replace(/(-|_|\.)/g, (m) => b64uLookup[m])
@@ -95,21 +95,21 @@ export async function uploadHsHandler(ctx: KoaContext) {
     APIError.assert(ctx.method === 'POST', {code: APIError.Code.InvalidMethod})
     APIError.assertParams(ctx.params, ['accesstoken'])
     APIError.assert(ctx.get('content-type').includes('multipart/form-data'),
-                    {message: 'Only multipart uploads are supported'})
+        {message: 'Only multipart uploads are supported'})
     const contentLength = Number.parseInt(ctx.get('content-length'))
 
     APIError.assert(Number.isFinite(contentLength),
-                    APIError.Code.LengthRequired)
+        APIError.Code.LengthRequired)
 
     APIError.assert(contentLength <= MAX_IMAGE_SIZE,
-                    APIError.Code.PayloadTooLarge)
+        APIError.Code.PayloadTooLarge)
 
     const file = await parseMultipart(ctx.req)
     const data = await readStream(file.stream)
 
     // extra check if client manges to lie about the content-length
     APIError.assert((file.stream as any).truncated !== true,
-                    APIError.Code.PayloadTooLarge)
+        APIError.Code.PayloadTooLarge)
 
     const imageHash = createHash('sha256')
         .update('ImageSigningChallenge')
@@ -344,21 +344,21 @@ export async function uploadHandler(ctx: KoaContext) {
     }
 
     APIError.assert(ctx.get('content-type').includes('multipart/form-data'),
-                    {message: 'Only multipart uploads are supported'})
+        {message: 'Only multipart uploads are supported'})
 
     const contentLength = Number.parseInt(ctx.get('content-length'))
 
     APIError.assert(Number.isFinite(contentLength),
-                    APIError.Code.LengthRequired)
+        APIError.Code.LengthRequired)
 
     APIError.assert(contentLength <= MAX_IMAGE_SIZE,
-                    APIError.Code.PayloadTooLarge)
+        APIError.Code.PayloadTooLarge)
     const file = await parseMultipart(ctx.req)
     const data = await readStream(file.stream)
 
     // extra check if client manges to lie about the content-length
     APIError.assert((file.stream as any).truncated !== true,
-                    APIError.Code.PayloadTooLarge)
+        APIError.Code.PayloadTooLarge)
 
     const imageHash = createHash('sha256')
         .update('ImageSigningChallenge')

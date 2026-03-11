@@ -4,7 +4,6 @@ import * as Bunyan from 'bunyan'
 import * as config from 'config'
 
 import {KoaContext} from './common'
-import {APIError} from './error'
 
 const level: Bunyan.LogLevel = config.get('log_level')
 const output: string = config.get('log_output')
@@ -21,7 +20,7 @@ if (output === 'stdout') {
 export const logger = Bunyan.createLogger({
     name: config.get('name'),
     serializers: Bunyan.stdSerializers,
-    streams: [stream],
+    streams: [stream]
 })
 
 export function loggerMiddleware(ctx: KoaContext, next: () => Promise<any>) {
@@ -46,7 +45,7 @@ export function loggerMiddleware(ctx: KoaContext, next: () => Promise<any>) {
             ms: delta[0] * 1e3 + delta[1] / 1e6,
             path: ctx.path,
             size: ctx.response.length,
-            status: ctx.status,
+            status: ctx.status
         }
         if (ctx['api_error']) {
             info.err_code = ctx['api_error'].toJSON().name

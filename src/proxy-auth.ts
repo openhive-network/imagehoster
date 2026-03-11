@@ -67,12 +67,12 @@ export async function proxyAuthHandler(ctx: KoaContext) {
     }
     const timestamp = body.timestamp
     APIError.assert(timestamp && typeof timestamp === 'number',
-                    {message: 'Request body must include numeric timestamp'})
+        {message: 'Request body must include numeric timestamp'})
 
     // Reject if timestamp is too old (> 5 minutes) or in the future (> 1 minute)
     const now = Date.now()
     APIError.assert(Math.abs(now - timestamp) < 5 * 60 * 1000,
-                    {message: 'Timestamp too far from current time'})
+        {message: 'Timestamp too far from current time'})
 
     // Verify signature
     const challenge = `Authorize image proxy preview for ${username} at ${new Date(timestamp).toISOString()}`

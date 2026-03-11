@@ -40,10 +40,10 @@ app.use(async (ctx, next) => {
 })
 app.use(cors({
     allowMethods: ['GET', 'POST', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
+    allowHeaders: ['Content-Type', 'Authorization']
 }))
 app.use(routes)
-app.use((ctx: Koa.Context) => {
+app.use((_ctx: Koa.Context) => {
     throw new APIError({code: APIError.Code.NotFound})
 })
 

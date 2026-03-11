@@ -43,7 +43,7 @@ function loadStore(key: string): AbstractBlobStore {
         }
         return require('s3-blob-store')({
             client: S3Client,
-            bucket: conf.get('s3_bucket'),
+            bucket: conf.get('s3_bucket')
         })
     } else if (conf.type === 'fs') {
         const path = conf.get('path')

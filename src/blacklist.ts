@@ -25,92 +25,92 @@ interface BlacklistData {
 }
 
 function parseBlacklistFile(data: any): BlacklistData {
-  if (Array.isArray(data)) {
+    if (Array.isArray(data)) {
     // Legacy format: flat array of exact URLs
-    return { urls: data, patterns: [] }
-  }
-  const urls: string[] = data.urls || []
-  const patterns: RegExp[] = (data.patterns || []).map((p: string) => new RegExp(p))
-  return { urls, patterns }
+        return { urls: data, patterns: [] }
+    }
+    const urls: string[] = data.urls || []
+    const patterns: RegExp[] = (data.patterns || []).map((p: string) => new RegExp(p))
+    return { urls, patterns }
 }
 
 /** Upload and proxying blacklists. In the future this will live on-chain. */
 class Blacklist {
-  private staticList: string[]
-  private dynamicUrls: string[]
-  private dynamicPatterns: RegExp[]
-  private dynamicListFilename?: string
-  constructor(staticList: string[], dynamicListFilename?: string) {
-    this.staticList = staticList
-    this.dynamicListFilename = dynamicListFilename
-    this.dynamicUrls = []
-    this.dynamicPatterns = []
-    this.reloadDynamicList()
-    if (this.dynamicListFilename) {
-      fs.watchFile(this.dynamicListFilename, (curr, prev) => {
+    private staticList: string[]
+    private dynamicUrls: string[]
+    private dynamicPatterns: RegExp[]
+    private dynamicListFilename?: string
+    constructor(staticList: string[], dynamicListFilename?: string) {
+        this.staticList = staticList
+        this.dynamicListFilename = dynamicListFilename
+        this.dynamicUrls = []
+        this.dynamicPatterns = []
         this.reloadDynamicList()
-      })
+        if (this.dynamicListFilename) {
+            fs.watchFile(this.dynamicListFilename, (_curr, _prev) => {
+                this.reloadDynamicList()
+            })
+        }
     }
-  }
-  public reloadDynamicList() {
-    if (this.dynamicListFilename) {
-      logger.info('Reloading dynamic blacklist from file', this.dynamicListFilename)
-      try {
-        const raw = JSON.parse(fs.readFileSync(this.dynamicListFilename, 'utf8'))
-        const parsed = parseBlacklistFile(raw)
-        this.dynamicUrls = parsed.urls
-        this.dynamicPatterns = parsed.patterns
-        logger.info('Loaded dynamic blacklist:', this.dynamicUrls.length, 'URLs,', this.dynamicPatterns.length, 'patterns')
-      } catch (e) {
-        logger.error('Failed to parse blacklist file', this.dynamicListFilename, e)
-      }
+    public reloadDynamicList() {
+        if (this.dynamicListFilename) {
+            logger.info('Reloading dynamic blacklist from file', this.dynamicListFilename)
+            try {
+                const raw = JSON.parse(fs.readFileSync(this.dynamicListFilename, 'utf8'))
+                const parsed = parseBlacklistFile(raw)
+                this.dynamicUrls = parsed.urls
+                this.dynamicPatterns = parsed.patterns
+                logger.info('Loaded dynamic blacklist:', this.dynamicUrls.length, 'URLs,', this.dynamicPatterns.length, 'patterns')
+            } catch (e) {
+                logger.error('Failed to parse blacklist file', this.dynamicListFilename, e)
+            }
+        }
     }
-  }
-  public includes(item: string) {
-    if (this.staticList.includes(item)) {
-      return true
+    public includes(item: string) {
+        if (this.staticList.includes(item)) {
+            return true
+        }
+        if (this.dynamicUrls.includes(item)) {
+            return true
+        }
+        for (const pattern of this.dynamicPatterns) {
+            if (pattern.test(item)) {
+                return true
+            }
+        }
+        return false
     }
-    if (this.dynamicUrls.includes(item)) {
-      return true
-    }
-    for (const pattern of this.dynamicPatterns) {
-      if (pattern.test(item)) {
-        return true
-      }
-    }
-    return false
-  }
 
-  /**
+    /**
    * Check if a URL matches the blacklist, accounting for query param / fragment variations.
    * Checks: (1) full URL as-is, (2) URL without query/fragment, (3) path segments
    * that look like content hashes (for bare-hash entries in the blacklist).
    */
-  public matchesUrl(url: URL): boolean {
-    const candidates: string[] = [url.toString()]
+    public matchesUrl(url: URL): boolean {
+        const candidates: string[] = [url.toString()]
 
-    // URL without query string and fragment
-    const bare = url.origin + url.pathname
-    if (bare !== url.toString()) {
-      candidates.push(bare)
-    }
+        // URL without query string and fragment
+        const bare = url.origin + url.pathname
+        if (bare !== url.toString()) {
+            candidates.push(bare)
+        }
 
-    // Extract path segments that look like content hashes (>=30 chars, alphanumeric)
-    // This catches bare entries like 'DQmeLKjpW89de2DqfCYxdTM4HPvUgurmpJuZYAN9SP2c9Q5'
-    const segments = url.pathname.split('/').filter(
-      (s: string) => s.length >= 30 && /^[A-Za-z0-9]+$/.test(s)
-    )
-    for (const seg of segments) {
-      candidates.push(seg)
-    }
+        // Extract path segments that look like content hashes (>=30 chars, alphanumeric)
+        // This catches bare entries like 'DQmeLKjpW89de2DqfCYxdTM4HPvUgurmpJuZYAN9SP2c9Q5'
+        const segments = url.pathname.split('/').filter(
+            (s: string) => s.length >= 30 && /^[A-Za-z0-9]+$/.test(s)
+        )
+        for (const seg of segments) {
+            candidates.push(seg)
+        }
 
-    for (const candidate of candidates) {
-      if (this.includes(candidate)) {
-        return true
-      }
+        for (const candidate of candidates) {
+            if (this.includes(candidate)) {
+                return true
+            }
+        }
+        return false
     }
-    return false
-  }
 }
 
 const initialImageBlackList: string[] = [
@@ -477,10 +477,10 @@ const initialImageBlackList: string[] = [
 
     'https://images.hive.blog/p/Pufd3b1W2k6xH2Xgr2kCkZ2donxEpXa7wDMuzXNpcDH7QTxcxncr7owL?format=match&mode=fit&width=768',
     'https://images.hive.blog/p/Pufd3b1W2k6xH2Xgr2kCkZ2donxEpXa7wDMuzXNpcDH7QTxcxncr7owL',
-    'https://i.postimg.cc/pLjTvDQs/hivebtt.png',
-  ]
+    'https://i.postimg.cc/pLjTvDQs/hivebtt.png'
+]
 
-export let imageBlacklist: Blacklist = new Blacklist(initialImageBlackList, config.has('blacklist.imageBlackList') ? config.get('blacklist.imageBlackList') : undefined)
+export const imageBlacklist: Blacklist = new Blacklist(initialImageBlackList, config.has('blacklist.imageBlackList') ? config.get('blacklist.imageBlackList') : undefined)
 
 const initialAccountBlacklist: string[] = [
     'mpspringer',
@@ -489,4 +489,4 @@ const initialAccountBlacklist: string[] = [
     'cpcensorshiptest'
 ]
 
-export let accountBlacklist: Blacklist = new Blacklist(initialAccountBlacklist, config.has('blacklist.accountBlackList') ? config.get('blacklist.accountBlackList') : undefined)
+export const accountBlacklist: Blacklist = new Blacklist(initialAccountBlacklist, config.has('blacklist.accountBlackList') ? config.get('blacklist.accountBlackList') : undefined)
