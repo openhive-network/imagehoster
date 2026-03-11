@@ -3,13 +3,13 @@
 import {Client} from '@hiveio/dhive'
 import {AbstractBlobStore} from 'abstract-blob-store'
 import * as config from 'config'
-import {IRouterContext} from 'koa-router'
+import {RouterContext} from '@koa/router'
 import * as Redis from 'redis'
 
 import {logger} from './logger'
 
 /** Koa context extension. */
-export interface KoaContext extends IRouterContext {
+export interface KoaContext extends RouterContext {
     [k: string]: any
     log: typeof logger
     tag: (metadata: any) => void
