@@ -107,8 +107,10 @@ export class APIError extends Error {
     }
 }
 
-/** Error codes that represent transient failures (upstream timeout, internal error).
- *  These should not be cached by CDNs since a retry may succeed. */
+/**
+ * Error codes that represent transient failures (upstream timeout, internal error).
+ * These should not be cached by CDNs since a retry may succeed.
+ */
 const TransientErrors = new Set<ErrorCode>([
     ErrorCode.UpstreamError,
     ErrorCode.InternalError,
