@@ -151,7 +151,7 @@ export async function uploadHsHandler(ctx: KoaContext) {
 
     const cl = new hivesigner.Client({
         app: UPLOAD_LIMITS.app_account,
-        accessToken: token,
+        accessToken: token
     })
 
     let meResponse: any

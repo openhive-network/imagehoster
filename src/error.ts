@@ -113,7 +113,7 @@ export class APIError extends Error {
  */
 const TransientErrors = new Set<ErrorCode>([
     ErrorCode.UpstreamError,
-    ErrorCode.InternalError,
+    ErrorCode.InternalError
 ])
 
 export async function errorMiddleware(ctx: KoaContext, next: () => Promise<any>) {
