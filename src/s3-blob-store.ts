@@ -8,7 +8,7 @@ import {
     GetObjectCommand,
     HeadObjectCommand,
     PutObjectCommand,
-    S3Client as AwsS3Client,
+    S3Client as AwsS3Client
 } from '@aws-sdk/client-s3'
 import {PassThrough, Readable} from 'stream'
 
