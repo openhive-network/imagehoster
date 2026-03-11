@@ -38,6 +38,7 @@ const AcceptedContentTypes = [
     'image/jpeg',
     'image/png',
     'image/webp',
+    'image/avif',
     'image/svg+xml'
 ]
 
@@ -104,6 +105,7 @@ enum OutputFormat {
     JPEG,
     PNG,
     WEBP,
+    AVIF,
 }
 
 interface ProxyOptions {
@@ -160,6 +162,9 @@ function parseOptions(query: {[key: string]: any}): ProxyOptions {
             break
         case 'webp':
             format = OutputFormat.WEBP
+            break
+        case 'avif':
+            format = OutputFormat.AVIF
             break
         default:
             throw new APIError({message: 'Invalid output format', code: APIError.Code.InvalidParam})
@@ -385,6 +390,9 @@ export async function proxyHandler(ctx: KoaContext) {
         }).webp({
             alphaQuality: 100,
             force: false,
+        }).avif({
+            quality: 85,
+            force: false,
         })
 
         let metadata: Sharp.Metadata
@@ -450,6 +458,10 @@ export async function proxyHandler(ctx: KoaContext) {
             case OutputFormat.WEBP:
                 contentType = 'image/webp'
                 image.webp({force: true})
+                break
+            case OutputFormat.AVIF:
+                contentType = 'image/avif'
+                image.avif({force: true})
                 break
         }
 
