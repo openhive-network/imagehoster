@@ -4,9 +4,11 @@ import {Client} from '@hiveio/dhive'
 import {RouterContext} from '@koa/router'
 import {AbstractBlobStore} from 'abstract-blob-store'
 import * as config from 'config'
-import * as Redis from 'redis'
+import {createClient} from 'redis'
 
 import {logger} from './logger'
+
+export type RedisClientType = ReturnType<typeof createClient>
 
 /** Koa context extension. */
 export interface KoaContext extends RouterContext {
@@ -19,13 +21,26 @@ export interface KoaContext extends RouterContext {
 export const rpcClient = new Client(config.get('rpc_node'))
 
 /** Redis client. */
-export let redisClient: Redis.RedisClient | undefined
+export let redisClient: RedisClientType | undefined
+let redisReady: Promise<void> | undefined
+
 if (config.has('redis_url')) {
-    redisClient = Redis.createClient({
-        url: config.get('redis_url') as string
+    redisClient = createClient({url: config.get('redis_url') as string})
+    redisClient.on('error', (err) => logger.error(err, 'Redis client error'))
+    redisReady = redisClient.connect().then(() => {
+        logger.info('Redis connected')
+    }).catch((err) => {
+        logger.error(err, 'Redis connection failed')
+        redisClient = undefined
     })
 } else {
     logger.warn('redis not configured, will not rate-limit uploads')
+}
+
+/** Ensure Redis is connected before use. Returns client if ready, undefined otherwise. */
+export async function ensureRedis(): Promise<RedisClientType | undefined> {
+    if (redisReady) { await redisReady }
+    return redisClient?.isReady ? redisClient : undefined
 }
 
 /** Blob storage. */

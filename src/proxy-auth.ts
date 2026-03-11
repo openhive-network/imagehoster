@@ -5,7 +5,7 @@ import * as config from 'config'
 import {createHash, randomBytes} from 'crypto'
 
 import {accountBlacklist} from './blacklist'
-import {KoaContext, redisClient, rpcClient} from './common'
+import {ensureRedis, KoaContext, rpcClient} from './common'
 import {APIError} from './error'
 
 const UPLOAD_LIMITS = config.get('upload_limits') as any
@@ -47,6 +47,7 @@ export async function proxyAuthHandler(ctx: KoaContext) {
 
     APIError.assert(ctx.method === 'POST', {code: APIError.Code.InvalidMethod})
     APIError.assertParams(ctx.params, ['username', 'signature'])
+    const redisClient = await ensureRedis()
     APIError.assert(redisClient, {message: 'Redis not configured'})
 
     const username = ctx.params['username']
@@ -111,11 +112,7 @@ export async function proxyAuthHandler(ctx: KoaContext) {
 
     // Generate token and store in Redis
     const token = randomBytes(24).toString('hex')
-    await new Promise<void>((resolve, reject) => {
-        redisClient!.set(`proxy:auth:token:${token}`, username, 'EX', TOKEN_TTL, (err) => {
-            if (err) { reject(err) } else { resolve() }
-        })
-    })
+    await redisClient!.set(`proxy:auth:token:${token}`, username, {EX: TOKEN_TTL})
 
     ctx.log.info({username}, 'proxy auth token issued')
 
