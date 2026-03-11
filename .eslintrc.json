@@ -1,0 +1,30 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  },
+  "plugins": ["@typescript-eslint"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "rules": {
+    "indent": ["error", 4],
+    "quotes": ["error", "single", {"avoidEscape": true}],
+    "semi": "off",
+    "@typescript-eslint/semi": ["error", "never"],
+    "comma-dangle": ["error", "never"],
+    "eqeqeq": ["error", "smart"],
+    "no-bitwise": "off",
+    "sort-keys": "off",
+    "max-classes-per-file": "off",
+    "radix": "off",
+    "dot-notation": "off",
+    "@typescript-eslint/no-require-imports": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/no-var-requires": "off",
+    "no-console": "off"
+  },
+  "ignorePatterns": ["lib/", "node_modules/"]
+}

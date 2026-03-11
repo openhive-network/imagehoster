@@ -429,7 +429,7 @@ export async function uploadHandler(ctx: KoaContext) {
  * HERE BE DRAGONS
  */
 function repLog10(rep2: any) {
-    if (rep2 == null) { return rep2 } // tslint:disable-line:triple-equals
+    if (rep2 == null) { return rep2 } // eslint-disable-line eqeqeq
     let rep = String(rep2)
     const neg = rep.charAt(0) === '-'
     rep = neg ? rep.substring(1) : rep
@@ -440,8 +440,7 @@ function repLog10(rep2: any) {
     out = (neg ? -1 : 1) * out
     out = (out * 9) + 25 // 9 points per magnitude. center at 25
     // base-line 0 to darken and < 0 to auto hide (grep rephide)
-    out = parseInt(out + '') // tslint:disable-line:radix
-    return out
+    out = parseInt(out + '')    return out
 }
 
 /**
@@ -449,8 +448,6 @@ function repLog10(rep2: any) {
  * Warning: Math.log10(0) === NaN
  */
 function log10(str: string) {
-    const leadingDigits = parseInt(str.substring(0, 4)) // tslint:disable-line:radix
-    const log = Math.log(leadingDigits) / Math.log(10)
+    const leadingDigits = parseInt(str.substring(0, 4))    const log = Math.log(leadingDigits) / Math.log(10)
     const n = str.length - 1
-    return n + (log - parseInt(log + '')) // tslint:disable-line:radix
-}
+    return n + (log - parseInt(log + ''))}

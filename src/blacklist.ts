@@ -113,7 +113,6 @@ class Blacklist {
   }
 }
 
-/* tslint:disable:max-line-length */
 const initialImageBlackList: string[] = [
     'http://avivas.ru/img/topic/23850/20.jpg',
     'http://bogleech.com/nature/fly-microdon.jpg',

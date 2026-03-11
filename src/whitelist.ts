@@ -5,7 +5,7 @@ import {redisClient} from './common'
 import {logger} from './logger'
 
 // Node 20+ has native fetch; declare the type since @types/node is outdated
-// tslint:disable-next-line:no-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare function fetch(url: string, init?: {
     method?: string; headers?: Record<string, string>; body?: string;
 }): Promise<{json(): Promise<any>}>
