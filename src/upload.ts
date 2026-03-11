@@ -182,7 +182,7 @@ export async function uploadHsHandler(ctx: KoaContext) {
                     }
                 }
             }
-            if (validSignature) break
+            if (validSignature) { break }
         }
     }
 
