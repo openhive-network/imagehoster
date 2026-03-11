@@ -8,11 +8,10 @@ import {createHash} from 'crypto'
 import * as hivesigner from 'hivesigner'
 import * as http from 'http'
 import * as multihash from 'multihashes'
-import * as RateLimiter from 'ratelimiter'
 import {URL} from 'url'
 
 import {accountBlacklist} from './blacklist'
-import {getKeyNameFromHash, KoaContext, redisClient, rpcClient, uploadStore} from './common'
+import {ensureRedis, getKeyNameFromHash, KoaContext, rpcClient, uploadStore} from './common'
 import {APIError} from './error'
 import {readStream, storeExists, storeWrite} from './utils'
 
@@ -58,26 +57,40 @@ interface RateLimit {
 
 /**
  * Get ratelimit info for account name.
+ * Uses a sorted-set sliding window algorithm (same approach as ratelimiter v3).
  */
-async function getRatelimit(account: string) {
-    return new Promise<RateLimit>((resolve, reject) => {
-        if (!redisClient) {
-            throw new Error('Redis not configured')
-        }
-        const limit = new RateLimiter({
-            db: redisClient,
-            duration: UPLOAD_LIMITS.duration,
-            id: account,
-            max: UPLOAD_LIMITS.max
-        })
-        limit.get((error, result) => {
-            if (error) {
-                reject(error)
-            } else {
-                resolve(result)
-            }
-        })
-    })
+async function getRatelimit(account: string): Promise<RateLimit> {
+    const client = await ensureRedis()
+    if (!client) {
+        throw new Error('Redis not configured')
+    }
+
+    const key = `limit:${account}`
+    const max = UPLOAD_LIMITS.max as number
+    const duration = UPLOAD_LIMITS.duration as number
+    const now = Date.now()
+    const start = now - duration
+    const member = `${now}:${Math.random().toString(36).slice(2, 8)}`
+
+    const results = await client.multi()
+        .zRemRangeByScore(key, 0, start)
+        .zAdd(key, {score: now, value: member})
+        .zCard(key)
+        .zRange(key, 0, 0)
+        .pExpire(key, duration)
+        .exec()
+
+    const count = results[2] as number
+    const oldest = results[3] as string[]
+    const resetTime = oldest.length > 0
+        ? Math.ceil(Number(oldest[0].split(':')[0]) / 1000) + Math.ceil(duration / 1000)
+        : Math.ceil(now / 1000) + Math.ceil(duration / 1000)
+
+    return {
+        remaining: Math.max(0, max - count),
+        reset: resetTime,
+        total: max
+    }
 }
 const b64uLookup: Record<string, string> = {
     '/': '_', '_': '/', '+': '-', '-': '+', '=': '.', '.': '='

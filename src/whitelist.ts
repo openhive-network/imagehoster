@@ -1,7 +1,7 @@
 /** Proxy URL whitelist — only serves images referenced on the Hive blockchain. */
 
 import * as config from 'config'
-import {redisClient} from './common'
+import {ensureRedis} from './common'
 import {logger} from './logger'
 
 // Node 20+ has native fetch; declare the type since @types/node is outdated
@@ -52,17 +52,14 @@ export async function checkUrl(url: string): Promise<UrlStatus> {
  * Still uses Redis — auth tokens are short-lived and stay in the imagehoster's own Redis.
  */
 export async function validateProxyAuthToken(token: string): Promise<string | null> {
-    if (!redisClient) {
+    const client = await ensureRedis()
+    if (!client) {
         return null
     }
-    return new Promise<string | null>((resolve) => {
-        redisClient!.get(`proxy:auth:token:${token}`, (err, result) => {
-            if (err) {
-                logger.warn(err, 'proxy auth token check failed')
-                resolve(null)
-            } else {
-                resolve(result)
-            }
-        })
-    })
+    try {
+        return await client.get(`proxy:auth:token:${token}`)
+    } catch (err) {
+        logger.warn(err, 'proxy auth token check failed')
+        return null
+    }
 }
