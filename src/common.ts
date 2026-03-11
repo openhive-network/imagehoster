@@ -43,7 +43,7 @@ function loadStore(key: string): AbstractBlobStore {
         }
         return require('s3-blob-store')({
             client: S3Client,
-            bucket: conf.get('s3_bucket'),
+            bucket: conf.get('s3_bucket')
         })
     } else if (conf.type === 'fs') {
         const path = conf.get('path')
@@ -75,6 +75,6 @@ export function getKeyNameFromHash(hash: string): string {
     // so this will evenly distribute the files over
     // 58^2 = 3364 partitions.
     // console.assert(hash.length == 47 || hash.length == 31);
-    const partition = hash.substr(hash.length - 2)
+    const partition = hash.substring(hash.length - 2)
     return partition + '/' + hash
 }

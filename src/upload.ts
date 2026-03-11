@@ -1,6 +1,6 @@
 /** Uploads file to blob store. */
 
-import {Client, Signature} from '@hiveio/dhive'
+import {Signature} from '@hiveio/dhive'
 import * as Busboy from 'busboy'
 import * as config from 'config'
 import {createHash} from 'crypto'
@@ -36,7 +36,7 @@ async function parseMultipart(request: http.IncomingMessage) {
             headers: request.headers,
             limits: {
                 files: 1,
-                fileSize: MAX_IMAGE_SIZE,
+                fileSize: MAX_IMAGE_SIZE
             }
         })
         form.on('file', (field, stream, name, encoding, mime) => {
@@ -68,7 +68,7 @@ async function getRatelimit(account: string) {
             db: redisClient,
             duration: UPLOAD_LIMITS.duration,
             id: account,
-            max: UPLOAD_LIMITS.max,
+            max: UPLOAD_LIMITS.max
         })
         limit.get((error, result) => {
             if (error) {
@@ -80,7 +80,7 @@ async function getRatelimit(account: string) {
     })
 }
 const b64uLookup: Record<string, string> = {
-    '/': '_', '_': '/', '+': '-', '-': '+', '=': '.', '.': '=',
+    '/': '_', '_': '/', '+': '-', '-': '+', '=': '.', '.': '='
 }
 function b64uToB64(str: string) {
     const tt = str.replace(/(-|_|\.)/g, (m) => b64uLookup[m])
@@ -95,21 +95,21 @@ export async function uploadHsHandler(ctx: KoaContext) {
     APIError.assert(ctx.method === 'POST', {code: APIError.Code.InvalidMethod})
     APIError.assertParams(ctx.params, ['accesstoken'])
     APIError.assert(ctx.get('content-type').includes('multipart/form-data'),
-                    {message: 'Only multipart uploads are supported'})
+        {message: 'Only multipart uploads are supported'})
     const contentLength = Number.parseInt(ctx.get('content-length'))
 
     APIError.assert(Number.isFinite(contentLength),
-                    APIError.Code.LengthRequired)
+        APIError.Code.LengthRequired)
 
     APIError.assert(contentLength <= MAX_IMAGE_SIZE,
-                    APIError.Code.PayloadTooLarge)
+        APIError.Code.PayloadTooLarge)
 
     const file = await parseMultipart(ctx.req)
     const data = await readStream(file.stream)
 
     // extra check if client manges to lie about the content-length
     APIError.assert((file.stream as any).truncated !== true,
-                    APIError.Code.PayloadTooLarge)
+        APIError.Code.PayloadTooLarge)
 
     const imageHash = createHash('sha256')
         .update('ImageSigningChallenge')
@@ -151,7 +151,7 @@ export async function uploadHsHandler(ctx: KoaContext) {
 
     const cl = new hivesigner.Client({
         app: UPLOAD_LIMITS.app_account,
-        accessToken: token,
+        accessToken: token
     })
 
     let meResponse: any
@@ -344,21 +344,21 @@ export async function uploadHandler(ctx: KoaContext) {
     }
 
     APIError.assert(ctx.get('content-type').includes('multipart/form-data'),
-                    {message: 'Only multipart uploads are supported'})
+        {message: 'Only multipart uploads are supported'})
 
     const contentLength = Number.parseInt(ctx.get('content-length'))
 
     APIError.assert(Number.isFinite(contentLength),
-                    APIError.Code.LengthRequired)
+        APIError.Code.LengthRequired)
 
     APIError.assert(contentLength <= MAX_IMAGE_SIZE,
-                    APIError.Code.PayloadTooLarge)
+        APIError.Code.PayloadTooLarge)
     const file = await parseMultipart(ctx.req)
     const data = await readStream(file.stream)
 
     // extra check if client manges to lie about the content-length
     APIError.assert((file.stream as any).truncated !== true,
-                    APIError.Code.PayloadTooLarge)
+        APIError.Code.PayloadTooLarge)
 
     const imageHash = createHash('sha256')
         .update('ImageSigningChallenge')
@@ -429,7 +429,7 @@ export async function uploadHandler(ctx: KoaContext) {
  * HERE BE DRAGONS
  */
 function repLog10(rep2: any) {
-    if (rep2 == null) { return rep2 } // tslint:disable-line:triple-equals
+    if (rep2 == null) { return rep2 } // eslint-disable-line eqeqeq
     let rep = String(rep2)
     const neg = rep.charAt(0) === '-'
     rep = neg ? rep.substring(1) : rep
@@ -440,7 +440,7 @@ function repLog10(rep2: any) {
     out = (neg ? -1 : 1) * out
     out = (out * 9) + 25 // 9 points per magnitude. center at 25
     // base-line 0 to darken and < 0 to auto hide (grep rephide)
-    out = parseInt(out + '') // tslint:disable-line:radix
+    out = parseInt(out + '')
     return out
 }
 
@@ -449,8 +449,8 @@ function repLog10(rep2: any) {
  * Warning: Math.log10(0) === NaN
  */
 function log10(str: string) {
-    const leadingDigits = parseInt(str.substring(0, 4)) // tslint:disable-line:radix
+    const leadingDigits = parseInt(str.substring(0, 4))
     const log = Math.log(leadingDigits) / Math.log(10)
     const n = str.length - 1
-    return n + (log - parseInt(log + '')) // tslint:disable-line:radix
+    return n + (log - parseInt(log + ''))
 }

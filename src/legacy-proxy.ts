@@ -35,7 +35,7 @@ export async function legacyProxyHandler(ctx: KoaContext) {
 
     const options: {[key: string]: any} = {
         format: 'match',
-        mode: 'fit',
+        mode: 'fit'
     }
     if (width > 0) { options['width'] = width }
     if (height > 0) { options['height'] = height }

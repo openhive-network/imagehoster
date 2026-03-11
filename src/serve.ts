@@ -27,7 +27,7 @@ export async function serveHandler(ctx: KoaContext) {
     const keyName = getKeyNameFromHash(hash)
 
     const file = uploadStore.createReadStream(keyName)
-    file.on('error', (error) => {
+    file.on('error', (error: any) => {
         if (error.notFound || error.code === 'NoSuchKey') {
             ctx.res.writeHead(404, 'Not Found')
         } else {

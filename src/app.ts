@@ -1,6 +1,7 @@
 import * as cors from '@koa/cors'
 import * as Bunyan from 'bunyan'
-import * as cluster from 'cluster'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const cluster = require('cluster')
 import * as config from 'config'
 import * as http from 'http'
 import * as Koa from 'koa'
@@ -39,10 +40,10 @@ app.use(async (ctx, next) => {
 })
 app.use(cors({
     allowMethods: ['GET', 'POST', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
+    allowHeaders: ['Content-Type', 'Authorization']
 }))
 app.use(routes)
-app.use((ctx: Koa.Context) => {
+app.use((_ctx: Koa.Context) => {
     throw new APIError({code: APIError.Code.NotFound})
 })
 

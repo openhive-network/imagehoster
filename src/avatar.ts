@@ -13,7 +13,7 @@ const DefaultAvatar = config.get('default_avatar') as string
 const AvatarSizes: {[size: string]: number} = {
     small: 64,
     medium: 128,
-    large: 512,
+    large: 512
 }
 
 export async function avatarHandler(ctx: KoaContext) {
@@ -32,10 +32,10 @@ export async function avatarHandler(ctx: KoaContext) {
     const timeBeforeGetAccounts = performance.now()
     let account: ExtendedAccount
     try {
-      account = (await rpcClient.database.getAccounts([username]))[0]
+        account = (await rpcClient.database.getAccounts([username]))[0]
     } catch (e) {
-      ctx.log.error(e, 'getAccounts() threw for %s', username)
-      throw e
+        ctx.log.error(e, 'getAccounts() threw for %s', username)
+        throw e
     }
     const timeAfterGetAccounts = performance.now()
 
@@ -45,25 +45,25 @@ export async function avatarHandler(ctx: KoaContext) {
 
     // read from `posting_json_metadata` if version flag is set
     if (account.posting_json_metadata) {
-      try {
-        metadata = JSON.parse(account.posting_json_metadata)
-        if (!metadata.profile || !metadata.profile.version) {
+        try {
+            metadata = JSON.parse(account.posting_json_metadata)
+            if (!metadata.profile || !metadata.profile.version) {
+                metadata = {}
+            }
+        } catch (error) {
+            ctx.log.debug(error, 'unable to parse json_metadata for %s', account.name)
             metadata = {}
         }
-      } catch (error) {
-        ctx.log.debug(error, 'unable to parse json_metadata for %s', account.name)
-        metadata = {}
-      }
     }
 
     // otherwise, fall back to reading from `json_metadata`
     if (!metadata || !metadata.profile) {
-      try {
-        metadata = JSON.parse(account.json_metadata)
-      } catch (error) {
-        ctx.log.debug(error, 'unable to parse json_metadata for %s', account.name)
-        metadata = {}
-      }
+        try {
+            metadata = JSON.parse(account.json_metadata)
+        } catch (error) {
+            ctx.log.debug(error, 'unable to parse json_metadata for %s', account.name)
+            metadata = {}
+        }
     }
 
     let avatarUrl: string = DefaultAvatar

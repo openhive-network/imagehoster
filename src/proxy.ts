@@ -135,34 +135,34 @@ function parseOptions(query: {[key: string]: any}): ProxyOptions {
     const height = Number.parseInt(query['height']) || undefined
     let mode: ScalingMode
     switch (query['mode']) {
-        case undefined:
-        case 'cover':
-            mode = ScalingMode.Cover
-            break
-        case 'fit':
-            mode = ScalingMode.Fit
-            break
-        default:
-            throw new APIError({message: 'Invalid scaling mode', code: APIError.Code.InvalidParam})
+    case undefined:
+    case 'cover':
+        mode = ScalingMode.Cover
+        break
+    case 'fit':
+        mode = ScalingMode.Fit
+        break
+    default:
+        throw new APIError({message: 'Invalid scaling mode', code: APIError.Code.InvalidParam})
     }
     let format: OutputFormat
     switch (query['format']) {
-        case undefined:
-        case 'match':
-            format = OutputFormat.Match
-            break
-        case 'jpeg':
-        case 'jpg':
-            format = OutputFormat.JPEG
-            break
-        case 'png':
-            format = OutputFormat.PNG
-            break
-        case 'webp':
-            format = OutputFormat.WEBP
-            break
-        default:
-            throw new APIError({message: 'Invalid output format', code: APIError.Code.InvalidParam})
+    case undefined:
+    case 'match':
+        format = OutputFormat.Match
+        break
+    case 'jpeg':
+    case 'jpg':
+        format = OutputFormat.JPEG
+        break
+    case 'png':
+        format = OutputFormat.PNG
+        break
+    case 'webp':
+        format = OutputFormat.WEBP
+        break
+    default:
+        throw new APIError({message: 'Invalid output format', code: APIError.Code.InvalidParam})
     }
     return {width, height, mode, format}
 }
@@ -335,7 +335,7 @@ export async function proxyHandler(ctx: KoaContext) {
                 read_timeout: 60 * 1000,
                 compressed: true,
                 parse_response: false,
-                user_agent: 'HiveProxy/1.0 (+https://gitlab.syncad.com/hive/imagehoster)',
+                user_agent: 'HiveProxy/1.0 (+https://gitlab.syncad.com/hive/imagehoster)'
             } as any, skipSsrf)
         } catch (cause) {
             fetchSourceSpan.setTag(opentracing.Tags.ERROR, true)
@@ -379,13 +379,13 @@ export async function proxyHandler(ctx: KoaContext) {
         const resizingSpan = tracer.startSpan('resizing', {childOf: proxyHandlerSpan})
         const image = Sharp(origData).jpeg({
             quality: 85,
-            force: false,
+            force: false
         }).png({
             compressionLevel: 9,
-            force: false,
+            force: false
         }).webp({
             alphaQuality: 100,
-            force: false,
+            force: false
         })
 
         let metadata: Sharp.Metadata
@@ -415,43 +415,43 @@ export async function proxyHandler(ctx: KoaContext) {
         // height. This is so clients who need a higher-res image can still get
         // one.
         if (width) {
-          if (width > maxCustomWidth) { width = maxCustomWidth }
+            if (width > maxCustomWidth) { width = maxCustomWidth }
         } else {
-          if (metadata.width && metadata.width > maxWidth) { width = maxWidth }
+            if (metadata.width && metadata.width > maxWidth) { width = maxWidth }
         }
         if (height) {
-          if (height > maxCustomHeight) { height = maxCustomHeight }
+            if (height > maxCustomHeight) { height = maxCustomHeight }
         } else {
-          if (metadata.height && metadata.height > maxHeight) { height = maxHeight }
+            if (metadata.height && metadata.height > maxHeight) { height = maxHeight }
         }
 
         switch (options.mode) {
-            case ScalingMode.Cover:
-                image.rotate().resize(width, height, {fit: 'cover'})
-                break
-            case ScalingMode.Fit:
-                if (!width) { width = maxWidth }
-                if (!height) { height = maxHeight }
+        case ScalingMode.Cover:
+            image.rotate().resize(width, height, {fit: 'cover'})
+            break
+        case ScalingMode.Fit:
+            if (!width) { width = maxWidth }
+            if (!height) { height = maxHeight }
 
-                image.rotate().resize(width, height, { fit: 'inside', withoutEnlargement: true })
-                break
+            image.rotate().resize(width, height, { fit: 'inside', withoutEnlargement: true })
+            break
         }
 
         switch (options.format) {
-            case OutputFormat.Match:
-                break
-            case OutputFormat.JPEG:
-                image.jpeg({force: true})
-                contentType = 'image/jpeg'
-                break
-            case OutputFormat.PNG:
-                image.png({force: true})
-                contentType = 'image/png'
-                break
-            case OutputFormat.WEBP:
-                contentType = 'image/webp'
-                image.webp({force: true})
-                break
+        case OutputFormat.Match:
+            break
+        case OutputFormat.JPEG:
+            image.jpeg({force: true})
+            contentType = 'image/jpeg'
+            break
+        case OutputFormat.PNG:
+            image.png({force: true})
+            contentType = 'image/png'
+            break
+        case OutputFormat.WEBP:
+            contentType = 'image/webp'
+            image.webp({force: true})
+            break
         }
 
         rv = await image.toBuffer()

@@ -40,7 +40,7 @@ const HttpCodes = new Map<ErrorCode, number>([
     [ErrorCode.NotFound, 404],
     [ErrorCode.PayloadTooLarge, 413],
     [ErrorCode.QoutaExceeded, 429],
-    [ErrorCode.UpstreamError, 400],
+    [ErrorCode.UpstreamError, 400]
 ])
 
 interface APIErrorOptions {
@@ -58,14 +58,14 @@ export class APIError extends Error {
         if (!condition) {
             let opts: APIErrorOptions = {}
             switch (typeof arg) {
-                case 'string':
-                    opts.info = {msg: arg as string}
-                    break
-                case 'object':
-                    opts = arg as APIErrorOptions
-                    break
-                default:
-                    opts = {code: arg as ErrorCode}
+            case 'string':
+                opts.info = {msg: arg as string}
+                break
+            case 'object':
+                opts = arg as APIErrorOptions
+                break
+            default:
+                opts = {code: arg as ErrorCode}
             }
             if (opts.code === undefined) {
                 opts.code = ErrorCode.BadRequest
@@ -102,7 +102,7 @@ export class APIError extends Error {
     public toJSON() {
         return {
             info: this.info,
-            name: camelToSnake(ErrorCode[this.code]),
+            name: camelToSnake(ErrorCode[this.code])
         }
     }
 }
@@ -113,7 +113,7 @@ export class APIError extends Error {
  */
 const TransientErrors = new Set<ErrorCode>([
     ErrorCode.UpstreamError,
-    ErrorCode.InternalError,
+    ErrorCode.InternalError
 ])
 
 export async function errorMiddleware(ctx: KoaContext, next: () => Promise<any>) {
