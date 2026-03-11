@@ -1,6 +1,6 @@
 /** Uploads file to blob store. */
 
-import {Client, Signature} from '@hiveio/dhive'
+import {Signature} from '@hiveio/dhive'
 import * as Busboy from 'busboy'
 import * as config from 'config'
 import {createHash} from 'crypto'
