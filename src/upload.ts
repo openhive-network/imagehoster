@@ -440,7 +440,8 @@ function repLog10(rep2: any) {
     out = (neg ? -1 : 1) * out
     out = (out * 9) + 25 // 9 points per magnitude. center at 25
     // base-line 0 to darken and < 0 to auto hide (grep rephide)
-    out = parseInt(out + '')    return out
+    out = parseInt(out + '')
+    return out
 }
 
 /**
@@ -448,6 +449,8 @@ function repLog10(rep2: any) {
  * Warning: Math.log10(0) === NaN
  */
 function log10(str: string) {
-    const leadingDigits = parseInt(str.substring(0, 4))    const log = Math.log(leadingDigits) / Math.log(10)
+    const leadingDigits = parseInt(str.substring(0, 4))
+    const log = Math.log(leadingDigits) / Math.log(10)
     const n = str.length - 1
-    return n + (log - parseInt(log + ''))}
+    return n + (log - parseInt(log + ''))
+}
