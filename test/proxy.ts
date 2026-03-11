@@ -128,9 +128,8 @@ describe('proxy', function() {
 
     it('should not cache upstream errors', async function() {
         this.slow(1000)
-        serveImage = false
-        // Request a URL that doesn't exist in store and can't be fetched
-        const badUrl = base58Enc(`http://localhost:${ port+1 }/nonexistent.jpg`)
+        // Use a port where nothing is listening to get a connection refused error
+        const badUrl = base58Enc(`http://localhost:${ port+99 }/nonexistent.jpg`)
         const res = await needle('get', `http://localhost:${ port }/p/${ badUrl }?width=100`)
         assert.equal(res.statusCode, 400)
         assert.equal(res.body.error.name, 'upstream_error')
