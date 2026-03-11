@@ -107,6 +107,13 @@ export class APIError extends Error {
     }
 }
 
+/** Error codes that represent transient failures (upstream timeout, internal error).
+ *  These should not be cached by CDNs since a retry may succeed. */
+const TransientErrors = new Set<ErrorCode>([
+    ErrorCode.UpstreamError,
+    ErrorCode.InternalError,
+])
+
 export async function errorMiddleware(ctx: KoaContext, next: () => Promise<any>) {
     try {
         await next()
@@ -120,6 +127,12 @@ export async function errorMiddleware(ctx: KoaContext, next: () => Promise<any>)
         ctx.status = (error as APIError).statusCode
         ctx['api_error'] = error
         ctx.body = {error}
+        // Prevent CDNs from caching transient errors (e.g. upstream timeouts).
+        // Deterministic errors (blacklisted, invalid URL) keep whatever
+        // Cache-Control was set by the handler.
+        if (TransientErrors.has((error as APIError).code)) {
+            ctx.set('Cache-Control', 'no-store')
+        }
         ctx.app.emit('error', error, ctx.app)
     }
 }

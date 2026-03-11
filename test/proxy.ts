@@ -126,6 +126,18 @@ describe('proxy', function() {
         assert.equal(imageBlacklist.matchesUrl(url), false)
     })
 
+    it('should not cache upstream errors', async function() {
+        this.slow(1000)
+        serveImage = false
+        // Request a URL that doesn't exist in store and can't be fetched
+        const badUrl = base58Enc(`http://localhost:${ port+1 }/nonexistent.jpg`)
+        const res = await needle('get', `http://localhost:${ port }/p/${ badUrl }?width=100`)
+        assert.equal(res.statusCode, 400)
+        assert.equal(res.body.error.name, 'upstream_error')
+        assert.equal(res.headers['cache-control'], 'no-store',
+            'transient errors must not be cached by CDNs')
+    })
+
     it('should resolve double proxied images', async function() {
         this.slow(1000)
         serveImage = false

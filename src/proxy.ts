@@ -214,7 +214,8 @@ export async function proxyHandler(ctx: KoaContext) {
         APIError.assert(Number.isFinite(options.height), 'Invalid height')
     }
 
-    // cache all proxy requests for minimum 10 minutes, including failures
+    // Default cache for in-progress requests; overridden on success
+    // (immutable) or on transient errors (no-store) by errorMiddleware
     ctx.set('Cache-Control', 'public,max-age=600')
 
     // refuse to proxy images on blacklist
