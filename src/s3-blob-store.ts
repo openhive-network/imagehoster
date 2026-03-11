@@ -5,10 +5,10 @@
  */
 
 import {
-    S3Client as AwsS3Client,
     GetObjectCommand,
-    PutObjectCommand,
     HeadObjectCommand,
+    PutObjectCommand,
+    S3Client as AwsS3Client,
 } from '@aws-sdk/client-s3'
 import {PassThrough, Readable} from 'stream'
 
@@ -26,21 +26,22 @@ export class S3BlobStore {
         this.bucket = opts.bucket
     }
 
-    createReadStream(opts: any): Readable {
+    public createReadStream(opts: any): Readable {
         const key = typeof opts === 'string' ? opts : opts.key
         const passthrough = new PassThrough()
 
         this.s3.send(new GetObjectCommand({
             Bucket: this.bucket,
-            Key: key,
+            Key: key
         })).then((res) => {
             const body = res.Body
             if (!body || typeof (body as any).pipe !== 'function') {
                 passthrough.destroy(new Error('S3 response body is not a readable stream'))
                 return
             }
-            ;(body as Readable).on('error', (err) => passthrough.destroy(err))
-            ;(body as Readable).pipe(passthrough)
+            const readable = body as Readable
+            readable.on('error', (err) => passthrough.destroy(err))
+            readable.pipe(passthrough)
         }).catch((err) => {
             passthrough.destroy(err)
         })
@@ -48,7 +49,7 @@ export class S3BlobStore {
         return passthrough
     }
 
-    createWriteStream(opts: any, done?: (error: any, metadata?: any) => void): PassThrough {
+    public createWriteStream(opts: any, done?: (error: any, metadata?: any) => void): PassThrough {
         const key = typeof opts === 'string' ? opts : opts.key
         const passthrough = new PassThrough()
         const chunks: Buffer[] = []
@@ -59,25 +60,25 @@ export class S3BlobStore {
             this.s3.send(new PutObjectCommand({
                 Bucket: this.bucket,
                 Key: key,
-                Body: body,
+                Body: body
             })).then(() => {
-                if (done) done(null, {key})
+                if (done) { done(null, {key}) }
             }).catch((err) => {
-                if (done) done(err)
+                if (done) { done(err) }
             })
         })
         passthrough.on('error', (err) => {
-            if (done) done(err)
+            if (done) { done(err) }
         })
 
         return passthrough
     }
 
-    exists(opts: any, done: (error: any, exists?: boolean) => void) {
+    public exists(opts: any, done: (error: any, exists?: boolean) => void) {
         const key = typeof opts === 'string' ? opts : opts.key
         this.s3.send(new HeadObjectCommand({
             Bucket: this.bucket,
-            Key: key,
+            Key: key
         })).then(() => {
             done(null, true)
         }).catch((err) => {
