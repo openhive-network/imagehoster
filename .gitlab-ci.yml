@@ -1,34 +1,11 @@
-# ! stages which aren't defined here won't be available in gitlab CI/CD
-# define CI/CD stages here
 stages:
   - build
 
-# Stage: build
-# in this stage we are building the app from scratch
+include:
+  - project: 'hive/common-ci-configuration'
+    ref: develop
+    file: '/templates/docker_image_jobs.gitlab-ci.yml'
+
 build:
+  extends: .docker_build_job_template
   stage: build
-  tags:
-    - public-runner-docker
-  image: registry.gitlab.syncad.com/hive/common-ci-configuration/docker-builder:latest
-  services:
-    - name: registry.gitlab.syncad.com/hive/common-ci-configuration/docker-dind:latest
-      alias: docker
-  variables:
-    DOCKER_DRIVER: overlay2
-    DOCKER_TLS_CERTDIR: "/certs"
-    FF_NETWORK_PER_BUILD: "true"
-    GIT_DEPTH: 1
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_STRATEGY: clone
-  allow_failure: false
-  before_script:
-    - |
-      for i in $(seq 1 30); do
-        docker info >/dev/null 2>&1 && break
-        echo "Waiting for docker daemon... ($i/30)"
-        sleep 2
-      done
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
-  script:
-    - "docker build --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA ."
-    - "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
