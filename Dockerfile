@@ -7,14 +7,8 @@ RUN apk add \
     --no-cache \
     bash \
     build-base \
-    fftw-dev \
     git \
-    make \
-    py-pip
-
-RUN apk add \
-    --no-cache \
-    vips-dev
+    make
 
 # install application dependencies
 COPY package.json yarn.lock ./
@@ -32,9 +26,6 @@ RUN yarn install --non-interactive --frozen-lockfile --production
 # copy built application to runtime image
 FROM registry.gitlab.syncad.com/hive/imagehoster/node:20-alpine
 WORKDIR /app
-RUN apk add \
-    --no-cache \
-    fftw vips vips-cpp
 COPY --from=build-stage /app/config config
 COPY --from=build-stage /app/lib lib
 COPY --from=build-stage /app/node_modules node_modules
