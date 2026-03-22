@@ -1,11 +1,119 @@
-/** Upload and proxying blacklists. In the future this will live on-chain. */
+import * as config from 'config'
+import * as fs from 'fs'
+import {URL} from 'url'
+import {logger} from './logger'
 
-interface Blacklist<T> {
-    includes: (item: T) => boolean
+/**
+ * Dynamic blacklist file format (blacklist.json):
+ *
+ * Can be either a flat array of exact-match strings (legacy format):
+ *   ["https://example.com/bad.jpg", "https://example.com/other.jpg"]
+ *
+ * Or an object with separate exact and pattern lists:
+ *   {
+ *     "urls": ["https://example.com/bad.jpg"],
+ *     "patterns": ["^https?://([^/]*\\.)?fotas\\.cc/"]
+ *   }
+ *
+ * Patterns are JavaScript regular expressions tested against the full resolved URL.
+ * Useful for blocking entire domains.
+ */
+
+interface BlacklistData {
+  urls: string[]
+  patterns: RegExp[]
 }
 
-/* tslint:disable:max-line-length */
-export const imageBlacklist: Blacklist<string> = [
+function parseBlacklistFile(data: any): BlacklistData {
+    if (Array.isArray(data)) {
+    // Legacy format: flat array of exact URLs
+        return { urls: data, patterns: [] }
+    }
+    const urls: string[] = data.urls || []
+    const patterns: RegExp[] = (data.patterns || []).map((p: string) => new RegExp(p))
+    return { urls, patterns }
+}
+
+/** Upload and proxying blacklists. In the future this will live on-chain. */
+class Blacklist {
+    private staticList: string[]
+    private dynamicUrls: string[]
+    private dynamicPatterns: RegExp[]
+    private dynamicListFilename?: string
+    constructor(staticList: string[], dynamicListFilename?: string) {
+        this.staticList = staticList
+        this.dynamicListFilename = dynamicListFilename
+        this.dynamicUrls = []
+        this.dynamicPatterns = []
+        this.reloadDynamicList()
+        if (this.dynamicListFilename) {
+            fs.watchFile(this.dynamicListFilename, (_curr, _prev) => {
+                this.reloadDynamicList()
+            })
+        }
+    }
+    public reloadDynamicList() {
+        if (this.dynamicListFilename) {
+            logger.info('Reloading dynamic blacklist from file', this.dynamicListFilename)
+            try {
+                const raw = JSON.parse(fs.readFileSync(this.dynamicListFilename, 'utf8'))
+                const parsed = parseBlacklistFile(raw)
+                this.dynamicUrls = parsed.urls
+                this.dynamicPatterns = parsed.patterns
+                logger.info('Loaded dynamic blacklist:', this.dynamicUrls.length, 'URLs,', this.dynamicPatterns.length, 'patterns')
+            } catch (e) {
+                logger.error('Failed to parse blacklist file', this.dynamicListFilename, e)
+            }
+        }
+    }
+    public includes(item: string) {
+        if (this.staticList.includes(item)) {
+            return true
+        }
+        if (this.dynamicUrls.includes(item)) {
+            return true
+        }
+        for (const pattern of this.dynamicPatterns) {
+            if (pattern.test(item)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+   * Check if a URL matches the blacklist, accounting for query param / fragment variations.
+   * Checks: (1) full URL as-is, (2) URL without query/fragment, (3) path segments
+   * that look like content hashes (for bare-hash entries in the blacklist).
+   */
+    public matchesUrl(url: URL): boolean {
+        const candidates: string[] = [url.toString()]
+
+        // URL without query string and fragment
+        const bare = url.origin + url.pathname
+        if (bare !== url.toString()) {
+            candidates.push(bare)
+        }
+
+        // Extract path segments that look like content hashes (>=30 chars, alphanumeric)
+        // This catches bare entries like 'DQmeLKjpW89de2DqfCYxdTM4HPvUgurmpJuZYAN9SP2c9Q5'
+        const segments = url.pathname.split('/').filter(
+            (s: string) => s.length >= 30 && /^[A-Za-z0-9]+$/.test(s)
+        )
+        for (const seg of segments) {
+            candidates.push(seg)
+        }
+
+        for (const candidate of candidates) {
+            if (this.includes(candidate)) {
+                return true
+            }
+        }
+        return false
+    }
+}
+
+const initialImageBlackList: string[] = [
     'http://avivas.ru/img/topic/23850/20.jpg',
     'http://bogleech.com/nature/fly-microdon.jpg',
     'http://customerceobook.com/wp-content/uploads/2012/12/noahpozner420peoplemagazine.jpg',
@@ -140,11 +248,245 @@ export const imageBlacklist: Blacklist<string> = [
     'https://files.peakd.com/file/peakd-hive/keitosama/2hFgqkAR-BB22FD34-073B-4CC8-92AF-BFA4EF538AD6.jpeg',
     'https://files.peakd.com/file/peakd-hive/keitosama/uxutlPV4-9C1D4EEB-2A82-403B-A5CD-A5CFB0E8C012.jpeg',
     'https://files.peakd.com/file/peakd-hive/keitosama/i9jskuOZ-668CA97C-B1C8-4336-98E3-D325DCFF7047.jpeg',
-    'https://images.hive.blog/DQmNvk94uq6VAgS3t4zAeQCezGCToqGNsUkv4fkPo4NwVDm/image.png'
-  ]
+    'https://images.hive.blog/DQmNvk94uq6VAgS3t4zAeQCezGCToqGNsUkv4fkPo4NwVDm/image.png',
 
-export const accountBlacklist: Blacklist<string> = [
+    // cpcensorshiptest URLs
+    'https://images.hive.blog/DQmeLKjpW89de2DqfCYxdTM4HPvUgurmpJuZYAN9SP2c9Q5/photo_2021-09-25_15-43-02.jpg',
+    'https://images.ecency.com/DQmeLKjpW89de2DqfCYxdTM4HPvUgurmpJuZYAN9SP2c9Q5/photo_2021_09_25_15_43_02.jpg',
+    // this should cover the two above and make them unnecessary
+    'DQmeLKjpW89de2DqfCYxdTM4HPvUgurmpJuZYAN9SP2c9Q5',
+
+    'https://images.hive.blog/DQmTmDoxS79uwiLbqBG4aFpS6TX8U3iNvG7bgJ66dQPZrJo/photo_2021-09-25_15-43-05.jpg',
+    // this should cover the above:
+    'DQmTmDoxS79uwiLbqBG4aFpS6TX8U3iNvG7bgJ66dQPZrJo',
+
+    'https://images.ecency.com/DQmXMRdjUdumHvg34EYZChhebeFyKb92HPZi959KGKv1xTS/photo_2021_09_25_15_36_53.jpg',
+    'https://images.hive.blog/DQmXMRdjUdumHvg34EYZChhebeFyKb92HPZi959KGKv1xTS/photo_2021-09-25_15-36-53.jpg',
+    // this should cover the two above and make them unnecessary
+    'DQmXMRdjUdumHvg34EYZChhebeFyKb92HPZi959KGKv1xTS',
+
+    'https://images.ecency.com/DQmSkwCjA6UC3yWJzPdMw7FfoQSSshZixxH1evSyAgMKwYJ/photo_2021_09_25_15_43_01.jpg',
+    // this should cover the above:
+    'DQmSkwCjA6UC3yWJzPdMw7FfoQSSshZixxH1evSyAgMKwYJ',
+
+    'https://images.ecency.com/DQmXMfH8of2foUPTGeokvzUEzKoD2EmXSV5RbRZQC9dxC8V/photo_2021_09_25_15_40_29.jpg',
+    // this should cover the above:
+    'DQmXMfH8of2foUPTGeokvzUEzKoD2EmXSV5RbRZQC9dxC8V',
+
+    // the hash 7258xSVeJbKmTr9Z4jhbPhjS9pMWA2mTwBMDbXqkBFLELxxrbCGVrTBP3mNK6SqrYEryH5BuRxRXFm7G64HB5dCojiFuLGkWWXbamni4RxKnyRtcY475WF9yMRsMKFXLPrkhWdPnCYbR8
+    // is base58 for https://images.ecency.com/DQmXMRdjUdumHvg34EYZChhebeFyKb92HPZi959KGKv1xTS/photo_2021_09_25_15_36_53.jpg
+    // so this blocks proxying these avatar images:
+    'https://images.hive.blog/p/7258xSVeJbKmTr9Z4jhbPhjS9pMWA2mTwBMDbXqkBFLELxxrbCGVrTBP3mNK6SqrYEryH5BuRxRXFm7G64HB5dCojiFuLGkWWXbamni4RxKnyRtcY475WF9yMRsMKFXLPrkhWdPnCYbR8?format=match&mode=fit&width=2048&height=512',
+    'https://images.hive.blog/p/7258xSVeJbKmTr9Z4jhbPhjS9pMWA2mTwBMDbXqkBFLELxxrbCGVrTBP3mNK6SqrYEryH5BuRxRXFm7G64HB5dCojiFuLGkWWXbamni4RxKnyRtcY475WF9yMRsMKFXLPrkhWdPnCYbR8?width=128&height=128',
+    'https://images.hive.blog/p/7258xSVeJbKmTr9Z4jhbPhjS9pMWA2mTwBMDbXqkBFLELxxrbCGVrTBP3mNK6SqrYEryH5BuRxRXFm7G64HB5dCojiFuLGkWWXbamni4RxKnyRtcY475WF9yMRsMKFXLPrkhWdPnCYbR8?width=64&height=64',
+    // this should cover the three above, but I'm not sure that it does
+    '7258xSVeJbKmTr9Z4jhbPhjS9pMWA2mTwBMDbXqkBFLELxxrbCGVrTBP3mNK6SqrYEryH5BuRxRXFm7G64HB5dCojiFuLGkWWXbamni4RxKnyRtcY475WF9yMRsMKFXLPrkhWdPnCYbR8',
+    'https://images.ecency.com/DQmXMRdjUdumHvg34EYZChhebeFyKb92HPZi959KGKv1xTS/photo_2021_09_25_15_36_53.jpg',
+
+    // I don't know if we should do anything more generic for peakd, for now just block the exact images referenced in the posts
+    'https://files.peakd.com/file/peakd-hive/cpcensorshiptest/EnyxkPZGM7DGwFCVELyC1kK6RGuEsB2UvSEybaeykYXM3BqNRw68B5GS26JCskBuzM5.jpg',
+    'https://files.peakd.com/file/peakd-hive/cpcensorshiptest/EnyumJPqtRevXJJucGNcoTvk1AevK6tveNwkDoqDj8kdgdqo1kb2hxbyU4J35igzVKw.jpg',
+
+    // Reported by cloudflare CSAM
+    'https://images.hive.blog/p/o1AJ9qDyyJNSg3wWvCPXkCcN4PX4LP3oeyUp6MR4d2dvGyUi2?format=match&mode=fit&width=1536',
+    'o1AJ9qDyyJNSg3wWvCPXkCcN4PX4LP3oeyUp6MR4d2dvGyUi2',
+    'https://i.postimg.cc/ncH7t3Fs/01.jpg',
+
+    'https://images.hive.blog/p/3jpR3paJ37V8JxyWvtbhvcm5k3roJwHBR4WTALx7XaoRovswY2w48e3SNNzoCrjVy9nxDdx4sqv7tBU6LSEUrPMJ2bcWfSEGV6oU7XnumMtxvKeBFi5Ggw3nDYbUENURUuRzE',
+    'https://cdn.steemitimages.com/DQmeh61aqhbuhYDnEDtggEKcXxay9VN5JPYrBLP88EisaH8/Vietnamese_kids.jpg',
+    '3jpR3paJ37V8JxyWvtbhvcm5k3roJwHBR4WTALx7XaoRovswY2w48e3SNNzoCrjVy9nxDdx4sqv7tBU6LSEUrPMJ2bcWfSEGV6oU7XnumMtxvKeBFi5Ggw3nDYbUENURUuRzE',
+    'DQmeh61aqhbuhYDnEDtggEKcXxay9VN5JPYrBLP88EisaH8',
+
+    'https://images.hive.blog//p/8SzwQc8j2KJb4ARrxQxCjX4jizub4U5CAK3WwB89vZGZQ92WwiK3N67ELqXRj4E3FEzHQ1n4vWo4Zw31hJm1QGvN3c6wWDTZMyj8xCxZqwaehcgkRa6?format=match&mode=fit&width=15360',
+    'https://steemitimages.com/DQmdadwpGNPf6Vmp5b1A4PEYEgednq1RAVjMmjdYFo2F6TU/image.jpeg',
+    '8SzwQc8j2KJb4ARrxQxCjX4jizub4U5CAK3WwB89vZGZQ92WwiK3N67ELqXRj4E3FEzHQ1n4vWo4Zw31hJm1QGvN3c6wWDTZMyj8xCxZqwaehcgkRa6',
+    'DQmdadwpGNPf6Vmp5b1A4PEYEgednq1RAVjMmjdYFo2F6TU',
+
+    'https://images.hive.blog/p/2HeX3ZbobrcGJJWd7UZfqY3VApCrn7bghrTViJaRxFXT1RbQjHM9pZHzm6mdodXfYmCu3?format=match&mode=fit',
+    '2HeX3ZbobrcGJJWd7UZfqY3VApCrn7bghrTViJaRxFXT1RbQjHM9pZHzm6mdodXfYmCu3',
+    'http://www.newfapchan.org/gif/src/133548929949.gif',
+
+    'https://images.hive.blog/p/Zskj9C56UonZ32EJw6nMctrTQ6kTQ3swaDmbMFvajTxMqeFa3wbEn6QdiZEDzEJqWvswRL4CD4AdSHW2R18U1YMSr3kGmAh1CHzYbdHzvyRNEb17Lutr?format=match&mode=fit&width=256&height=512',
+    'https://images.hive.blog/DQmf9cyCvip3J46Ka7E1pxGhktaT5XHMcAWn8TqWrZbTJ9c/10%20(3).jpg',
+    'DQmf9cyCvip3J46Ka7E1pxGhktaT5XHMcAWn8TqWrZbTJ9c',
+
+    'https://images.hive.blog/p/3W72119s5BjVtYhc8EyUCS1n2TpsbpKuDhBkZTQTi2NsGVP3cuDYfbsXixUxSQkPZKURJojjJKAKuNJXgAU6yys7PgiQ4KPScNhUYBo4tHB6RBzCqYqc4W?format=match&mode=fit&width=256&height=512',
+    'https://d1vof77qrk4l5q.cloudfront.net/img/c8b99e626a3677b609e689ddff91a2acb6ec6ce5.jpg',
+
+    'https://images.hive.blog/p/Pufd3b1W2k72XA2c2nnrxvGbQcUrjcux2nvVowfgitjnLDDN1BNJLsWe?width=1600&height=1200&format=webp&mode=fit',
+    'Pufd3b1W2k72XA2c2nnrxvGbQcUrjcux2nvVowfgitjnLDDN1BNJLsWe',
+    'https://www.scrolller.com/media/3cd8b.jpg',
+    'https://images.hive.blog/p/o1AJ9qDyyJNYmDFCuF91XUDoYykMeuM61uxdsjp4PhMYjTQTx?width=1600&height=1200&format=webp&mode=fit',
+    'o1AJ9qDyyJNYmDFCuF91XUDoYykMeuM61uxdsjp4PhMYjTQTx',
+    'https://scrolller.com/media/1f04.jpg',
+
+    'https://images.hive.blog/p/qjrE4yyfw5pERVWyiNwowNg8EoSdJrEPVKNJccQCAeSJrvDBWr1QbpMmN2XTjFMr3gwjyJAyTGakg2qe8CrsGs9YiWwRfmJioy1emJ8fbwpiryoioKAkkq1Y?format=match&mode=fit&width=768',
+    'qjrE4yyfw5pERVWyiNwowNg8EoSdJrEPVKNJccQCAeSJrvDBWr1QbpMmN2XTjFMr3gwjyJAyTGakg2qe8CrsGs9YiWwRfmJioy1emJ8fbwpiryoioKAkkq1Y',
+    'https://coliriodemacho.com.br/wordpress/wp-content/uploads/2020/05/pata-de-camelo-10.jpg',
+
+    'https://images.hive.blog/p/Zskj9C56UonWToSX8tGXNY8jeXKSedJ2aRhGRj6HDecqreZedDBNGMamG62ZYCsMs6Wa2ivzXMoS5CWRnyyLanXgKtVvB55E4UHPQzMY6CJ1RnebAhbk?format=match&mode=fit',
+    'Zskj9C56UonWToSX8tGXNY8jeXKSedJ2aRhGRj6HDecqreZedDBNGMamG62ZYCsMs6Wa2ivzXMoS5CWRnyyLanXgKtVvB55E4UHPQzMY6CJ1RnebAhbk',
+    'https://cdn.steemitimages.com/DQmQJkZ8w5thW6ZQdfRjBG59a4ugDWFMeJ54LQxeAfG458Y/071.jpg',
+    'DQmQJkZ8w5thW6ZQdfRjBG59a4ugDWFMeJ54LQxeAfG458Y',
+
+    'https://images.hive.blog/p/LcTxR7u1XKaa3e4T1EBuBP18JezPvjFFo8gNuE9CiKHBn4KM97CaW6UAH5AhbY7GkyxjjxymyLwatrSNb6GAsSfoCbcVphDnvZBGZP4E82KZkn8WL6tRTAZW2hw31kpzWH887ygTKwYhGUkYAhWVqGCpW?format=match&mode=fit',
+    'LcTxR7u1XKaa3e4T1EBuBP18JezPvjFFo8gNuE9CiKHBn4KM97CaW6UAH5AhbY7GkyxjjxymyLwatrSNb6GAsSfoCbcVphDnvZBGZP4E82KZkn8WL6tRTAZW2hw31kpzWH887ygTKwYhGUkYAhWVqGCpW',
+    'https://cdn.steemitimages.com/DQmZoXTCXoxYBYoV41hNqrw4XaxThSwVgRTrTHPzn7M3rT7/biljana_djurdjevic_serbia_pain.jpg',
+
+    'https://images.hive.blog/p/MvwLKy3SfvJwXFKCRMDAFrt961XwzxrWjToDjWfT4?format=match&mode=fit&width=1536',
+    'MvwLKy3SfvJwXFKCRMDAFrt961XwzxrWjToDjWfT4',
+    'http://i.imgur.com/vfpmfn8.jpg',
+
+    'https://images.hive.blog/p/LcTxR7u1XKaa3e4T1EBuBP18JezPvjFFo8gNuE9CiKHBn42YPyRWsExigLY2voQwdNSq869WdkV6GtiEQqvw27ZCARWYkfXr8vPcmXnKKzJh65QLatikrwXeiTuGrPeqfspA99StRRwACudB7v81zLVMg?format=match&mode=fit&width=256&height=512',
+    'https://cdn.steemitimages.com/DQmXiQhKjseyhRu54ughWdGs1wX4oFAMKE9aNvDPdndwtAr/biljana_djurdjevic_serbia_pain.jpg',
+    'DQmXiQhKjseyhRu54ughWdGs1wX4oFAMKE9aNvDPdndwtAr',
+
+    'https://images.hive.blog/p/JLypLpqVPBaPBxeyDtHtGjoPy8Qta67mkQmiiTmDbahnbsLRJQpfh3JfJt7y8Sg42MEm35hLcZMxTSh9zEmtZkMM3qiJsoXALj47xYE6sAvQaP4zxuJZTEKGNWYfD9RniQhu3wA88taGUp7Zkv3eSodTKbPNetVpafLpzpkqKsVc9vMX3X3QaFAjkLeFiRMn93?format=match&mode=fit',
+    'https://images.hive.blog/p/JLypLpqVPBaPBxeyDtHtGjoPy8Qta67mkQmiiTmDbahnbsLRJQpfh3JfJt7y8Sg42MEm35hLcZMxTSh9zEmtZkMM3qiJsoXALj47xYE6sAvQaP4zxuJZTEKGNWYfD9RniQhu3wA88taGUp7Zkv3eSodTKbPNetVpafLpzpkqKsVc9vMX3X3QaFAjkLeFiRMn93?format=match&mode=fit&width=256&height=512',
+    'https://steemitimages.com/DQmcoXZitkKm8PBBPrtAFLnUvypGStL4astLKFNUecdCKP7/d6e6386f92499dcaea1b8ed76facbbcd18050a0ec7064f24f4096ffd5af77022.gif',
+    'DQmcoXZitkKm8PBBPrtAFLnUvypGStL4astLKFNUecdCKP7',
+
+    'https://images.hive.blog/p/3zpz8WQe4SNH8q6FEif2uzpmXjQNog2n2huWTcwn9q9DfuvNGBFtDDiDBKbEx6eUVYp14TCMzk65HCBAXy6zKfJtzAG1xU6inCKXCgHacKt1Zw5UoA6ZPXVLcF3pxFC9JdnY9d25GQNYdSdzVcDK?format=match&mode=fit',
+
+    'https://images.hive.blog/p/3RTd4iuWD6NUeJEn5AVrJUoyatFqBqfcCJi1N7UixR4g2KPKN7w8NpZJKFS97GUWwiV9wsPgufk27sZrDmdwg8bDjvQrDotb9jzJ4x4pkBt7v2osMsvGX5AUfDjiXT5Y6fqVhmrHoaH931TyeLWnJQ95L696Gf2r5c7CGYdRzYHRup?format=match&mode=fit',
+    'https://images.hive.blog/p/3RTd4iuWD6NUeJEn5AVrJUoyatFqBqfcCJi1N7UixR4g2KPKN7w8NpZJKFS97GUWwiV9wsPgufk27sZrDmdwg8bDjvQrDotb9jzJ4x4pkBt7v2osMsvGX5AUfDjiXT5Y6fqVhmrHoaH931TyeLWnJQ95L696Gf2r5c7CGYdRzYHRup?width=1600&height=1200&format=webp&mode=fit',
+    'https://images.hive.blog/p/3RTd4iuWD6NUeJEn5AVrJUoyatFqBqfcCJi1N7UixR4g2KPKN7w8NpZJKFS97GUWwiV9wsPgufk27sZrDmdwg8bDjvQrDotb9jzJ4x4pkBt7v2osMsvGX5AUfDjiXT5Y6fqVhmrHoaH931TyeLWnJQ95L696Gf2r5c7CGYdRzYHRup?format=match&mode=fit&width=256&height=512',
+    'https://images.hive.blog/p/3RTd4iuWD6NUeJEn5AVrJUoyatFqBqfcCJi1N7UixR4g2KPKN7w8NpZJKFS97GUWwiV9wsPgufk27sZrDmdwg8bDjvQrDotb9jzJ4x4pkBt7v2osMsvGX5AUfDjiXT5Y6fqVhmrHoaH931TyeLWnJQ95L696Gf2r5c7CGYdRzYHRup?format=match&mode=fit&width=768',
+    'https://images.hive.blog/p/3RTd4iuWD6NUeJEn5AVrJUoyatFqBqfcCJi1N7UixR4g2KPKN7w8NpZJKFS97GUWwiV9wsPgufk27sZrDmdwg8bDjvQrDotb9jzJ4x4pkBt7v2osMsvGX5AUfDjiXT5Y6fqVhmrHoaH931TyeLWnJQ95L696Gf2r5c7CGYdRzYHRup',
+    'https://files.peakd.com/file/peakd-hive/bandarpenguin/23wX1BBvWHBpgQRzBkoAqNZLj8effJ6riPzYeMh4iKn6S6z53L6HHtsQaPnZJcnYzGdB6.jpg',
+
+    'https://images.hive.blog/p/7258xRzWfA8KeoSSdHZphgmokaKMtBy8ZAimjMTPf22ghbovy2FLLmGdgFfdsyN4bGuLPSQe8rrYA6K8G5xugtxFwfCkcNkZ6NBKqqAai981RZr73hpbxfaV1kg78ibBKfmKnuKy5e3tA?format=match&mode=fit&width=768',
+    'http://1.bp.blogspot.com/-mcWgeFvKy4Y/VSbfStWvfSI/AAAAAAAACpc/X3xKI63GD1w/s640/MUJERES+CULONAS+-018.jpg',
+
+    'https://images.hive.blog/p/6VvuHGsoU2QD2aHbJiivbVZV6nAA4BJrX2xi1YbtyeQs462kuKaTU67TB4PJbm6jfPF5bmQLcnaR597t9VuAQVp8bbpKDfrp95Y47r8hsmBJtJxcJnQsfpsMDY5bt2?format=match&mode=fit',
+    'https://steemitimages.com/DQmWXC3dgg1at4wSHLDocVY3KuerTzvTQS2ErCdSjymtTc6/podesta%20art1.jpg',
+    'DQmWXC3dgg1at4wSHLDocVY3KuerTzvTQS2ErCdSjymtTc6',
+
+    'https://images.hive.blog/768x0/https://files.peakd.com/file/peakd-hive/alanpaul07/23wX1351VgsSYrHo8Z84YGt2KNDHDzHX5RkWGqVytt7abQVj7LSdKfBTZf1xbCTCdzTfS.jpeg',
+    'https://files.peakd.com/file/peakd-hive/alanpaul07/23wX1351VgsSYrHo8Z84YGt2KNDHDzHX5RkWGqVytt7abQVj7LSdKfBTZf1xbCTCdzTfS.jpeg',
+    '23wX1351VgsSYrHo8Z84YGt2KNDHDzHX5RkWGqVytt7abQVj7LSdKfBTZf1xbCTCdzTfS',
+    'https://images.hive.blog/p/8DAuGnTQCLptZgjHUrRAJGcW4y1D4A5QVJJ7zjzqqKdfVHSS6NapSCC5zCTL1EHY7RpLAnW66qHyC1q2nucKGe99EZ5ftLzc5sUPc5fbQJbhhP5ZBwmCtvoK7mUSepZKLVD3jvxyJMeZjpHm1ySvxi8S8p1WTAt4m4WZ7JhkUri?format=match&mode=fit&width=768',
+
+    'https://images.hive.blog/768x0/https://files.peakd.com/file/peakd-hive/alanpaul07/23vsSMg5WEr8npu16MnizHEKsq1Gjw9KoKaSxgf5AvK4mfYsPF3vm3Gn21nU8xFx5A9FJ.jpeg',
+    'https://files.peakd.com/file/peakd-hive/alanpaul07/23vsSMg5WEr8npu16MnizHEKsq1Gjw9KoKaSxgf5AvK4mfYsPF3vm3Gn21nU8xFx5A9FJ.jpeg',
+    '23vsSMg5WEr8npu16MnizHEKsq1Gjw9KoKaSxgf5AvK4mfYsPF3vm3Gn21nU8xFx5A9FJ',
+    'https://images.hive.blog/p/8DAuGnTQCLptZgjHUrRAJGcW4y1D4A5QVJJ7zjzqqKdfVHSS6NapSCC5zCTL1EHY7RpLAnW66pXaXNDU3s9Se3CpG8sDXd9V1nmK56TTwd6Gx3WnQ5etDCNc3Ak8f2BD9eH3tjecKeN53RUe9snb7HBJukz5fwmqGTut5JehzpE?format=match&mode=fit&width=768',
+
+    'https://images.hive.blog/768x0/https://files.peakd.com/file/peakd-hive/alanpaul07/23vsSmg4FYXbcnKgxPpYviiTJuz9CAxhQfa9dHEL4S9ZRyKbRZywHwQ3rtbj8a96AeqtY.png',
+    'https://files.peakd.com/file/peakd-hive/alanpaul07/23vsSmg4FYXbcnKgxPpYviiTJuz9CAxhQfa9dHEL4S9ZRyKbRZywHwQ3rtbj8a96AeqtY.png',
+    '23vsSmg4FYXbcnKgxPpYviiTJuz9CAxhQfa9dHEL4S9ZRyKbRZywHwQ3rtbj8a96AeqtY',
+    'https://images.hive.blog/p/2dk2RRM2dZ8gKjXsrozapsD83FxL3Xbyyi5LFttAhrXxr16mCe4arfLH5oYnzbjGCswDxEUtTEwWM6NM1mhp3oXBtdgCA1EdMNvdrRRonGkyMVHFYk16cZZQ4XrUbUFq9b7CPCT92FwfLh84Ex3uf99i3JxTxATiCYqdmwqpnz?format=match&mode=fit&width=768',
+
+    'https://images.hive.blog/768x0/https://files.peakd.com/file/peakd-hive/alanpaul07/23ywu7tbBvNFPe4wPYNEwRQSdYg3d5HaavqBJXvSQnvVJgRZx88cQMy8afCRkSMo1qNpC.jpeg',
+    'https://files.peakd.com/file/peakd-hive/alanpaul07/23ywu7tbBvNFPe4wPYNEwRQSdYg3d5HaavqBJXvSQnvVJgRZx88cQMy8afCRkSMo1qNpC.jpeg',
+    '23ywu7tbBvNFPe4wPYNEwRQSdYg3d5HaavqBJXvSQnvVJgRZx88cQMy8afCRkSMo1qNpC',
+    'https://images.hive.blog/p/8DAuGnTQCLptZgjHUrRAJGcW4y1D4A5QVJJ7zjzqqKdfVHSS6NapSCC5zCTL1EHY7RpLAnW66s7LjB3ZaMKuW8CBUcKyyy5rkrM2f2RJePQKDu16JftqCNqZo7EbG7Hv4z2Zcc47VFNys2ireYqovtGsi7RHq5rwC7BxgoPDWPQ?format=match&mode=fit&width=768',
+
+    'https://images.hive.blog/768x0/https://files.peakd.com/file/peakd-hive/alanpaul07/23wC16UVosJX9zsGCYGAAneJuoeXcfiut2DokCtJGK1T1hs26ALakcCPYGKg1dk4BRXPr.jpeg',
+    'https://files.peakd.com/file/peakd-hive/alanpaul07/23wC16UVosJX9zsGCYGAAneJuoeXcfiut2DokCtJGK1T1hs26ALakcCPYGKg1dk4BRXPr.jpeg',
+    '23wC16UVosJX9zsGCYGAAneJuoeXcfiut2DokCtJGK1T1hs26ALakcCPYGKg1dk4BRXPr',
+    'https://images.hive.blog/p/8DAuGnTQCLptZgjHUrRAJGcW4y1D4A5QVJJ7zjzqqKdfVHSS6NapSCC5zCTL1EHY7RpLAnW66qDtwzscXtAWipnGTsKWASfuXcH6E9ma8UKD3pG32PX7zuRjBDRrw5iwXKCtskZc6fioJvbtwZDD1RBGmYCYuMaXs3DEDcAcMPt?format=match&mode=fit&width=768',
+
+    'https://images.hive.blog/768x0/https://files.peakd.com/file/peakd-hive/alanpaul07/2432WWAtjPohrmLmu95ENbdXg9WSzDmEcdikarga4nGMDp5MYX7KpvR5TUcd9ZxsCfjNU.jpeg',
+    'https://files.peakd.com/file/peakd-hive/alanpaul07/2432WWAtjPohrmLmu95ENbdXg9WSzDmEcdikarga4nGMDp5MYX7KpvR5TUcd9ZxsCfjNU.jpeg',
+    '2432WWAtjPohrmLmu95ENbdXg9WSzDmEcdikarga4nGMDp5MYX7KpvR5TUcd9ZxsCfjNU',
+    'https://images.hive.blog/p/8DAuGnTQCLptZgjHUrRAJGcW4y1D4A5QVJJ7zjzqqKdfVHSS6NapSCC5zCTL1EHY7RpLAnW69c7VWDGP2QDWsDBtdvRCpggqkUyjVjtQXm8aVdnnM7GZHtMWERSmYnJykUJGWyztec2zGYGUU39sLpzHfxb8kHoXqcWha2hZcYN?format=match&mode=fit&width=768',
+
+    'https://images.hive.blog/768x0/https://files.peakd.com/file/peakd-hive/alanpaul07/23wMWVmQf1AQdsQbH3zUu1QkvmZhRqWbnQj9yPipLXN5NQa6Gn3A4afcoa2dSi9pEouPz.jpeg',
+    'https://files.peakd.com/file/peakd-hive/alanpaul07/23wMWVmQf1AQdsQbH3zUu1QkvmZhRqWbnQj9yPipLXN5NQa6Gn3A4afcoa2dSi9pEouPz.jpeg',
+    '23wMWVmQf1AQdsQbH3zUu1QkvmZhRqWbnQj9yPipLXN5NQa6Gn3A4afcoa2dSi9pEouPz',
+    'https://images.hive.blog/p/8DAuGnTQCLptZgjHUrRAJGcW4y1D4A5QVJJ7zjzqqKdfVHSS6NapSCC5zCTL1EHY7RpLAnW66qFs7xLpfq9eDUscTAo1Tbtr9Fpwy5KN38QcGJh9RHdkY1DParktW9c57WoL4YadCAkS24nT2tivpZckngMRMHmxfn6vNUwKKA6?format=match&mode=fit&width=768',
+
+    'https://images.hive.blog/768x0/https://files.peakd.com/file/peakd-hive/alanpaul07/23u5vW9Fc1ExepTgUDZoG5Qacjwia5XbK64r1NwfQ3p6i9WRidosohAhNuiuGLJu65DoS.jpeg',
+    'https://files.peakd.com/file/peakd-hive/alanpaul07/23u5vW9Fc1ExepTgUDZoG5Qacjwia5XbK64r1NwfQ3p6i9WRidosohAhNuiuGLJu65DoS.jpeg',
+    '23u5vW9Fc1ExepTgUDZoG5Qacjwia5XbK64r1NwfQ3p6i9WRidosohAhNuiuGLJu65DoS',
+    'https://images.hive.blog/p/8DAuGnTQCLptZgjHUrRAJGcW4y1D4A5QVJJ7zjzqqKdfVHSS6NapSCC5zCTL1EHY7RpLAnW66oTvgXBQdeGUXAhELQyjRZvfNgFunjK65CEjYsqmzMuf752JDLpCqPy37CtujnfkxS4RZfP8RgaSD7xMC7pTiJrGAAKoG3d6kFg?format=match&mode=fit&width=768',
+
+    'https://images.hive.blog/768x0/https://files.peakd.com/file/peakd-hive/alanpaul07/23vsJFXW6qzS4htNSywwSMGSkzfgBzVACeoDdwUkYDxTkhSsmYTPaTPFS6CKVxE5CfocY.jpeg',
+    'https://files.peakd.com/file/peakd-hive/alanpaul07/23vsJFXW6qzS4htNSywwSMGSkzfgBzVACeoDdwUkYDxTkhSsmYTPaTPFS6CKVxE5CfocY.jpeg',
+    '23vsJFXW6qzS4htNSywwSMGSkzfgBzVACeoDdwUkYDxTkhSsmYTPaTPFS6CKVxE5CfocY',
+    'https://images.hive.blog/p/8DAuGnTQCLptZgjHUrRAJGcW4y1D4A5QVJJ7zjzqqKdfVHSS6NapSCC5zCTL1EHY7RpLAnW66pXa8MhJe8hYdapkCVAzyakmGsVWbsbrtBeU3z5oKcmnMJxrgzDgwqUkWhjgX5UdUhGcb2Lb2MTSZWpNfGR551bzHdLjpALKa2i?format=match&mode=fit&width=768',
+
+    'https://images.hive.blog/p/7DceLgR4szFwuusec1aUUGiCkRKcxKhJbpHr6K1gNaBsrnmHn6zgrH8qaYt7gGRjugCHzR4xDzWWjgtJFWJHU?format=match&mode=fit&width=1536',
+    'https://images.hive.blog/p/7DceLgR4szFwuusec1aUUGiCkRKcxKhJbpHr6K1gNaBsrnmHn6zgrH8qaYt7gGRjugCHzR4xDzWWjgtJFWJHU',
+    'https://femto.scrolller.com/safiya-darr-cexntuzfwl-645x900.jpg',
+    '7DceLgR4szFwuusec1aUUGiCkRKcxKhJbpHr6K1gNaBsrnmHn6zgrH8qaYt7gGRjugCHzR4xDzWWjgtJFWJHU',
+
+    'http://78.media.tumblr.com/a63097a857e0dd286c423ae5d7d3e2fe/tumblr_mn7hedydfx1rkapxmo1_500.gif',
+    'https://coliriodemacho.com.br/wordpress/wp-content/uploads/2020/09/minisaia-sem-calcinha-upskirt-4.jpg',
+    'https://img100.fappic.com/i/01147/9a6zs081792p_t.jpg',
+    'https://img100.fappic.com/i/01147/lgfwoc0ywxso_t.jpg',
+    'https://img100.fappic.com/i/01150/hy37fmig16kn_t.jpg',
+    'https://steemitimages.com/DQmegpdYi84A2nxTtbGEickaFXqSPgpXrLLh4VbfQ8e8BsJ/crissy.jpg',
+    'https://d1vof77qrk4l5q.cloudfront.net/img/8d053867ea357948b81924fc0c76ee5f136da305.gif',
+    'https://steemitimages.com/DQmUqwzsbq98Z4N5x3SWfLSnJjrCQQFLeqgbngju8akKvdS/12347xxxxxxxxxx.jpg',
+    'https://steemitimages.com/DQmXMKbg7qZFke1ETKhBkMLiy3sXUhuJEwLac2i4KtRmQxp/3PlVm.jpg',
+    'https://cdn.steemitimages.com/DQmXjP2urTmwGfJ8VwPCEEVbd2rHYWkEnMFiWfxydpoAL5f/02.jpg',
+    'https://img100.fappic.com/i/01147/mc50vfyqvp7l_t.jpg',
+    'https://img100.fappic.com/i/01147/21qwdgt2e1w9_t.jpg',
+    'https://img100.fappic.com/i/01150/luo6kiwny0kp_t.jpg',
+    'https://img100.fappic.com/i/01150/d2bv02ims7nn_t.jpg',
+    'https://img100.fappic.com/i/01147/4ugdpk96uqvu_t.jpg',
+    'https://img100.fappic.com/i/01147/w9642ymsw0zu_t.jpg',
+    'https://img100.fappic.com/i/01147/0g3lz2ko215o_t.jpg',
+    'https://img100.fappic.com/i/01147/qzvdwp0fygdo_t.jpg',
+    'https://img100.fappic.com/i/01147/joeftq8lficd_t.jpg',
+    'https://img100.fappic.com/i/01150/89zm70v0yg5l_t.jpg',
+    'https://img100.fappic.com/i/01150/k91f43qsz6ym_t.jpg',
+    'https://img100.fappic.com/i/01147/q5a73bszvgd5_t.jpg',
+    'https://img100.fappic.com/i/01150/of2q3jt0pixg_t.jpg',
+    'https://img100.fappic.com/i/01147/9za2abz85foy_t.jpg',
+    'https://img100.fappic.com/i/01147/qiuxgysm4chc_t.jpg',
+    'https://img100.fappic.com/i/01150/hqx1oj0bkz39_t.jpg',
+    'https://img100.fappic.com/i/01147/dh4qw54dsx4l_t.jpg',
+    'https://img100.fappic.com/i/01147/o4yjyycass31_t.jpg',
+    'https://img100.fappic.com/i/01147/1qgkhw5bnmau_t.jpg',
+    'https://img100.fappic.com/i/01150/d0rqapfpn6a7_t.jpg',
+    'https://img100.fappic.com/i/01147/9o8pisycqpgu_t.jpg',
+    'https://img100.fappic.com/i/01147/mf8ushx9d08x_t.jpg',
+    'https://img100.fappic.com/i/01147/sk5wxrvjjcq7_t.jpg',
+    'https://img100.fappic.com/i/01147/zqivkufn5cxq_t.jpg',
+    'https://img100.fappic.com/i/01147/27ky70fz9pbu_t.jpg',
+    'https://img100.fappic.com/i/01147/0s6lx5hfizjm_t.jpg',
+    'https://img100.fappic.com/i/01147/1dsery5drunx_t.jpg',
+    'https://img100.fappic.com/i/01147/pgwbfs86ejoq_t.jpg',
+    'https://img100.fappic.com/i/01147/me3thy1bniz9_t.jpg',
+    'https://img100.fappic.com/i/01147/b0um2d0r8052_t.jpg',
+    'https://img100.fappic.com/i/01147/xx9a01xsrsfg_t.jpg',
+    'https://img100.fappic.com/i/01147/oncfhs4v7xyw_t.jpg',
+    'https://img100.fappic.com/i/01147/5o197uoq7zfj_t.jpg',
+    'https://img100.fappic.com/i/01147/b9viyhqih70f_t.jpg',
+    'https://img100.fappic.com/i/01147/1gnmo0dxca6l_t.jpg',
+    'https://img100.fappic.com/i/01147/jxipvjw4wk52_t.jpg',
+    'https://img100.fappic.com/i/01147/rji60n2ubvvu_t.jpg',
+    'https://img100.fappic.com/i/01147/c4bm0fda1aka_t.jpg',
+    'https://img100.fappic.com/i/01147/j4q9rfban8p8_t.jpg',
+    'https://steemitimages.com/DQmY3qVBLz8kjemwji4L5aM1N28dfK9xgV2MajwFZkWAXJ7/grafik.png',
+    'https://images.hive.blog/p/2r8F9rJF8BjaqNYuRfKokaqfoAwLadUB7ekQruWBgdCxuG2DuM6pNc6EGxo4FxLBFskGEnrPxaEsw3M95NFua7rTh1TN3wPhGAJxTmvBGcopnCRDNuhyQYUBpwPbifn4e?format=match&mode=fit&width=768',
+    'http://78.media.tumblr.com/3ebbbb8f6cd4f82c6ca8ac90db01f49f/tumblr_oq280hLdMM1v7dt6vo1_500.jpg',
+
+    'https://images.hive.blog/p/o1AJ9qDyyJNSpZWhUgGYc3MngFqoAMeR6TJcjAo7HsavrHGZU?format=match&mode=fit&width=768',
+    'https://images.hive.blog/p/o1AJ9qDyyJNSpZWhUgGYc3MngFqoAMeR6TJcjAo7HsavrHGZU',
+    'https://img.esteem.ws/3js3jogk3w.jpg',
+
+    'https://images.hive.blog/p/7258xSVeJbKnFEnBwjKLhL15SoynbgJKpQxRUZ8n3rzgLPUBVpnu5dMm76a2gr1Q5G7RpRttY8RuJZa6zgvJSzsUpYBhzPDRpCFDJP32tGAQ2YcQt4hp5ByeqtSpC5YhTiMkMcD1UTKat?format=match&mode=fit',
+    'https://images.hive.blog/p/7258xSVeJbKnFEnBwjKLhL15SoynbgJKpQxRUZ8n3rzgLPUBVpnu5dMm76a2gr1Q5G7RpRttY8RuJZa6zgvJSzsUpYBhzPDRpCFDJP32tGAQ2YcQt4hp5ByeqtSpC5YhTiMkMcD1UTKat',
+    'https://steemitimages.com/0x0/http:/gateway.ipfs.io/ipfs/QmUpCPmamnqaiMPwRoT1rgRjPysqoRUBr3Zex8UqSCxFau',
+    'http:/gateway.ipfs.io/ipfs/QmUpCPmamnqaiMPwRoT1rgRjPysqoRUBr3Zex8UqSCxFau',
+    'QmUpCPmamnqaiMPwRoT1rgRjPysqoRUBr3Zex8UqSCxFau',
+
+    'https://images.hive.blog/p/Pufd3b1W2k6xH2Xgr2kCkZ2donxEpXa7wDMuzXNpcDH7QTxcxncr7owL?format=match&mode=fit&width=768',
+    'https://images.hive.blog/p/Pufd3b1W2k6xH2Xgr2kCkZ2donxEpXa7wDMuzXNpcDH7QTxcxncr7owL',
+    'https://i.postimg.cc/pLjTvDQs/hivebtt.png'
+]
+
+export const imageBlacklist: Blacklist = new Blacklist(initialImageBlackList, config.has('blacklist.imageBlackList') ? config.get('blacklist.imageBlackList') : undefined)
+
+const initialAccountBlacklist: string[] = [
     'mpspringer',
     'aplomb',
     'iamgod',
+    'cpcensorshiptest'
 ]
+
+export const accountBlacklist: Blacklist = new Blacklist(initialAccountBlacklist, config.has('blacklist.accountBlackList') ? config.get('blacklist.accountBlackList') : undefined)

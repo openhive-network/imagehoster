@@ -26,19 +26,34 @@ export async function legacyProxyHandler(ctx: KoaContext) {
         urlStr = urlStr.replace('steemit.com/ipfs/', 'ipfs.io/ipfs/')
         url = new URL(urlStr)
     } catch (cause) {
-        throw new APIError({cause, code: APIError.Code.InvalidProxyUrl})
+        if (cause instanceof Error) {
+            throw new APIError({cause, code: APIError.Code.InvalidProxyUrl})
+        } else {
+            throw new APIError({cause: Error('unexpected error'), code: APIError.Code.InvalidProxyUrl})
+        }
     }
 
     const options: {[key: string]: any} = {
         format: 'match',
-        mode: 'fit',
+        mode: 'fit'
     }
     if (width > 0) { options['width'] = width }
     if (height > 0) { options['height'] = height }
+
+    if (ctx.query['token']) {
+        options['token'] = ctx.query['token']
+        // Remove token from extracted URL so it doesn't affect the base58 hash
+        url.searchParams.delete('token')
+    }
 
     const qs = querystring.stringify(options)
     const b58url = multihash.toB58String(Buffer.from(url.toString()))
 
     ctx.status = 301
+    if (ctx.query['token']) {
+        ctx.set('Cache-Control', 'private,no-store')
+    } else {
+        ctx.set('Cache-Control', 'public,max-age=29030400,immutable')
+    }
     ctx.redirect(`/p/${ b58url }?${ qs }`)
 }

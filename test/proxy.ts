@@ -6,9 +6,11 @@ import * as multihash from 'multihashes'
 import * as path from 'path'
 import * as fs from 'fs'
 import * as sharp from 'sharp'
+import {URL} from 'url'
 
 import {app} from './../src/app'
 import {proxyStore, uploadStore} from './../src/common'
+import {imageBlacklist} from './../src/blacklist'
 import {storeExists, base58Enc} from './../src/utils'
 
 import {uploadImage} from './upload'
@@ -90,6 +92,49 @@ describe('proxy', function() {
         assert.equal(meta.height, 100)
         assert.equal(meta.format, 'webp')
         assert.equal(meta.space, 'srgb')
+    })
+
+    it('should block blacklisted URL with query params appended', async function() {
+        // Pick a URL from the static blacklist
+        const blacklistedUrl = 'https://i.imgur.com/0XObSlG.jpg'
+        // Verify the exact URL is blocked (Blacklisted = HTTP 451)
+        const exactUrl = base58Enc(blacklistedUrl)
+        const res1 = await needle('get', `http://localhost:${ port }/p/${ exactUrl }`)
+        assert.equal(res1.statusCode, 451)
+
+        // Verify appending query params doesn't bypass the blacklist
+        const bypassUrl = base58Enc(blacklistedUrl + '?_=1')
+        const res2 = await needle('get', `http://localhost:${ port }/p/${ bypassUrl }`)
+        assert.equal(res2.statusCode, 451)
+
+        // Verify appending fragment doesn't bypass the blacklist
+        const fragmentUrl = base58Enc(blacklistedUrl + '#bypass')
+        const res3 = await needle('get', `http://localhost:${ port }/p/${ fragmentUrl }`)
+        assert.equal(res3.statusCode, 451)
+    })
+
+    it('should block blacklisted bare hash in path segments', function() {
+        // Bare hash from the static blacklist
+        const hash = 'DQmeLKjpW89de2DqfCYxdTM4HPvUgurmpJuZYAN9SP2c9Q5'
+        // A URL containing the hash as a path segment should match
+        const url = new URL(`https://images.example.com/${ hash }/image.jpg`)
+        assert.equal(imageBlacklist.matchesUrl(url), true)
+    })
+
+    it('should not block non-blacklisted URLs', function() {
+        const url = new URL('https://example.com/totally-fine-image.jpg?_=1')
+        assert.equal(imageBlacklist.matchesUrl(url), false)
+    })
+
+    it('should not cache upstream errors', async function() {
+        this.slow(1000)
+        // Use a port where nothing is listening to get a connection refused error
+        const badUrl = base58Enc(`http://localhost:${ port+99 }/nonexistent.jpg`)
+        const res = await needle('get', `http://localhost:${ port }/p/${ badUrl }?width=100`)
+        assert.equal(res.statusCode, 400)
+        assert.equal(res.body.error.name, 'upstream_error')
+        assert.equal(res.headers['cache-control'], 'no-store',
+            'transient errors must not be cached by CDNs')
     })
 
     it('should resolve double proxied images', async function() {

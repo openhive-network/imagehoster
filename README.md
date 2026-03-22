@@ -19,6 +19,46 @@ This will pull in all dependencies and spin up a hot-reloading development serve
 Run `make lint` to run the autolinter, `make test` to run the unit tests.
 
 
+Deployment
+----------
+
+See `docker-compose.example.yml` for a production-like setup. The image is built
+by CI and pushed to `registry.gitlab.syncad.com/hive/imagehoster` with tags:
+
+  * `<commit-sha>` — every build
+  * `latest` — from the `develop` branch
+  * `stable` — from the `master` branch
+
+### Proxy whitelist
+
+The proxy endpoint can optionally restrict service to URLs that have been
+referenced on the Hive blockchain. This requires the
+[proxy-whitelist](https://gitlab.syncad.com/hive/proxy-whitelist) HAF app
+running with PostgREST. Enable it in config:
+
+```toml
+[whitelist]
+enabled = true
+apiUrl = 'https://your-api-server/proxy-whitelist-api'
+```
+
+Or via env var: `WHITELIST_API_URL=https://...`
+
+### Blacklist
+
+A dynamic blacklist file can block specific URLs and URL patterns. The file
+is hot-reloaded on change. See `blacklist.example.json` for the format:
+
+```json
+{
+  "urls": ["https://example.com/specific-image.jpg"],
+  "patterns": ["^https?://([^/]*\\.)?bad-domain\\.com/"]
+}
+```
+
+Configure the path in your config file under `blacklist.imageBlackList`.
+
+
 Configuration
 -------------
 
@@ -190,3 +230,54 @@ process.stdout.write(key.sign(imageHash).toString() + '\n')
 $ ./sign.js 5J9jN691Gf3MKdwvqWVx54drx9qub6koyA3mjhenyN12CURua8W test.jpg
 1f78d007a0b12cd17f2d349446c3f9b7cfa096ae53903a11608d6232781fb994a2086263f21e4da831d2a2b0b372f701b83042a629ba3d87791d05f393d5504db2
 ```
+
+
+Proxy auth tokens
+-----------------
+
+When the proxy whitelist is enabled, images not yet referenced on the blockchain are blocked. To allow editor previews of not-yet-published images, a client can obtain a short-lived auth token by proving ownership of a Hive posting key.
+
+#### `POST /proxy-auth/<username>/<signature>` - obtain a proxy auth token.
+
+The request body must be JSON containing a `timestamp` field (milliseconds since epoch). The timestamp must be within 5 minutes of the server's clock.
+
+The signature is over a challenge string (pseudocode):
+
+```python
+challenge = 'Authorize image proxy preview for ' + username + ' at ' + iso8601(timestamp)
+signature = secp256k1_sign(sha256(challenge), account_private_posting_key)
+```
+
+Creating a signature (node.js & [dhive](https://github.com/openhive-network/dhive)):
+
+```js
+const dhive = require('@hiveio/dhive')
+const crypto = require('crypto')
+
+const username = 'alice'
+const timestamp = Date.now()
+const challenge = `Authorize image proxy preview for ${username} at ${new Date(timestamp).toISOString()}`
+const challengeHash = crypto.createHash('sha256').update(challenge).digest()
+
+const key = dhive.PrivateKey.fromString(postingWif)
+const signature = key.sign(challengeHash).toString()
+
+// POST /proxy-auth/alice/<signature> with body: {"timestamp": <timestamp>}
+```
+
+Returns a JSON object:
+
+```json
+{
+    "token": "<hex_token>",
+    "expires_in": 1800
+}
+```
+
+The token is valid for 30 minutes. Pass it as a `token` query parameter on proxy requests to bypass the whitelist:
+
+```
+https://images.example.com/p/<b58_image_url>?token=<hex_token>
+```
+
+The same account requirements apply as for uploads: the account must not be blacklisted and must meet the minimum reputation threshold.

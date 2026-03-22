@@ -1,6 +1,6 @@
 /** Uploads file to blob store. */
 
-import {Client, Signature} from '@hiveio/dhive'
+import {Signature} from '@hiveio/dhive'
 import * as Busboy from 'busboy'
 import * as config from 'config'
 import {createHash} from 'crypto'
@@ -8,11 +8,10 @@ import {createHash} from 'crypto'
 import * as hivesigner from 'hivesigner'
 import * as http from 'http'
 import * as multihash from 'multihashes'
-import * as RateLimiter from 'ratelimiter'
 import {URL} from 'url'
 
 import {accountBlacklist} from './blacklist'
-import {KoaContext, redisClient, rpcClient, uploadStore} from './common'
+import {ensureRedis, getKeyNameFromHash, KoaContext, rpcClient, uploadStore} from './common'
 import {APIError} from './error'
 import {readStream, storeExists, storeWrite} from './utils'
 
@@ -36,7 +35,7 @@ async function parseMultipart(request: http.IncomingMessage) {
             headers: request.headers,
             limits: {
                 files: 1,
-                fileSize: MAX_IMAGE_SIZE,
+                fileSize: MAX_IMAGE_SIZE
             }
         })
         form.on('file', (field, stream, name, encoding, mime) => {
@@ -58,29 +57,43 @@ interface RateLimit {
 
 /**
  * Get ratelimit info for account name.
+ * Uses a sorted-set sliding window algorithm (same approach as ratelimiter v3).
  */
-async function getRatelimit(account: string) {
-    return new Promise<RateLimit>((resolve, reject) => {
-        if (!redisClient) {
-            throw new Error('Redis not configured')
-        }
-        const limit = new RateLimiter({
-            db: redisClient,
-            duration: UPLOAD_LIMITS.duration,
-            id: account,
-            max: UPLOAD_LIMITS.max,
-        })
-        limit.get((error, result) => {
-            if (error) {
-                reject(error)
-            } else {
-                resolve(result)
-            }
-        })
-    })
+async function getRatelimit(account: string): Promise<RateLimit> {
+    const client = await ensureRedis()
+    if (!client) {
+        throw new Error('Redis not configured')
+    }
+
+    const key = `limit:${account}`
+    const max = UPLOAD_LIMITS.max as number
+    const duration = UPLOAD_LIMITS.duration as number
+    const now = Date.now()
+    const start = now - duration
+    const member = `${now}:${Math.random().toString(36).slice(2, 8)}`
+
+    const results = await client.multi()
+        .zRemRangeByScore(key, 0, start)
+        .zAdd(key, {score: now, value: member})
+        .zCard(key)
+        .zRange(key, 0, 0)
+        .pExpire(key, duration)
+        .exec()
+
+    const count = results[2] as number
+    const oldest = results[3] as string[]
+    const resetTime = oldest.length > 0
+        ? Math.ceil(Number(oldest[0].split(':')[0]) / 1000) + Math.ceil(duration / 1000)
+        : Math.ceil(now / 1000) + Math.ceil(duration / 1000)
+
+    return {
+        remaining: Math.max(0, max - count),
+        reset: resetTime,
+        total: max
+    }
 }
 const b64uLookup: Record<string, string> = {
-    '/': '_', '_': '/', '+': '-', '-': '+', '=': '.', '.': '=',
+    '/': '_', '_': '/', '+': '-', '-': '+', '=': '.', '.': '='
 }
 function b64uToB64(str: string) {
     const tt = str.replace(/(-|_|\.)/g, (m) => b64uLookup[m])
@@ -95,21 +108,21 @@ export async function uploadHsHandler(ctx: KoaContext) {
     APIError.assert(ctx.method === 'POST', {code: APIError.Code.InvalidMethod})
     APIError.assertParams(ctx.params, ['accesstoken'])
     APIError.assert(ctx.get('content-type').includes('multipart/form-data'),
-                    {message: 'Only multipart uploads are supported'})
+        {message: 'Only multipart uploads are supported'})
     const contentLength = Number.parseInt(ctx.get('content-length'))
 
     APIError.assert(Number.isFinite(contentLength),
-                    APIError.Code.LengthRequired)
+        APIError.Code.LengthRequired)
 
     APIError.assert(contentLength <= MAX_IMAGE_SIZE,
-                    APIError.Code.PayloadTooLarge)
+        APIError.Code.PayloadTooLarge)
 
     const file = await parseMultipart(ctx.req)
     const data = await readStream(file.stream)
 
     // extra check if client manges to lie about the content-length
     APIError.assert((file.stream as any).truncated !== true,
-                    APIError.Code.PayloadTooLarge)
+        APIError.Code.PayloadTooLarge)
 
     const imageHash = createHash('sha256')
         .update('ImageSigningChallenge')
@@ -117,87 +130,103 @@ export async function uploadHsHandler(ctx: KoaContext) {
         .digest()
 
     const token = ctx.params['accesstoken']
-    const decoded = Buffer.from(b64uToB64(token), 'base64').toString()
-    const tokenObj = JSON.parse(decoded)
+    let tokenObj: any
+    try {
+        const decoded = Buffer.from(b64uToB64(token), 'base64').toString()
+        tokenObj = JSON.parse(decoded)
+    } catch (error) {
+        throw new APIError({code: APIError.Code.InvalidSignature, message: 'Invalid access token'})
+    }
+
     const signedMessage = tokenObj.signed_message
-    if (
-        tokenObj.authors
-        && tokenObj.authors[0]
-        && tokenObj.signatures
-        && tokenObj.signatures[0]
-        && signedMessage
-        && signedMessage.type
-        && ['login', 'posting', 'offline', 'code', 'refresh']
-        .includes(signedMessage.type)
-        && signedMessage.app
-    ) {
+    APIError.assert(
+        Array.isArray(tokenObj.authors) && typeof tokenObj.authors[0] === 'string',
+        {code: APIError.Code.InvalidSignature, message: 'Token missing authors'}
+    )
+    APIError.assert(
+        Array.isArray(tokenObj.signatures) && typeof tokenObj.signatures[0] === 'string',
+        {code: APIError.Code.InvalidSignature, message: 'Token missing signatures'}
+    )
+    APIError.assert(
+        signedMessage && typeof signedMessage === 'object',
+        {code: APIError.Code.InvalidSignature, message: 'Token missing signed_message'}
+    )
+    APIError.assert(
+        signedMessage.type && ['login', 'posting', 'offline', 'code', 'refresh'].includes(signedMessage.type),
+        {code: APIError.Code.InvalidSignature, message: 'Invalid token type'}
+    )
+    APIError.assert(
+        signedMessage.app && typeof signedMessage.app === 'string',
+        {code: APIError.Code.InvalidSignature, message: 'Token missing app'}
+    )
 
-        const username = tokenObj.authors[0]
+    const username = tokenObj.authors[0]
 
-        let account = {
-            name: '',
-            reputation: 0,
-        }
-        const cl = new hivesigner.Client({
-            app: UPLOAD_LIMITS.app_account,
-            accessToken: token,
-        })
+    const cl = new hivesigner.Client({
+        app: UPLOAD_LIMITS.app_account,
+        accessToken: token
+    })
 
-        await cl.me((err: any, res: any) => {
-            if (!err && res) {
-                account = res.account
-                APIError.assert(account, APIError.Code.NoSuchAccount)
+    let meResponse: any
+    try {
+        meResponse = await cl.me()
+    } catch (error) {
+        ctx.log.error(error, 'HiveSigner API error')
+        throw new APIError({code: APIError.Code.InvalidSignature, message: 'Token verification failed'})
+    }
 
-                ctx.log.warn('uploading app %s', signedMessage.app)
-                APIError.assert(username === account.name, APIError.Code.InvalidSignature)
-                APIError.assert(signedMessage.app === UPLOAD_LIMITS.app_account, APIError.Code.InvalidSignature)
-                APIError.assert(res.scope.includes('comment'), APIError.Code.InvalidSignature)
+    APIError.assert(meResponse && meResponse.account, APIError.Code.NoSuchAccount)
+    const account = meResponse.account
 
-                if (account && account.name) {
-                    ['posting', 'active', 'owner'].forEach((type) => {
-                        // @ts-ignore
-                        // tslint:disable-next-line:no-shadowed-variable
-                        account[type].account_auths.forEach((key: string[]) => {
-                        if (
-                          !validSignature
-                          && key[0] === UPLOAD_LIMITS.app_account
-                        ) {
-                          validSignature = true
-                        }
-                      })
-                    })
+    ctx.log.warn('uploading app %s', signedMessage.app)
+    APIError.assert(username === account.name, APIError.Code.InvalidSignature)
+    APIError.assert(signedMessage.app === UPLOAD_LIMITS.app_account, APIError.Code.InvalidSignature)
+    APIError.assert(meResponse.scope && meResponse.scope.includes('comment'), APIError.Code.InvalidSignature)
+
+    if (account && account.name) {
+        for (const type of ['posting', 'active'] as const) {
+            // @ts-ignore
+            const authority = account[type]
+            if (authority && Array.isArray(authority.account_auths)) {
+                for (const auth of authority.account_auths) {
+                    if (Array.isArray(auth) && auth[0] === UPLOAD_LIMITS.app_account) {
+                        validSignature = true
+                        break
+                    }
                 }
             }
-        })
-
-        APIError.assert(validSignature, APIError.Code.InvalidSignature)
-        APIError.assert(!accountBlacklist.includes(account.name), APIError.Code.Blacklisted)
-
-        let limit: RateLimit = {total: 0, remaining: Infinity, reset: 0}
-        try {
-            limit = await getRatelimit(account.name)
-        } catch (error) {
-            ctx.log.warn(error, 'unable to enforce upload rate limits')
+            if (validSignature) { break }
         }
-
-        APIError.assert(limit.remaining > 0, APIError.Code.QoutaExceeded)
-
-        APIError.assert(repLog10(account.reputation) >= UPLOAD_LIMITS.reputation, APIError.Code.Deplorable)
-
-        const key = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
-        const url = new URL(`${ key }/${ file.name }`, SERVICE_URL)
-
-        if (!(await storeExists(uploadStore, key))) {
-            await storeWrite(uploadStore, key, data)
-        } else {
-            ctx.log.debug('key %s already exists in store', key)
-        }
-
-        ctx.log.info({uploader: account.name, size: data.byteLength}, 'image uploaded')
-
-        ctx.status = 200
-        ctx.body = {url}
     }
+
+    APIError.assert(validSignature, APIError.Code.InvalidSignature)
+    APIError.assert(!accountBlacklist.includes(account.name), APIError.Code.Blacklisted)
+
+    let limit: RateLimit = {total: 0, remaining: Infinity, reset: 0}
+    try {
+        limit = await getRatelimit(account.name)
+    } catch (error) {
+        ctx.log.warn(error, 'unable to enforce upload rate limits')
+    }
+
+    APIError.assert(limit.remaining > 0, APIError.Code.QoutaExceeded)
+
+    APIError.assert(repLog10(account.reputation) >= UPLOAD_LIMITS.reputation, APIError.Code.Deplorable)
+
+    const contentHash = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
+    const url = new URL(`${ contentHash }/${ file.name }`, SERVICE_URL)
+    const keyName = getKeyNameFromHash(contentHash)
+
+    if (!(await storeExists(uploadStore, keyName))) {
+        await storeWrite(uploadStore, keyName, data)
+    } else {
+        ctx.log.debug('key %s already exists in store', keyName)
+    }
+
+    ctx.log.info({uploader: account.name, size: data.byteLength}, 'image uploaded')
+
+    ctx.status = 200
+    ctx.body = {url}
 }
 
 /** Handling upload by signing image checksum */
@@ -211,7 +240,10 @@ export async function uploadCsHandler(ctx: KoaContext) {
     try {
         signature = Signature.fromString(ctx.params['signature'])
     } catch (cause) {
-        throw new APIError({code: APIError.Code.InvalidSignature, cause})
+        if (!(cause instanceof Error)) {
+            cause = Error('unexpected error')
+        }
+        throw new APIError({code: APIError.Code.InvalidSignature, cause : cause as Error})
     }
 
     APIError.assert(ctx.get('content-type').includes('multipart/form-data'),
@@ -255,7 +287,10 @@ export async function uploadCsHandler(ctx: KoaContext) {
     try {
         publicKey = signature.recover(expectedSignature).toString()
     } catch (cause) {
-        throw new APIError({code: APIError.Code.InvalidSignature, cause})
+        if (!(cause instanceof Error)) {
+            cause = Error('unexpected error')
+        }
+        throw new APIError({code: APIError.Code.InvalidSignature, cause : cause as Error})
     }
 
     const thresholdPosting = account.posting.weight_threshold
@@ -288,13 +323,14 @@ export async function uploadCsHandler(ctx: KoaContext) {
 
     APIError.assert(repLog10(account.reputation) >= UPLOAD_LIMITS.reputation, APIError.Code.Deplorable)
 
-    const key = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
-    const url = new URL(`${ key }/${ file.name }`, SERVICE_URL)
+    const contentHash = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
+    const url = new URL(`${ contentHash }/${ file.name }`, SERVICE_URL)
+    const keyName = getKeyNameFromHash(contentHash)
 
-    if (!(await storeExists(uploadStore, key))) {
-        await storeWrite(uploadStore, key, fileData)
+    if (!(await storeExists(uploadStore, keyName))) {
+        await storeWrite(uploadStore, keyName, fileData)
     } else {
-        ctx.log.debug('key %s already exists in store', key)
+        ctx.log.debug('key %s already exists in store', keyName)
     }
 
     ctx.log.info({uploader: account.name, size: fileData.byteLength}, 'image uploaded')
@@ -314,25 +350,28 @@ export async function uploadHandler(ctx: KoaContext) {
     try {
         signature = Signature.fromString(ctx.params['signature'])
     } catch (cause) {
-        throw new APIError({code: APIError.Code.InvalidSignature, cause})
+        if (!(cause instanceof Error)) {
+            cause = Error('unexpected error')
+        }
+        throw new APIError({code: APIError.Code.InvalidSignature, cause : cause as Error})
     }
 
     APIError.assert(ctx.get('content-type').includes('multipart/form-data'),
-                    {message: 'Only multipart uploads are supported'})
+        {message: 'Only multipart uploads are supported'})
 
     const contentLength = Number.parseInt(ctx.get('content-length'))
 
     APIError.assert(Number.isFinite(contentLength),
-                    APIError.Code.LengthRequired)
+        APIError.Code.LengthRequired)
 
     APIError.assert(contentLength <= MAX_IMAGE_SIZE,
-                    APIError.Code.PayloadTooLarge)
+        APIError.Code.PayloadTooLarge)
     const file = await parseMultipart(ctx.req)
     const data = await readStream(file.stream)
 
     // extra check if client manges to lie about the content-length
     APIError.assert((file.stream as any).truncated !== true,
-                    APIError.Code.PayloadTooLarge)
+        APIError.Code.PayloadTooLarge)
 
     const imageHash = createHash('sha256')
         .update('ImageSigningChallenge')
@@ -347,7 +386,10 @@ export async function uploadHandler(ctx: KoaContext) {
     try {
         publicKey = signature.recover(imageHash).toString()
     } catch (cause) {
-        throw new APIError({code: APIError.Code.InvalidSignature, cause})
+        if (!(cause instanceof Error)) {
+            cause = Error('unexpected error')
+        }
+        throw new APIError({code: APIError.Code.InvalidSignature, cause : cause as Error})
     }
     const thresholdPosting = account.posting.weight_threshold
     for (const auth of account.posting.key_auths) {
@@ -379,13 +421,14 @@ export async function uploadHandler(ctx: KoaContext) {
 
     APIError.assert(repLog10(account.reputation) >= UPLOAD_LIMITS.reputation, APIError.Code.Deplorable)
 
-    const key = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
-    const url = new URL(`${ key }/${ file.name }`, SERVICE_URL)
+    const contentHash = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
+    const url = new URL(`${ contentHash }/${ file.name }`, SERVICE_URL)
+    const keyName = getKeyNameFromHash(contentHash)
 
-    if (!(await storeExists(uploadStore, key))) {
-        await storeWrite(uploadStore, key, data)
+    if (!(await storeExists(uploadStore, keyName))) {
+        await storeWrite(uploadStore, keyName, data)
     } else {
-        ctx.log.debug('key %s already exists in store', key)
+        ctx.log.debug('key %s already exists in store', keyName)
     }
 
     ctx.log.info({uploader: account.name, size: data.byteLength}, 'image uploaded')
@@ -399,7 +442,7 @@ export async function uploadHandler(ctx: KoaContext) {
  * HERE BE DRAGONS
  */
 function repLog10(rep2: any) {
-    if (rep2 == null) { return rep2 } // tslint:disable-line:triple-equals
+    if (rep2 == null) { return rep2 } // eslint-disable-line eqeqeq
     let rep = String(rep2)
     const neg = rep.charAt(0) === '-'
     rep = neg ? rep.substring(1) : rep
@@ -410,7 +453,7 @@ function repLog10(rep2: any) {
     out = (neg ? -1 : 1) * out
     out = (out * 9) + 25 // 9 points per magnitude. center at 25
     // base-line 0 to darken and < 0 to auto hide (grep rephide)
-    out = parseInt(out + '') // tslint:disable-line:radix
+    out = parseInt(out + '')
     return out
 }
 
@@ -419,8 +462,8 @@ function repLog10(rep2: any) {
  * Warning: Math.log10(0) === NaN
  */
 function log10(str: string) {
-    const leadingDigits = parseInt(str.substring(0, 4)) // tslint:disable-line:radix
+    const leadingDigits = parseInt(str.substring(0, 4))
     const log = Math.log(leadingDigits) / Math.log(10)
     const n = str.length - 1
-    return n + (log - parseInt(log + '')) // tslint:disable-line:radix
+    return n + (log - parseInt(log + ''))
 }

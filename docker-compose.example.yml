@@ -1,0 +1,51 @@
+# Example production docker-compose for imagehoster.
+# Copy to docker-compose.yml and adjust for your environment.
+#
+# Required files alongside this compose:
+#   .env              - IMAGEHOSTER_TAG (image tag to deploy)
+#   production.toml   - app config (mounted as /app/config/production.toml)
+#   blacklist.json    - dynamic blacklist (see blacklist.example.json)
+#   imagehoster.env   - container env vars (e.g. PORT=8800)
+
+services:
+  imagehoster:
+    image: ${IMAGEHOSTER_IMAGE:-registry.gitlab.syncad.com/hive/imagehoster}:${IMAGEHOSTER_TAG:-latest}
+    container_name: imagehoster
+    restart: unless-stopped
+    user: "1001:1001"
+    ports:
+      - "127.0.0.1:8800:8800"
+    env_file:
+      - imagehoster.env
+    volumes:
+      - ./production.toml:/app/config/production.toml:ro
+      - ./blacklist.json:/app/config/blacklist.json:ro
+      # S3 credentials if using S3 storage:
+      # - ./aws-credentials:/root/.aws/credentials:ro
+      # Filesystem storage paths if using fs storage:
+      # - /storage/uploads:/storage/uploads
+      # - /storage/proxy:/storage/proxy
+    tmpfs:
+      - /tmp
+    logging:
+      options:
+        max-size: "100m"
+        max-file: "5"
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    command: >-
+      redis-server
+      --save ""
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    logging:
+      options:
+        max-size: "50m"
+        max-file: "3"

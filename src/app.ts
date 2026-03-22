@@ -1,6 +1,7 @@
 import * as cors from '@koa/cors'
 import * as Bunyan from 'bunyan'
-import * as cluster from 'cluster'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const cluster = require('cluster')
 import * as config from 'config'
 import * as http from 'http'
 import * as Koa from 'koa'
@@ -33,9 +34,16 @@ app.on('error', (error, ctx: KoaContext) => {
 
 app.use(loggerMiddleware as any)
 app.use(errorMiddleware as any)
-app.use(cors())
+app.use(async (ctx, next) => {
+    ctx.set('X-Content-Type-Options', 'nosniff')
+    await next()
+})
+app.use(cors({
+    allowMethods: ['GET', 'POST', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization']
+}))
 app.use(routes)
-app.use((ctx: Koa.Context) => {
+app.use((_ctx: Koa.Context) => {
     throw new APIError({code: APIError.Code.NotFound})
 })
 
@@ -45,7 +53,7 @@ async function main() {
     }
 
     const server = http.createServer(app.callback())
-    const listen = util.promisify(server.listen).bind(server)
+    const listen: any = util.promisify(server.listen).bind(server)
     const close = util.promisify(server.close).bind(server)
 
     let numWorkers = Number.parseInt(config.get('num_workers'))

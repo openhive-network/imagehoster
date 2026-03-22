@@ -1,4 +1,4 @@
-FROM node:18-alpine as build-stage
+FROM registry.gitlab.syncad.com/hive/imagehoster/node:20-alpine as build-stage
 
 WORKDIR /app
 
@@ -14,7 +14,6 @@ RUN apk add \
 
 RUN apk add \
     --no-cache \
-    --repository https://dl-3.alpinelinux.org/alpine/edge/testing/ \
     vips-dev
 
 # install application dependencies
@@ -31,12 +30,11 @@ RUN make lib ci-test
 RUN yarn install --non-interactive --frozen-lockfile --production
 
 # copy built application to runtime image
-FROM node:18-alpine
+FROM registry.gitlab.syncad.com/hive/imagehoster/node:20-alpine
 WORKDIR /app
 RUN apk add \
     --no-cache \
-    --repository https://alpine.global.ssl.fastly.net/alpine/v3.10/community \
-    fftw vips
+    fftw vips vips-cpp
 COPY --from=build-stage /app/config config
 COPY --from=build-stage /app/lib lib
 COPY --from=build-stage /app/node_modules node_modules
