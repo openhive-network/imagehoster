@@ -11,7 +11,7 @@ test:
   stage: test
   image: registry.gitlab.syncad.com/hive/imagehoster/node:20-alpine
   before_script:
-    - apk add --no-cache bash build-base fftw-dev git make py-pip vips-dev
+    - apk add --no-cache bash build-base fftw-dev git make py-pip vips-dev vips-heif
     - yarn install --non-interactive --frozen-lockfile
   script:
     - make lib ci-test
