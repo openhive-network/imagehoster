@@ -14,7 +14,8 @@ RUN apk add \
 
 RUN apk add \
     --no-cache \
-    vips-dev
+    vips-dev \
+    vips-heif
 
 # install application dependencies
 COPY package.json yarn.lock ./
@@ -34,7 +35,7 @@ FROM registry.gitlab.syncad.com/hive/imagehoster/node:20-alpine
 WORKDIR /app
 RUN apk add \
     --no-cache \
-    fftw vips vips-cpp
+    fftw vips vips-cpp vips-heif
 COPY --from=build-stage /app/config config
 COPY --from=build-stage /app/lib lib
 COPY --from=build-stage /app/node_modules node_modules
