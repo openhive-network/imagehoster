@@ -274,7 +274,7 @@ export async function proxyHandler(ctx: KoaContext) {
                 return
             }
             if (urlStatus === 'unknown') {
-                ctx.status = 451
+                ctx.status = 403
                 ctx.set('Cache-Control', 'no-cache, no-store')
                 proxyHandlerSpan.finish()
                 return
