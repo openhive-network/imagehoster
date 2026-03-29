@@ -16,6 +16,7 @@ import {imageBlacklist} from './blacklist'
 import {getKeyNameFromHash, KoaContext, proxyStore, uploadStore} from './common'
 import {APIError} from './error'
 import {assertPublicUrl, base58Dec, mimeMagic, readStream, storeExists, storeWrite} from './utils'
+import {domainAllowlist} from './allowlist'
 import {checkUrl, validateProxyAuthToken} from './whitelist'
 
 let tracer: opentracing.Tracer
@@ -251,7 +252,8 @@ export async function proxyHandler(ctx: KoaContext) {
 
     // Whitelist check: only serve proxy requests for URLs referenced on the blockchain
     let tokenBypassed = false
-    if (!origIsUpload) {
+    const domainAllowed = !origIsUpload && domainAllowlist.matchesDomain(url)
+    if (!origIsUpload && !domainAllowed) {
         // Check for editor preview auth token (bypasses whitelist)
         const token = ctx.query['token'] as string | undefined
         let tokenValid = false

@@ -62,6 +62,11 @@ enabled = false
 # apiUrl = 'http://localhost:7015'  # PostgREST API for whitelist checks
 
 
+# domain allowlist: bypass whitelist check for URLs on these domains
+# (YouTube thumbnail CDNs are hardcoded; this file adds extras)
+[allowlist]
+# domainAllowList = 'allowlist.json'
+
 # where to keep proxied images
 [proxy_store]
 type = 'memory'
