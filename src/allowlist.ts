@@ -52,7 +52,7 @@ class DomainAllowlist {
 /** YouTube thumbnail CDNs — URLs are synthesized client-side from video links. */
 const defaultAllowedDomains: string[] = [
     'img.youtube.com',
-    'i.ytimg.com',
+    'i.ytimg.com'
 ]
 
 export const domainAllowlist = new DomainAllowlist(
