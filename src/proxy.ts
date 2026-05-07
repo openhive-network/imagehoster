@@ -369,12 +369,22 @@ export async function proxyHandler(ctx: KoaContext) {
     }
 
     let rv: Buffer
-    if (contentType === 'image/gif' &&
+    const isGifOriginalPassthrough = (
+        contentType === 'image/gif' &&
         options.width === undefined &&
         options.height === undefined &&
         options.format === OutputFormat.Match &&
         options.mode === ScalingMode.Fit
-    ) {
+    )
+    // Pass through AVIF when the client isn't asking for a different output
+    // format. Sharp would otherwise re-encode via libaom, which is ~10-50x
+    // slower than JPEG/WebP. Width/height hints are ignored in this path —
+    // AVIF sources typically arrive already sized by their upstream.
+    const isAvifPassthrough = (
+        contentType === 'image/avif' &&
+        options.format === OutputFormat.Match
+    )
+    if (isGifOriginalPassthrough || isAvifPassthrough) {
         // pass trough gif if requested with original size
         // this is needed since resizing gifs creates still images
         rv = origData
