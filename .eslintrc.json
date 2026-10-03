@@ -29,5 +29,5 @@
     "@typescript-eslint/ban-ts-comment": "off",
     "prefer-const": "warn"
   },
-  "ignorePatterns": ["lib/", "node_modules/"]
+  "ignorePatterns": ["lib/", "node_modules/", ".aidev-dir-lease/"]
 }

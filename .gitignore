@@ -4,3 +4,4 @@ reports/
 .nyc_output/
 config/local*
 test-results/
+.aidev-dir-lease/
