@@ -97,7 +97,9 @@ describe('proxy-auth', function() {
             json: false,
             headers: {'Content-Type': 'application/json'}
         })
-        assert.equal(res.statusCode, 401)
+        assert.equal(res.statusCode, 400)
+        const body = typeof res.body === 'string' ? JSON.parse(res.body) : res.body
+        assert.equal(body.error.name, 'invalid_signature')
     })
 
 })
