@@ -49,9 +49,42 @@ context="$(mktemp -d)"
 trap 'rm -rf "$context"' EXIT
 cp package.json yarn.lock "$context/"
 
-# The FROM is digest-pinned, so no --pull. buildx so it works with any builder (CI's docker-container builder keeps no local
-# image); no provenance, so the pushed digest is a plain image manifest.
-build=(docker buildx build --provenance=false -f .aidev/runtime/Dockerfile -t "$REPOSITORY:$TAG")
+# The buildx builder that fetches registry.gitlab.syncad.com through the region's
+# image cache (:5001), so FROM stays canonical and the build doesn't compete for
+# the uplink (aidev's `aidev project scaffold` snippet, docs/operations/
+# onboarding-an-external-project.md "Images"). AIDEV_IMAGE_CACHE_BY_REGION
+# (region=host:port,...) replaces the default map. Prints the builder name, or
+# nothing when no cache serves this host's region.
+region_builder() {
+    local cache_map="${AIDEV_IMAGE_CACHE_BY_REGION:-pl=session24.pl.syncad.com:5001,us=steem-17.syncad.com:5001}"
+    local region=us label entry cache="" builder config
+    for label in $( (hostname -f 2>/dev/null || hostname) | tr 'A-Z.' 'a-z '); do
+        for entry in ${cache_map//,/ }; do
+            if [ "${entry%%=*}" = "$label" ]; then region="$label"; fi
+        done
+    done
+    for entry in ${cache_map//,/ }; do
+        if [ "${entry%%=*}" = "$region" ]; then cache="${entry#*=}"; fi
+    done
+    if [ -z "$cache" ]; then
+        echo "no image cache serves region $region; building straight from registry.gitlab.syncad.com" >&2
+        return
+    fi
+    builder="aidev-region-build-${cache//[.:]/-}"
+    if ! docker buildx inspect "$builder" >/dev/null 2>&1; then
+        config="$(mktemp)"
+        printf '[registry."%s"]\n  mirrors = ["%s"]\n\n[registry."%s"]\n  http = true\n  insecure = true\n' \
+            "registry.gitlab.syncad.com" "$cache" "$cache" >"$config"
+        docker buildx create --name "$builder" --driver docker-container --config "$config" >/dev/null
+        rm -f "$config"
+    fi
+    echo "$builder"
+}
+builder="$(region_builder)"
+
+# The FROM is digest-pinned, so no --pull. No provenance, so the pushed digest is a
+# plain image manifest.
+build=(docker buildx build ${builder:+--builder "$builder"} --provenance=false -f .aidev/runtime/Dockerfile -t "$REPOSITORY:$TAG")
 if [ "${1:-}" != "--push" ]; then
     "${build[@]}" --load "$context" >&2
     echo "$REPOSITORY:$TAG"
