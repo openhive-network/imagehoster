@@ -54,6 +54,15 @@ test/
 └── test.jpg            # Test fixture
 ```
 
+## Working in an AIDEV workflow
+When AIDEV runs you on an issue, no one is there to answer questions. GitLab CI doesn't run for AIDEV branches; the checks below are the verification.
+
+- **Check your change:** run `aidev test run --slot quick` once, after your last edit. It runs `eslint src/`, `tsc --noEmit` and the mocha suite under nyc (what `make ci-test` runs). `--slot full` adds the `(requires Redis)` tests against a local redis-server, `make lib`, and a boot of `node lib/app.js` that checks the healthcheck answers.
+- **Iterate:** `.aidev/run-checks.sh dev test` (or `lint` / `typecheck` / `redis` / `build` / `smoke`) runs one step; results land in `test-results/dev/`.
+- **Package manager:** yarn 1 (`yarn.lock`), not npm or pnpm. The suites run offline, so don't add a dependency without updating `yarn.lock`.
+- **Dependencies:** a change to `package.json` dependencies or `yarn.lock` needs a new test image. Run `.aidev/runtime/build.sh --push` and put the printed reference in `.aidev/project.yaml` `environment.image` in the same commit (see `.aidev/README.md`).
+- **Not covered by the slots:** the S3 blob store, the whitelist's PostgREST lookup, and `docker build` of the production `Dockerfile`. Say so in the issue if your change touches them.
+
 ## Development Commands
 
 ```bash

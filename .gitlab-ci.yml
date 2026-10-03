@@ -2,6 +2,20 @@ stages:
   - test
   - build
 
+# Branch pipelines, except for AIDEV-driven development: ai/<issue>-...,
+# session/<name> and aidev/integration are verified by the suites in
+# .aidev/project.yaml, not by CI. A push to aidev/integration runs no pipeline;
+# one started by hand or through the API does (`glab ci run -b aidev/integration`),
+# which is how its MR into develop gets a pipeline.
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(ai|session)\//
+      when: never
+    - if: $CI_COMMIT_BRANCH == "aidev/integration" && $CI_PIPELINE_SOURCE !~ /^(web|api)$/
+      when: never
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH
+
 include:
   - project: 'hive/common-ci-configuration'
     ref: develop

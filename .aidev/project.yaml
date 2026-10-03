@@ -1,0 +1,79 @@
+# Profile for hive/imagehoster, written by `aidev project scaffold` (#13561).
+#
+# Schema reference: docs/architecture/project-profile.md
+# Onboarding procedure: the `onboard-external-project` skill.
+# Guide: docs/operations/onboarding-an-external-project.md
+#
+# The generator writes a starting point, not a governed answer: every
+# binding below is the command a maintainer said this project runs, and it
+# is reviewed and edited like any other declaration.
+version: 2
+project: imagehoster
+
+gitlab:
+  host: "gitlab.syncad.com"
+  path: "hive/imagehoster"
+  id: 212
+
+# A single-branch topology: this is both what work integrates into and what
+# ships. `stable` is omitted rather than declared equal to it — declaring
+# them equal is a typo, omitting one is a topology. Add `stable:` when this
+# project genuinely promotes to a second branch.
+# AIDEV integrates into its own branch; people merge it into develop through
+# merge requests (as in hive/denser), so `stable` is omitted and `aidev release`
+# never moves develop or master.
+branches:
+  integration: "aidev/integration"
+
+# How this project's suites execute (#13892): one kind, stated once.
+environment:
+  kind: "container"
+  image: "registry.gitlab.syncad.com/hive/imagehoster/aidev-tests@sha256:276783235304aa36edfa790bacce131a56cb0e9bb76ac3e6c67cbe202eff6927"
+  inputs: ["yarn.lock"]
+
+issues:
+  intake_label: todo
+  taxonomy: ".aidev/labels.yaml"
+  decompose:
+    # `never` is where an external project starts: nothing marks work
+    # approved on this project's behalf until there is a track record.
+    auto_todo: never
+  # Reports about this project's work are filed against this project.
+  watcher_reports: self
+
+# Verification slots. Each binding is what this project genuinely runs for
+# that slot — never one selection repeated under seven names, which makes
+# seven gates report on the same evidence while claiming to check seven
+# different things.
+verification:
+  quick:
+    adapter: command
+    args: [".aidev/run-checks.sh", "quick", "lint", "typecheck", "test"]
+    artifacts: ["test-results/quick/"]
+  full:
+    adapter: command
+    args: [".aidev/run-checks.sh", "full", "lint", "typecheck", "test", "redis", "build", "smoke"]
+    artifacts: ["test-results/full/"]
+  baseline:
+    adapter: command
+    args: [".aidev/run-checks.sh", "baseline", "test"]
+    artifacts: ["test-results/baseline/"]
+  canary:
+    adapter: command
+    args: [".aidev/run-checks.sh", "canary", "lint", "typecheck", "test", "redis", "build", "smoke"]
+    artifacts: ["test-results/canary/"]
+  static:
+    adapter: command
+    args: [".aidev/run-checks.sh", "static", "lint", "typecheck"]
+    artifacts: ["test-results/static/"]
+  coverage:
+    adapter: command
+    args: [".aidev/run-checks.sh", "coverage", "test"]
+    artifacts: ["test-results/coverage/"]
+  system:
+    adapter: command
+    args: [".aidev/run-checks.sh", "system", "build", "smoke", "redis"]
+    artifacts: ["test-results/system/"]
+
+# Capability grants for target-side code. Empty until this project needs one.
+capabilities: []
