@@ -13,7 +13,7 @@ Serves `images.hive.blog`.
 
 ## Tech Stack
 
-- **Runtime:** Node.js 18+ (TypeScript)
+- **Runtime:** Node.js 24 LTS (24.21.0, TypeScript)
 - **Framework:** Koa v2 with koa-router, async/await
 - **Image Processing:** Sharp (libvips-based) — resize, format conversion, quality control
 - **Storage:** Abstract blob store (S3 in production, fs or memory for dev)
