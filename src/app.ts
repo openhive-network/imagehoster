@@ -48,7 +48,7 @@ app.use((_ctx: Koa.Context) => {
 })
 
 async function main() {
-    if (cluster.isMaster) {
+    if (cluster.isPrimary) {
         logger.info({version}, 'starting service')
     }
 
@@ -60,9 +60,9 @@ async function main() {
     if (numWorkers === 0) {
         numWorkers = os.cpus().length
     }
-    const isMaster = cluster.isMaster && numWorkers > 1
+    const isPrimary = cluster.isPrimary && numWorkers > 1
 
-    if (isMaster) {
+    if (isPrimary) {
         logger.info('spawning %d workers', numWorkers)
         for (let i = 0; i < numWorkers; i++) {
             cluster.fork()
@@ -74,7 +74,7 @@ async function main() {
     }
 
     const exit = async () => {
-        if (!isMaster) {
+        if (!isPrimary) {
             await close()
         }
         return 0

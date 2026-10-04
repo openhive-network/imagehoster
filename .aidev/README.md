@@ -39,7 +39,7 @@ the whitelist's PostgREST lookup, and `docker build` of the production `Dockerfi
 ## The test runtime image (`runtime/`)
 
 The suites run in a container with `--network none` and your uid. The image is the
-project's mirrored `node:20-alpine` (the one CI and the `Dockerfile` use) pinned by
+project's mirrored `node:24.21.0-alpine3.23` (the one CI and the `Dockerfile` use) pinned by
 digest, with yarn 1 as that image ships it, the packages CI's test job adds, `redis`,
 and a yarn cache filled from `yarn.lock`. `yarn-deps.sh` installs `node_modules`
 offline from it.

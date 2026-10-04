@@ -1,11 +1,11 @@
 # The image AIDEV runs this project's suites in (`environment.image` in
 # .aidev/project.yaml). Suites run with `--network none`, so everything an
-# install needs is in the image: the same Node 20 alpine image CI's test job and
+# install needs is in the image: the same Node 24 alpine image CI's test job and
 # the Dockerfile build on (the project's mirror, pinned by digest), the yarn 1
 # that image ships, the packages CI's test job adds, redis-server for the
 # "(requires Redis)" tests, and a yarn cache filled from yarn.lock. Build and pin
 # it with .aidev/runtime/build.sh; see .aidev/README.md.
-FROM registry.gitlab.syncad.com/hive/imagehoster/node:20-alpine@sha256:5bac2112f1a27db4775ce6ead86db9e0cbc087f0dbddfe3cbc11ecea122d5294
+FROM registry.gitlab.syncad.com/hive/imagehoster/node:24.21.0-alpine3.23@sha256:9ec4a2e289874ed0d722e1772ec2de45d2801541db8612f3638b26f128c69ac2
 
 RUN apk add --no-cache bash build-base git make redis
 
