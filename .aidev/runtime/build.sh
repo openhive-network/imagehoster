@@ -18,7 +18,7 @@ cd "$(dirname "$0")/../.."
 REPOSITORY="${AIDEV_RUNTIME_REPOSITORY:-registry.gitlab.syncad.com/hive/imagehoster/aidev-tests}"
 
 # yarn 1 has no lockfile-only fetch: the image runs `yarn install` on package.json
-# and yarn.lock to fill its cache, so both are inputs.
+# and yarn.lock to fill its offline mirror, so both are inputs.
 input_hash() {
     sha256sum .aidev/runtime/Dockerfile package.json yarn.lock | sha256sum | cut -c1-16
 }
