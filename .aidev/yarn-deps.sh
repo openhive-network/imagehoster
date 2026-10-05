@@ -1,5 +1,5 @@
 # Sourced by the .aidev suite scripts: make node_modules match yarn.lock,
-# offline, from the image's yarn cache. A marker records the lockfile and Node it
+# offline, from the image's yarn offline mirror. A marker records the lockfile and Node it
 # was installed for; it is written only after an install that succeeded, and an
 # install whose tools don't resolve is redone.
 lock_id="$(sha256sum yarn.lock | cut -d' ' -f1) $(node --version)"
