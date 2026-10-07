@@ -55,6 +55,12 @@ When `package.json` dependencies, `yarn.lock` or `runtime/Dockerfile` change, re
 # put the printed repo@sha256:<digest> into project.yaml environment.image
 ```
 
+To build through a pull-through registry cache near the build host, set
+`AIDEV_IMAGE_CACHE_BY_REGION` to `region=host:port` pairs, e.g.
+`eu=cache.example.org:5001,*=cache2.example.org:5001`: a pair applies when its region is
+a label of the host's FQDN, and `*` applies to any other host. Unset, the image is built
+straight from `registry.gitlab.syncad.com`.
+
 Run a suite by hand the same way AIDEV does:
 
 ```bash
