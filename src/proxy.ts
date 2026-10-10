@@ -15,6 +15,7 @@ import * as opentracing from 'opentracing'
 import {imageBlacklist} from './blacklist'
 import {getKeyNameFromHash, KoaContext, proxyStore, uploadStore} from './common'
 import {APIError} from './error'
+import {assertAcceptedImage} from './image-policy'
 import {assertPublicUrl, base58Dec, mimeMagic, readStream, storeExists, storeWrite} from './utils'
 import {domainAllowlist} from './allowlist'
 import {checkUrl, validateProxyAuthToken} from './whitelist'
@@ -32,16 +33,6 @@ if (!Number.isFinite(MAX_IMAGE_SIZE)) {
     throw new Error('Invalid max image size')
 }
 const SERVICE_URL = new URL(config.get('service_url'))
-
-/** Image types allowed to be proxied and resized. */
-const AcceptedContentTypes = [
-    'image/gif',
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'image/avif',
-    'image/svg+xml'
-]
 
 interface NeedleResponse extends http.IncomingMessage {
     body: any
@@ -320,7 +311,9 @@ export async function proxyHandler(ctx: KoaContext) {
         ctx.tag({store: 'original'})
         const readSpan = tracer.startSpan('reading original image from store', {childOf: proxyHandlerSpan})
         origData = await readStream(origStore.createReadStream(origKey))
-        contentType = await mimeMagic(origData)
+        // stored originals include uploads, which are not checked against the
+        // fetch path below
+        contentType = await assertAcceptedImage(origData)
         readSpan.finish()
     } else {
         APIError.assert(origIsUpload === false, 'Upload not found')
@@ -356,8 +349,7 @@ export async function proxyHandler(ctx: KoaContext) {
             throw new APIError({code: APIError.Code.InvalidImage})
         }
 
-        contentType = await mimeMagic(res.body)
-        APIError.assert(AcceptedContentTypes.includes(contentType), APIError.Code.InvalidImage)
+        contentType = await assertAcceptedImage(res.body)
 
         origData = res.body
 

@@ -142,7 +142,7 @@ Environment variable overrides defined in `config/custom-environment-variables.t
 - **Bunyan** structured logging (JSON format)
 - Error responses: `{ error: { name: "snake_case_error", info: {...} } }`
 - Image MIME types detected via magic bytes, not file extensions
-- Accepted proxy formats: `image/gif`, `image/jpeg`, `image/png`, `image/webp`, `image/svg+xml`
+- Accepted formats (upload and proxy): `image/gif`, `image/jpeg`, `image/png`, `image/webp`, `image/avif` - defined in `src/image-policy.ts`, which also restricts the libvips decoders Sharp may use to these formats
 
 ## Branch History
 
