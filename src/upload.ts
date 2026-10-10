@@ -13,6 +13,7 @@ import {URL} from 'url'
 import {accountBlacklist} from './blacklist'
 import {ensureRedis, getKeyNameFromHash, KoaContext, rpcClient, uploadStore} from './common'
 import {APIError} from './error'
+import {assertAcceptedImage} from './image-policy'
 import {readStream, storeExists, storeWrite} from './utils'
 
 const SERVICE_URL = new URL(config.get('service_url'))
@@ -123,6 +124,9 @@ export async function uploadHsHandler(ctx: KoaContext) {
     // extra check if client manges to lie about the content-length
     APIError.assert((file.stream as any).truncated !== true,
         APIError.Code.PayloadTooLarge)
+
+    // only accept data in a format we serve and decode
+    await assertAcceptedImage(data)
 
     const imageHash = createHash('sha256')
         .update('ImageSigningChallenge')
@@ -267,6 +271,9 @@ export async function uploadCsHandler(ctx: KoaContext) {
     APIError.assert((file.stream as any).truncated !== true,
         APIError.Code.PayloadTooLarge)
 
+    // only accept data in a format we serve and decode
+    await assertAcceptedImage(fileData)
+
     // Expecting the signature to be based on the integrity checksum of the image
     const expectedSignature = createHash('sha256')
         .update('ImageSigningChallenge')
@@ -372,6 +379,9 @@ export async function uploadHandler(ctx: KoaContext) {
     // extra check if client manges to lie about the content-length
     APIError.assert((file.stream as any).truncated !== true,
         APIError.Code.PayloadTooLarge)
+
+    // only accept data in a format we serve and decode
+    await assertAcceptedImage(data)
 
     const imageHash = createHash('sha256')
         .update('ImageSigningChallenge')

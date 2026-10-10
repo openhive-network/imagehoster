@@ -63,4 +63,10 @@ describe('upload', () => {
         assert(crypto.timingSafeEqual(res.body, data), 'file same')
     })
 
+    it('should not upload unsupported formats', async function() {
+        const data = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8"/></svg>')
+        const {response} = await uploadImage(data, port)
+        assert.equal(response.statusCode, 400)
+    })
+
 })
