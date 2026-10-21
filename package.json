@@ -9,7 +9,7 @@
     "node": ">=24"
   },
   "volta": {
-    "node": "24.21.0"
+    "node": "24.22.1"
   },
   "dependencies": {
     "@hiveio/dhive": "^0.14.0",
