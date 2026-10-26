@@ -32,7 +32,7 @@ branches:
 # How this project's suites execute (#13892): one kind, stated once.
 environment:
   kind: "container"
-  image: "registry.gitlab.syncad.com/hive/imagehoster/aidev-tests@sha256:02214da85aedad64f8c4998308b94c963ed1c0c16ae7b3dc1bd15d73f36d56a2"
+  image: "registry.gitlab.syncad.com/hive/imagehoster/aidev-tests@sha256:a70217666b199c2562bffdeb5294b9454f1003ec6c308276553538f4e83f4ba0"
   inputs: ["yarn.lock"]
 
 issues:
