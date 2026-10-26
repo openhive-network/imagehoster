@@ -5,7 +5,7 @@
 # that image ships, the packages CI's test job adds, redis-server for the
 # "(requires Redis)" tests, and a yarn offline mirror of the yarn.lock tarballs.
 # Build and pin it with .aidev/runtime/build.sh; see .aidev/README.md.
-FROM registry.gitlab.syncad.com/hive/imagehoster/node:24.21.0-alpine3.23@sha256:9ec4a2e289874ed0d722e1772ec2de45d2801541db8612f3638b26f128c69ac2
+FROM registry.gitlab.syncad.com/hive/imagehoster/node:24.22.1-alpine3.23@sha256:4b00b6d1aa138805aace94cc2482808f2b4f01e5e9c9f8cdc0e217fd70600ef9
 
 # No build-base: sharp installs its prebuilt linuxmusl binaries, and secp256k1's
 # failed native build falls back to its pure-JS implementation, as it already did
