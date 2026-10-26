@@ -9,7 +9,7 @@
     "node": ">=24"
   },
   "volta": {
-    "node": "24.21.0"
+    "node": "24.22.1"
   },
   "dependencies": {
     "@hiveio/dhive": "^0.14.0",
@@ -28,7 +28,7 @@
     "multihashes": "^0.4.13",
     "needle": "^2.1.1",
     "redis": "^4.7.0",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.5",
     "stream-head": "^1.1.0",
     "toml": "^2.3.3"
   },

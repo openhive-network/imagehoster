@@ -7,7 +7,12 @@
     "strict": true,
     "skipLibCheck": true,
     "target": "esnext",
-    "typeRoots" : ["./node_modules/@types", "./src/types"]
+    "typeRoots" : ["./node_modules/@types", "./src/types"],
+    // sharp >= 0.35 points "types" at its ESM typings, which do not match the
+    // CommonJS module this project loads; use its CommonJS typings instead
+    "paths": {
+      "sharp": ["./node_modules/sharp/dist/index.d.cts"]
+    }
   },
   "include": [
     "src/**/*.ts",

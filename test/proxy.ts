@@ -1,5 +1,6 @@
 import 'mocha'
 import * as assert from 'assert'
+import * as crypto from 'crypto'
 import * as http from 'http'
 import * as needle from 'needle'
 import * as multihash from 'multihashes'
@@ -9,9 +10,9 @@ import * as sharp from 'sharp'
 import {URL} from 'url'
 
 import {app} from './../src/app'
-import {proxyStore, uploadStore} from './../src/common'
+import {getKeyNameFromHash, proxyStore, uploadStore} from './../src/common'
 import {imageBlacklist} from './../src/blacklist'
-import {storeExists, base58Enc} from './../src/utils'
+import {storeExists, storeWrite, base58Enc} from './../src/utils'
 
 import {uploadImage} from './upload'
 
@@ -79,6 +80,20 @@ describe('proxy', function() {
         const image = sharp(res.body)
         const meta = await image.metadata()
         assert((await storeExists(proxyStore, key)) === false, 'proxy store has original')
+    })
+
+    it('should not proxy stored uploads in unsupported formats', async function() {
+        // written to the store directly, bypassing the upload handlers
+        const data = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8"/></svg>')
+        const imageHash = crypto.createHash('sha256')
+            .update('ImageSigningChallenge')
+            .update(data)
+            .digest()
+        const contentHash = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
+        await storeWrite(uploadStore, getKeyNameFromHash(contentHash), data)
+        const imageUrl = base58Enc(`http://localhost:${ port }/${ contentHash }/test.svg`)
+        const res = await needle('get', `http://localhost:${ port }/p/${ imageUrl }?width=100`)
+        assert.equal(res.statusCode, 400)
     })
 
     it('should proxy using new api', async function() {
