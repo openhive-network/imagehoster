@@ -24,6 +24,10 @@ gitlab:
 # never moves develop or master.
 branches:
   integration: "aidev/integration"
+  # develop is protected and fast-forward only: hand off by merge request, as a
+  # linear one-commit-per-change copy (aidev docs/operations/project-handoff.md).
+  handoff: "develop"
+  handoff_history: "linear"
 
 # How this project's suites execute (#13892): one kind, stated once.
 environment:
