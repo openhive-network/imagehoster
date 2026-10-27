@@ -22,7 +22,10 @@ Run `make lint` to run the autolinter, `make test` to run the unit tests.
 Deployment
 ----------
 
-See `docker-compose.example.yml` for a production-like setup. The image is built
+See `docker-compose.example.yml` for a production-like setup. The `Dockerfile`
+takes its Node version as the `NODE_VERSION` build arg, which CI sets from
+hive/common-ci-configuration; build locally with e.g.
+`docker build --build-arg NODE_VERSION=24 .`. The image is built
 by CI and pushed to `registry.gitlab.syncad.com/hive/imagehoster` with tags:
 
   * `<commit-sha>` — every build

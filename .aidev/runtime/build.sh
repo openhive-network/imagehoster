@@ -4,7 +4,7 @@
 # `environment.image`. See .aidev/README.md.
 #
 # The tag is `aidev-<hash>`, the hash of the image inputs (the Dockerfile,
-# package.json, yarn.lock); the registry cleanup policy keeps `aidev-*` tags. When
+# package.json, yarn.lock, and the digest the followed base tag names now); the registry cleanup policy keeps `aidev-*` tags. When
 # <repository>:aidev-<hash> is already in the registry nothing is built: the script
 # prints that image's digest.
 #
@@ -16,11 +16,19 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 REPOSITORY="${AIDEV_RUNTIME_REPOSITORY:-registry.gitlab.syncad.com/hive/imagehoster/aidev-tests}"
+# common-ci-configuration's moving node-test-tools tag, the Dockerfile's default.
+BASE_IMAGE="$(sed -n 's/^ARG BASE_IMAGE=//p' .aidev/runtime/Dockerfile)"
+BASE_DIGEST="$(docker buildx imagetools inspect "$BASE_IMAGE" --format '{{json .Manifest}}' \
+    | grep -o '"digest": *"sha256:[0-9a-f]*"' | head -1 | grep -o 'sha256:[0-9a-f]*')"
+: "${BASE_DIGEST:?cannot resolve $BASE_IMAGE}"
 
 # yarn 1 has no lockfile-only fetch: the image runs `yarn install` on package.json
 # and yarn.lock to fill its offline mirror, so both are inputs.
 input_hash() {
-    sha256sum .aidev/runtime/Dockerfile package.json yarn.lock | sha256sum | cut -c1-16
+    {
+        sha256sum .aidev/runtime/Dockerfile package.json yarn.lock
+        echo "$BASE_DIGEST"
+    } | sha256sum | cut -c1-16
 }
 TAG="aidev-$(input_hash)"
 
@@ -83,9 +91,12 @@ region_builder() {
 }
 builder="$(region_builder)"
 
-# The FROM is digest-pinned, so no --pull. No provenance, so the pushed digest is a
+# Built on the base digest the tag was hashed with, so the image matches its tag
+# even if the base tag moves meanwhile. No provenance, so the pushed digest is a
 # plain image manifest.
-build=(docker buildx build ${builder:+--builder "$builder"} --provenance=false -f .aidev/runtime/Dockerfile -t "$REPOSITORY:$TAG")
+build=(docker buildx build ${builder:+--builder "$builder"} --provenance=false
+    --build-arg "BASE_IMAGE=${BASE_IMAGE%:*}@$BASE_DIGEST"
+    -f .aidev/runtime/Dockerfile -t "$REPOSITORY:$TAG")
 if [ "${1:-}" != "--push" ]; then
     "${build[@]}" --load "$context" >&2
     echo "$REPOSITORY:$TAG"

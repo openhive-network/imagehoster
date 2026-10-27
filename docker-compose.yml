@@ -3,6 +3,10 @@ services:
     imagehoster:
         build:
             context: .
+            # CI builds with common-ci-configuration's exact Node version;
+            # locally the latest Node 24 is enough.
+            args:
+                NODE_VERSION: ${NODE_VERSION:-24}
         container_name: imagehoster
         environment:
             UPLOAD_PROXY_FS_PATH: /tmp

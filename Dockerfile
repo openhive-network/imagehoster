@@ -1,4 +1,9 @@
-FROM registry.gitlab.syncad.com/hive/imagehoster/node:24.22.1-alpine3.23@sha256:4b00b6d1aa138805aace94cc2482808f2b4f01e5e9c9f8cdc0e217fd70600ef9 as build-stage
+# Node comes from hive/common-ci-configuration: its .docker_build_job_template
+# passes --build-arg NODE_VERSION=$NODE_IMAGE_VERSION. There is no default; a
+# local build passes it too, e.g. --build-arg NODE_VERSION=24.
+ARG NODE_VERSION
+
+FROM node:${NODE_VERSION}-alpine AS build-stage
 
 WORKDIR /app
 
@@ -24,7 +29,7 @@ RUN make lib ci-test
 RUN yarn install --non-interactive --frozen-lockfile --production
 
 # copy built application to runtime image
-FROM registry.gitlab.syncad.com/hive/imagehoster/node:24.22.1-alpine3.23@sha256:4b00b6d1aa138805aace94cc2482808f2b4f01e5e9c9f8cdc0e217fd70600ef9
+FROM node:${NODE_VERSION}-alpine
 WORKDIR /app
 COPY --from=build-stage /app/config config
 COPY --from=build-stage /app/lib lib
