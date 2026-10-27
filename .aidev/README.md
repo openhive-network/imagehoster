@@ -38,17 +38,17 @@ the whitelist's PostgREST lookup, and `docker build` of the production `Dockerfi
 
 ## The test runtime image (`runtime/`)
 
-The suites run in a container with `--network none` and your uid. The image is the
-project's mirrored `node:24.21.0-alpine3.23` (the one CI and the `Dockerfile` use) pinned by
-digest, with yarn 1 as that image ships it, the packages CI's test job adds except
-`build-base` (sharp ships prebuilt musl binaries; secp256k1 falls back to pure JS),
-`redis`, and a yarn offline mirror (`/opt/yarn-mirror`, the packed tarballs of
-`yarn.lock`, every optional platform package included because yarn 1 fetches them
-all). `yarn-deps.sh` installs `node_modules` offline from it, unpacking into a yarn
+The suites run in a container with `--network none` and your uid. The image is built on
+common-ci-configuration's `node-test-tools:develop` (the image CI's `test` job runs, and the
+only source of its Node version), at the digest that tag names when the image is built,
+with yarn 1 (`node-test-tools` ships npm only), `make`, `redis-server`, and a yarn offline
+mirror (`/opt/yarn-mirror`, the packed tarballs of `yarn.lock`, every optional platform
+package included because yarn 1 fetches them all). `yarn-deps.sh` installs `node_modules` offline from it, unpacking into a yarn
 cache under `/tmp` on the first install in a container.
 
 When `package.json` dependencies, `yarn.lock` or `runtime/Dockerfile` change, rebuild and re-pin
-**in the same commit**:
+**in the same commit**. To pick up a new Node (or other tool) from common-ci-configuration,
+rebuild and re-pin likewise; the base digest is part of the image tag:
 
 ```bash
 .aidev/runtime/build.sh --push   # registry digest if aidev-<input hash> exists, else build + push
