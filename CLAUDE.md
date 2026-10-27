@@ -13,7 +13,7 @@ Serves `images.hive.blog`.
 
 ## Tech Stack
 
-- **Runtime:** Node.js 24 LTS (24.22.1, TypeScript)
+- **Runtime:** Node.js 24 LTS (TypeScript); the exact version comes from hive/common-ci-configuration (`NODE_TEST_TOOLS_IMAGE` in CI, the `NODE_VERSION` build arg in the `Dockerfile`)
 - **Framework:** Koa v2 with koa-router, async/await
 - **Image Processing:** Sharp (libvips-based) — resize, format conversion, quality control
 - **Storage:** Abstract blob store (S3 in production, fs or memory for dev)
