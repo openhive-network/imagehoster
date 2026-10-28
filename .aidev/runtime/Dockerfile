@@ -1,10 +1,9 @@
 # The image AIDEV runs this project's suites in (`environment.image` in
 # .aidev/project.yaml). Suites run with `--network none`, so everything an
-# install needs is in the image. Node comes from common-ci-configuration's
-# node-test-tools image, the one CI's test job runs; this file pins no Node
-# version. It adds yarn 1 (node-test-tools ships npm only), the make CI's test
-# job uses, redis-server for the "(requires Redis)" tests, and a yarn offline
-# mirror of the yarn.lock tarballs.
+# install needs is in the image. Node and pnpm come from common-ci-configuration's
+# node-test-tools image, the one CI's test job runs; this file pins no Node or
+# pnpm version. It adds the make CI's test job uses, redis-server for the
+# "(requires Redis)" tests, and a pnpm store holding every pnpm-lock.yaml package.
 # Build and pin it with .aidev/runtime/build.sh; see .aidev/README.md.
 ARG BASE_IMAGE=registry.gitlab.syncad.com/hive/common-ci-configuration/node-test-tools:develop
 FROM ${BASE_IMAGE}
@@ -14,20 +13,17 @@ FROM ${BASE_IMAGE}
 # offline.
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends make redis-server \
-    && apt-get clean && rm -rf /var/lib/apt/lists/* \
-    && npm install -g yarn@1.22.22 \
-    && npm cache clean --force
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# The mirror keeps the packed tarballs only (a third of the unpacked cache);
-# `yarn install --offline` unpacks them into YARN_CACHE_FOLDER on first use.
+# `pnpm fetch` needs the lockfile only. The suites run as the caller's uid, and
+# pnpm writes into its store while installing from it, so the store is
+# world-writable.
 ENV HOME=/tmp \
-    YARN_YARN_OFFLINE_MIRROR=/opt/yarn-mirror \
-    YARN_CACHE_FOLDER=/tmp/yarn-cache \
+    npm_config_store_dir=/opt/pnpm-store \
     DO_NOT_TRACK=1
 
-COPY package.json yarn.lock /tmp/yarn-fetch/
-RUN mkdir -p "$YARN_YARN_OFFLINE_MIRROR" \
-    && cd /tmp/yarn-fetch \
-    && yarn install --non-interactive --frozen-lockfile --no-progress --ignore-scripts \
-    && cd / && rm -rf /tmp/yarn-fetch "$YARN_CACHE_FOLDER" \
-    && chmod -R a+rX "$YARN_YARN_OFFLINE_MIRROR"
+COPY pnpm-lock.yaml /tmp/pnpm-fetch/
+RUN cd /tmp/pnpm-fetch \
+    && pnpm fetch --reporter=append-only \
+    && cd / && rm -rf /tmp/pnpm-fetch \
+    && chmod -R a+rwX "$npm_config_store_dir"

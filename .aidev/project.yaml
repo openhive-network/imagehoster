@@ -32,8 +32,8 @@ branches:
 # How this project's suites execute (#13892): one kind, stated once.
 environment:
   kind: "container"
-  image: "registry.gitlab.syncad.com/hive/imagehoster/aidev-tests@sha256:a70217666b199c2562bffdeb5294b9454f1003ec6c308276553538f4e83f4ba0"
-  inputs: ["yarn.lock", "package.json", ".aidev/runtime/Dockerfile"]
+  image: "registry.gitlab.syncad.com/hive/imagehoster/aidev-tests@sha256:1cfa6234816487359027a60c8c375b91b1f77c82f00d99403af1e5c0ed6f8282"
+  inputs: ["pnpm-lock.yaml", ".aidev/runtime/Dockerfile"]
 
 issues:
   intake_label: todo

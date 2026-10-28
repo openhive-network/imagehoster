@@ -32,9 +32,9 @@ test: node_modules
 
 .PHONY: ci-test
 ci-test: node_modules reports
-# Disabling yarn audit for now because all packages are too old
+# Disabling pnpm audit for now because all packages are too old
 # @TODO update and test packages
-#	yarn audit
+#	pnpm audit
 	eslint src/
 	NODE_ENV=test nyc -r lcov -e .ts -i ts-node/register \
 		--report-dir reports/coverage \
@@ -49,7 +49,7 @@ lint: node_modules
 	eslint --fix src/
 
 node_modules: package.json
-	yarn install --non-interactive --frozen-lockfile
+	pnpm install --frozen-lockfile
 
 .PHONY: clean
 clean:

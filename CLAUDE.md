@@ -14,6 +14,7 @@ Serves `images.hive.blog`.
 ## Tech Stack
 
 - **Runtime:** Node.js 24 LTS (TypeScript); the exact version comes from hive/common-ci-configuration (`NODE_TEST_TOOLS_IMAGE` in CI, the `NODE_VERSION` build arg in the `Dockerfile`)
+- **Package manager:** pnpm, with TypeScript from common-ci-configuration's `typescript-toolset` catalog (`npm-common-config` submodule)
 - **Framework:** Koa v2 with koa-router, async/await
 - **Image Processing:** Sharp (libvips-based) — resize, format conversion, quality control
 - **Storage:** Abstract blob store (S3 in production, fs or memory for dev)
@@ -59,15 +60,16 @@ When AIDEV runs you on an issue, no one is there to answer questions. GitLab CI 
 
 - **Check your change:** run `aidev test run --slot quick` once, after your last edit. It runs `eslint src/`, `tsc --noEmit` and the mocha suite under nyc (what `make ci-test` runs). `--slot full` adds the `(requires Redis)` tests against a local redis-server, `make lib`, and a boot of `node lib/app.js` that checks the healthcheck answers.
 - **Iterate:** `.aidev/run-checks.sh dev test` (or `lint` / `typecheck` / `redis` / `build` / `smoke`) runs one step; results land in `test-results/dev/`.
-- **Package manager:** yarn 1 (`yarn.lock`), not npm or pnpm. The suites run offline, so don't add a dependency without updating `yarn.lock`.
-- **Dependencies:** a change to `package.json` dependencies or `yarn.lock` needs a new test image. Run `.aidev/runtime/build.sh --push` and put the printed reference in `.aidev/project.yaml` `environment.image` in the same commit (see `.aidev/README.md`).
+- **Package manager:** pnpm (`pnpm-lock.yaml`), not npm or yarn. `pnpm-workspace.yaml` is a symlink to the `npm-common-config` submodule's (hive/common-ci-configuration) `pnpm-config/pnpm-workspace.yaml`; a package in one of its catalogs (e.g. `typescript`) is referenced as `catalog:<name>`, never with a version of its own. pnpm's `node_modules` is strict, so every package `src/` or `test/` imports must be in `package.json`. The suites run offline, so don't add a dependency without updating `pnpm-lock.yaml`.
+- **Dependencies:** a change to `package.json` dependencies or `pnpm-lock.yaml` needs a new test image. Run `.aidev/runtime/build.sh --push` and put the printed reference in `.aidev/project.yaml` `environment.image` in the same commit (see `.aidev/README.md`).
 - **Not covered by the slots:** the S3 blob store, the whitelist's PostgREST lookup, and `docker build` of the production `Dockerfile`. Say so in the issue if your change touches them.
 
 ## Development Commands
 
 ```bash
-# Install dependencies
-yarn install
+# Install dependencies (needs the npm-common-config submodule)
+git submodule update --init
+pnpm install
 
 # Build TypeScript
 make lib
