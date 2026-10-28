@@ -23,9 +23,9 @@ out="test-results/$suite"
 rm -rf "$out"; mkdir -p "$out"
 cases="$out/cases.tsv"; : > "$cases"
 
-# shellcheck source=yarn-deps.sh
-if ! source .aidev/yarn-deps.sh; then
-    printf 'case\tinstall\tfail\t0\tyarn install --offline failed\n' >> "$cases"
+# shellcheck source=pnpm-deps.sh
+if ! source .aidev/pnpm-deps.sh; then
+    printf 'case\tinstall\tfail\t0\tpnpm install --offline failed\n' >> "$cases"
     source .aidev/junit-helpers.sh; junit_write_cases "$out/junit.xml" "$suite" "$cases"
     exit 1
 fi
@@ -69,7 +69,7 @@ redis_tests() {
 }
 
 # The Makefile's `lib` target without its `node_modules` prerequisite (which would
-# run a networked `yarn install`). A workflow's container has no usable .git, so
+# run a networked `pnpm install`). A workflow's container has no usable .git, so
 # the build hash comes from AIDEV_COMMIT_SHORT_SHA when git can't answer.
 build_lib() {
     rm -rf lib

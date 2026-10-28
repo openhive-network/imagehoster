@@ -24,6 +24,7 @@
     "koa": "^2.3.0",
     "multihashes": "^0.4.13",
     "needle": "^2.1.1",
+    "opentracing": "^0.14.4",
     "redis": "^4.7.0",
     "sharp": "^0.35.5",
     "stream-head": "^1.1.0",
@@ -48,6 +49,15 @@
     "nyc": "^14.1.1",
     "onchange": "^6.1.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.0"
+    "typescript": "catalog:typescript-toolset"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "dtrace-provider",
+      "secp256k1"
+    ],
+    "ignoredBuiltDependencies": [
+      "core-js"
+    ]
   }
 }

@@ -2,6 +2,13 @@ stages:
   - test
   - build
 
+variables:
+  # npm-common-config is hive/common-ci-configuration, whose pnpm catalogs
+  # pnpm-workspace.yaml links to; --remote takes its develop tip, so a catalog bump
+  # there reaches the next pipeline.
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_UPDATE_FLAGS: --remote
+
 # Branch pipelines, except for AIDEV-driven development: ai/<issue>-...,
 # session/<name> and aidev/integration are verified by the suites in
 # .aidev/project.yaml, not by CI. A push to aidev/integration runs no pipeline;
@@ -19,19 +26,20 @@ workflow:
 include:
   - project: 'hive/common-ci-configuration'
     ref: develop
-    file: '/templates/docker_image_jobs.gitlab-ci.yml'
+    file:
+      - '/templates/docker_image_jobs.gitlab-ci.yml'
+      - '/templates/npm_projects.gitlab-ci.yml'
 
 test:
   stage: test
-  # Node comes from common-ci-configuration's node-test-tools image (Ubuntu),
-  # which ships npm but not yarn 1.
+  # Node and pnpm come from common-ci-configuration's node-test-tools image (Ubuntu).
   image:
     name: ${NODE_TEST_TOOLS_IMAGE}
     entrypoint: []
   before_script:
     - apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential
-    - npm install -g yarn@1.22.22
-    - yarn install --non-interactive --frozen-lockfile
+    - git -c safe.directory='*' submodule status --recursive  # which ccc catalog this job installs against
+    - !reference [.pnpm_install_with_catalog_fallback, script]
   script:
     - make lib ci-test
   artifacts:
@@ -40,6 +48,7 @@ test:
       junit: reports/unit-tests/junit.xml
     paths:
       - reports/
+      - pnpm-lock.catalog-refreshed.yaml
 
 build:
   extends: .docker_build_job_template
