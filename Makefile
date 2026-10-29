@@ -48,8 +48,21 @@ ci-test: node_modules reports
 lint: node_modules
 	eslint --fix src/
 
+# pnpm-workspace.yaml links to the npm-common-config submodule's catalogs. A
+# lockfile written against an older catalog than the submodule's (CI checks it out
+# at develop's tip) fails the frozen install with ERR_PNPM_LOCKFILE_CONFIG_MISMATCH;
+# only then the install is redone unfrozen, as common-ci-configuration's
+# .pnpm_install_with_catalog_fallback does.
 node_modules: package.json
-	pnpm install --frozen-lockfile
+	@log="$$(mktemp)"; \
+	pnpm install --frozen-lockfile 2>&1 | tee "$$log"; rc=$${PIPESTATUS[0]}; \
+	if [ "$$rc" -ne 0 ]; then \
+		grep -q ERR_PNPM_LOCKFILE_CONFIG_MISMATCH "$$log" || { rm -f "$$log"; exit "$$rc"; }; \
+		echo "The catalog changed since pnpm-lock.yaml was written: pnpm install --no-frozen-lockfile"; \
+		pnpm install --no-frozen-lockfile || { rm -f "$$log"; exit 1; }; \
+	fi; \
+	rm -f "$$log"
+	touch $@
 
 .PHONY: clean
 clean:
