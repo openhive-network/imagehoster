@@ -8,13 +8,19 @@ Hive-powered image hosting and proxying service.
 Developing
 ----------
 
-With node.js installed, run:
+With node.js and [pnpm](https://pnpm.io) installed, run:
 
 ```
+git submodule update --init
 make devserver
 ```
 
 This will pull in all dependencies and spin up a hot-reloading development server.
+
+Dependencies are managed with pnpm (`pnpm-lock.yaml`). `pnpm-workspace.yaml` links
+to the pnpm catalogs of hive/common-ci-configuration (the `npm-common-config`
+submodule), the one place hive apps pin shared packages; a package listed there,
+such as `typescript`, is referenced in `package.json` as `catalog:<name>`.
 
 Run `make lint` to run the autolinter, `make test` to run the unit tests.
 
@@ -25,7 +31,8 @@ Deployment
 See `docker-compose.example.yml` for a production-like setup. The `Dockerfile`
 takes its Node version as the `NODE_VERSION` build arg, which CI sets from
 hive/common-ci-configuration; build locally with e.g.
-`docker build --build-arg NODE_VERSION=24 .`. The image is built
+`docker build --build-arg NODE_VERSION=24 .` (with the `npm-common-config` submodule
+checked out; the build takes its pnpm version and catalogs from it). The image is built
 by CI and pushed to `registry.gitlab.syncad.com/hive/imagehoster` with tags:
 
   * `<commit-sha>` — every build

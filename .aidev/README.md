@@ -40,15 +40,15 @@ the whitelist's PostgREST lookup, and `docker build` of the production `Dockerfi
 
 The suites run in a container with `--network none` and your uid. The image is built on
 common-ci-configuration's `node-test-tools:develop` (the image CI's `test` job runs, and the
-only source of its Node version), at the digest that tag names when the image is built,
-with yarn 1 (`node-test-tools` ships npm only), `make`, `redis-server`, and a yarn offline
-mirror (`/opt/yarn-mirror`, the packed tarballs of `yarn.lock`, every optional platform
-package included because yarn 1 fetches them all). `yarn-deps.sh` installs `node_modules` offline from it, unpacking into a yarn
-cache under `/tmp` on the first install in a container.
+only source of its Node and pnpm versions), at the digest that tag names when the image is
+built, with `make`, `redis-server`, and a pnpm store (`/opt/pnpm-store`, filled by
+`pnpm fetch` from `pnpm-lock.yaml`). `pnpm-deps.sh` installs `node_modules` offline from it.
+`pnpm-workspace.yaml` links to the catalogs of the `npm-common-config` submodule, so the
+suites need it checked out (at its gitlink, which `pnpm-lock.yaml` was written against).
 
-When `package.json` dependencies, `yarn.lock` or `runtime/Dockerfile` change, rebuild and re-pin
-**in the same commit**. To pick up a new Node (or other tool) from common-ci-configuration,
-rebuild and re-pin likewise; the base digest is part of the image tag:
+When `pnpm-lock.yaml` (so any `package.json` dependency change) or `runtime/Dockerfile`
+changes, rebuild and re-pin **in the same commit**. To pick up a new Node, pnpm (or other
+tool) from common-ci-configuration, rebuild and re-pin likewise; the base digest is part of the image tag:
 
 ```bash
 .aidev/runtime/build.sh --push   # registry digest if aidev-<input hash> exists, else build + push

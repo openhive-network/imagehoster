@@ -4,7 +4,7 @@
 # `environment.image`. See .aidev/README.md.
 #
 # The tag is `aidev-<hash>`, the hash of the image inputs (the Dockerfile,
-# package.json, yarn.lock, and the digest the followed base tag names now); the registry cleanup policy keeps `aidev-*` tags. When
+# pnpm-lock.yaml, and the digest the followed base tag names now); the registry cleanup policy keeps `aidev-*` tags. When
 # <repository>:aidev-<hash> is already in the registry nothing is built: the script
 # prints that image's digest.
 #
@@ -22,11 +22,10 @@ BASE_DIGEST="$(docker buildx imagetools inspect "$BASE_IMAGE" --format '{{json .
     | grep -o '"digest": *"sha256:[0-9a-f]*"' | head -1 | grep -o 'sha256:[0-9a-f]*')"
 : "${BASE_DIGEST:?cannot resolve $BASE_IMAGE}"
 
-# yarn 1 has no lockfile-only fetch: the image runs `yarn install` on package.json
-# and yarn.lock to fill its offline mirror, so both are inputs.
+# The image fills its store with `pnpm fetch`, which reads pnpm-lock.yaml only.
 input_hash() {
     {
-        sha256sum .aidev/runtime/Dockerfile package.json yarn.lock
+        sha256sum .aidev/runtime/Dockerfile pnpm-lock.yaml
         echo "$BASE_DIGEST"
     } | sha256sum | cut -c1-16
 }
@@ -55,7 +54,7 @@ echo "$REPOSITORY:$TAG is not in the registry; building it" >&2
 # Only the files the Dockerfile copies: the repository root holds node_modules.
 context="$(mktemp -d)"
 trap 'rm -rf "$context"' EXIT
-cp package.json yarn.lock "$context/"
+cp pnpm-lock.yaml "$context/"
 
 # Optionally build through a pull-through registry cache near the build host, so FROM
 # stays canonical and the build doesn't compete for the uplink. Set
