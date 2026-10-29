@@ -1,10 +1,10 @@
-import * as cors from '@koa/cors'
+import cors from '@koa/cors'
 import * as Bunyan from 'bunyan'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const cluster = require('cluster')
-import * as config from 'config'
+import config from 'config'
 import * as http from 'http'
-import * as Koa from 'koa'
+import Koa from 'koa'
 import * as os from 'os'
 import * as util from 'util'
 

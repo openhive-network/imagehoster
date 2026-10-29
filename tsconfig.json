@@ -1,18 +1,18 @@
 {
   "compilerOptions": {
     "lib": ["esnext"],
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "node16",
+    "moduleResolution": "node16",
+    "esModuleInterop": true,
     "outDir": "lib",
+    "rootDir": "src",
     "strict": true,
     "skipLibCheck": true,
     "target": "esnext",
     "typeRoots" : ["./node_modules/@types", "./src/types"],
-    // sharp >= 0.35 points "types" at its ESM typings, which do not match the
-    // CommonJS module this project loads; use its CommonJS typings instead
-    "paths": {
-      "sharp": ["./node_modules/sharp/dist/index.d.cts"]
-    }
+    // TypeScript 6 no longer loads every typeRoots package by default; mocha
+    // is listed because ts-node compiles test/ with this config
+    "types": ["node", "mocha", "multihashes"]
   },
   "include": [
     "src/**/*.ts",

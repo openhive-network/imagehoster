@@ -1,7 +1,7 @@
 import 'mocha'
-import * as assert from 'assert'
+import assert from 'assert'
 import * as http from 'http'
-import * as needle from 'needle'
+import needle from 'needle'
 
 import {app} from './../src/app'
 
