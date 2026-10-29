@@ -1,6 +1,6 @@
 /** Serve user avatars. */
 
-import * as config from 'config'
+import config from 'config'
 import { base58Enc } from './utils'
 
 import { Account } from '@hiveio/dhive'

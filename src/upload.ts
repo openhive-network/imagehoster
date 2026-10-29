@@ -1,8 +1,8 @@
 /** Uploads file to blob store. */
 
 import {Signature} from '@hiveio/dhive'
-import * as Busboy from 'busboy'
-import * as config from 'config'
+import Busboy from 'busboy'
+import config from 'config'
 import {createHash} from 'crypto'
 // @ts-ignore
 import * as hivesigner from 'hivesigner'

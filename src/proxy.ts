@@ -1,12 +1,12 @@
 /** Resizing image proxy. */
 
 import {AbstractBlobStore} from 'abstract-blob-store'
-import * as config from 'config'
+import config from 'config'
 import {createHash} from 'crypto'
 import * as http from 'http'
 import * as multihash from 'multihashes'
 import * as needle from 'needle'
-import * as Sharp from 'sharp'
+import Sharp from 'sharp'
 import streamHead from 'stream-head/dist-es6'
 import {URL} from 'url'
 

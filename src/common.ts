@@ -3,7 +3,7 @@
 import {Client} from '@hiveio/dhive'
 import {RouterContext} from '@koa/router'
 import {AbstractBlobStore} from 'abstract-blob-store'
-import * as config from 'config'
+import config from 'config'
 import {createClient} from 'redis'
 
 import {logger} from './logger'
