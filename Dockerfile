@@ -22,20 +22,13 @@ RUN PNPM_VERSION="$(sed -n '/^variable "PNPM_VERSION"/,/^}/s/^ *default *= *"\(.
     && npm install -g "pnpm@${PNPM_VERSION:?no PNPM_VERSION in npm-common-config/docker-bake.hcl}" \
     && npm cache clean --force
 
-# install application dependencies; pnpm-workspace.yaml links to the submodule's
-# catalogs. A lockfile written against an older catalog than the submodule's (CI
-# checks it out at develop's tip) fails the frozen install with
-# ERR_PNPM_LOCKFILE_CONFIG_MISMATCH; only then the install is redone unfrozen, as
-# common-ci-configuration's .pnpm_install_with_catalog_fallback does.
-COPY package.json pnpm-lock.yaml ./
+# install application dependencies through the Makefile's node_modules target,
+# which falls back to an unfrozen install when the submodule's catalogs moved past
+# pnpm-lock.yaml. `make lib ci-test` below depends on that target too, so when
+# `COPY . .` leaves package.json newer than node_modules it reinstalls the same way.
+COPY Makefile package.json pnpm-lock.yaml ./
 COPY npm-common-config/pnpm-config/pnpm-workspace.yaml ./
-RUN rc=0; pnpm install --frozen-lockfile > /tmp/pnpm-install.log 2>&1 || rc=$?; \
-    cat /tmp/pnpm-install.log; \
-    if [ "$rc" -ne 0 ]; then \
-        grep -q ERR_PNPM_LOCKFILE_CONFIG_MISMATCH /tmp/pnpm-install.log || exit "$rc"; \
-        echo "The catalog changed since pnpm-lock.yaml was written: pnpm install --no-frozen-lockfile"; \
-        pnpm install --no-frozen-lockfile || exit $?; \
-    fi
+RUN make node_modules
 
 # copy in application source
 COPY . .
