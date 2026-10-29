@@ -1,6 +1,6 @@
 /** API routes. */
 
-import * as Router from '@koa/router'
+import Router from '@koa/router'
 
 import {KoaContext} from './common'
 

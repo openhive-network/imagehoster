@@ -1,6 +1,6 @@
 import 'mocha'
-import * as assert from 'assert'
-import * as sharp from 'sharp'
+import assert from 'assert'
+import sharp from 'sharp'
 
 import {AcceptedContentTypes} from './../src/image-policy'
 

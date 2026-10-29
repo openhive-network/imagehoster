@@ -1,7 +1,7 @@
 /** Logging things */
 
 import * as Bunyan from 'bunyan'
-import * as config from 'config'
+import config from 'config'
 
 import {KoaContext} from './common'
 

@@ -1,9 +1,9 @@
-import * as assert from 'assert'
+import assert from 'assert'
 import * as crypto from 'crypto'
 import * as fs from 'fs'
 import * as http from 'http'
 import 'mocha'
-import * as needle from 'needle'
+import needle from 'needle'
 import * as path from 'path'
 
 import {app} from './../src/app'

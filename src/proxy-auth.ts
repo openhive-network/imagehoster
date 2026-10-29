@@ -1,7 +1,7 @@
 /** Proxy auth endpoint — issues session tokens for editor preview bypass. */
 
 import {Signature} from '@hiveio/dhive'
-import * as config from 'config'
+import config from 'config'
 import {createHash, randomBytes} from 'crypto'
 
 import {accountBlacklist} from './blacklist'

@@ -1,6 +1,6 @@
 /** Proxy URL whitelist — only serves images referenced on the Hive blockchain. */
 
-import * as config from 'config'
+import config from 'config'
 import {ensureRedis} from './common'
 import {logger} from './logger'
 

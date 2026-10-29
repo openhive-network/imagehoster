@@ -1,7 +1,7 @@
 import 'mocha'
-import * as assert from 'assert'
+import assert from 'assert'
 import * as http from 'http'
-import * as needle from 'needle'
+import needle from 'needle'
 
 // We test checkUrl by running a mock HTTP server and pointing to it via env var.
 // The whitelist module reads config at call time, so we set env vars before importing.

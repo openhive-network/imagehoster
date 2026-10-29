@@ -1,6 +1,6 @@
 /** Image formats accepted for upload and proxying. */
 
-import * as Sharp from 'sharp'
+import Sharp from 'sharp'
 
 import {APIError} from './error'
 import {mimeMagic} from './utils'

@@ -5,7 +5,7 @@
  * appear on-chain (e.g. YouTube video thumbnails).
  */
 
-import * as config from 'config'
+import config from 'config'
 import * as fs from 'fs'
 import {URL} from 'url'
 import {logger} from './logger'
