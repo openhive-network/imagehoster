@@ -9,6 +9,9 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   GIT_SUBMODULE_UPDATE_FLAGS: --remote
 
+default:
+  tags: [public-runner-docker]
+
 # Branch pipelines, except for AIDEV-driven development: ai/<issue>-...,
 # session/<name> and aidev/integration are verified by the suites in
 # .aidev/project.yaml, not by CI. A push to aidev/integration runs no pipeline;
