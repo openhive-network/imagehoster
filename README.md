@@ -39,6 +39,18 @@ by CI and pushed to `registry.gitlab.syncad.com/hive/imagehoster` with tags:
   * `latest` — from the `develop` branch
   * `stable` — from the `master` branch
 
+### Image processing memory
+
+The image is based on Debian slim (glibc) rather than Alpine (musl) and preloads
+jemalloc (`LD_PRELOAD`) for the service, as sharp recommends for long-running
+multi-threaded processes on glibc. On Alpine, resize workers grew by gigabytes of
+native memory over weeks of production traffic.
+
+Each worker process runs its own pool of libvips threads, which by default has one
+thread per CPU core. `vips_concurrency` (env `VIPS_CONCURRENCY`, default `4`) caps
+that pool per worker; `0` keeps sharp's default. libvips also reads
+`VIPS_CONCURRENCY` itself, so both agree.
+
 ### Proxy whitelist
 
 The proxy endpoint can optionally restrict service to URLs that have been
