@@ -5,10 +5,12 @@ const cluster = require('cluster')
 import config from 'config'
 import * as http from 'http'
 import Koa from 'koa'
+import * as net from 'net'
 import * as os from 'os'
 import * as util from 'util'
 
 import {KoaContext} from './common'
+import {superviseWorkers} from './cluster-master'
 import {APIError, errorMiddleware} from './error'
 import {logger, loggerMiddleware} from './logger'
 import {routes} from './routes'
@@ -52,10 +54,6 @@ async function main() {
         logger.info({version}, 'starting service')
     }
 
-    const server = http.createServer(app.callback())
-    const listen: any = util.promisify(server.listen).bind(server)
-    const close = util.promisify(server.close).bind(server)
-
     let numWorkers = Number.parseInt(config.get('num_workers'))
     if (numWorkers === 0) {
         numWorkers = os.cpus().length
@@ -63,27 +61,38 @@ async function main() {
     const isPrimary = cluster.isPrimary && numWorkers > 1
 
     if (isPrimary) {
-        logger.info('spawning %d workers', numWorkers)
-        for (let i = 0; i < numWorkers; i++) {
-            cluster.fork()
-        }
-    } else {
-        const port = config.get('port')
-        await listen(port)
-        logger.info('listening on port %d', port)
+        superviseWorkers({
+            numWorkers,
+            maxRssMb: Number.parseInt(config.get('worker_max_rss_mb')),
+            rssCheckIntervalMs: Number.parseInt(config.get('worker_rss_check_interval_ms')),
+            stopTimeoutMs: Number.parseInt(config.get('worker_stop_timeout_ms'))
+        })
+        return
     }
 
-    const exit = async () => {
-        if (!isPrimary) {
-            await close()
+    const server = http.createServer(app.callback())
+    const listen: any = util.promisify(server.listen).bind(server)
+    // http.Server#close() destroys idle keep-alive sockets, racing a client that is
+    // reusing one (ECONNRESET), and leaves busy ones open for as long as the client
+    // keeps sending. Instead only the listener is closed, and every response after
+    // that asks the client to close; sockets left idle end at keepAliveTimeout.
+    const close = util.promisify(net.Server.prototype.close).bind(server)
+    let closing = false
+    server.prependListener('request', (_req, res) => {
+        if (closing) {
+            res.setHeader('Connection', 'close')
         }
-        return 0
-    }
+    })
+
+    const port = config.get('port')
+    await listen(port)
+    logger.info('listening on port %d', port)
 
     process.on('SIGTERM', () => {
         logger.info('got SIGTERM, exiting...')
-        exit().then((code) => {
-            process.exit(code)
+        closing = true
+        close().then(() => {
+            process.exit(0)
         }).catch((error) => {
             logger.fatal(error, 'unable to exit gracefully')
             setTimeout(() => process.exit(1), 1000)

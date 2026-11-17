@@ -27,6 +27,7 @@ Serves `images.hive.blog`.
 ```
 src/
 ├── app.ts              # Koa application setup, middleware chain
+├── cluster-master.ts   # Worker supervision: respawn, crash-loop exit, memory recycle
 ├── routes.ts           # Route registration (all endpoints)
 ├── proxy.ts            # Image proxy handler (/p/ endpoint)
 ├── legacy-proxy.ts     # Legacy proxy redirects (/{W}x{H}/{url} → /p/)
@@ -48,6 +49,7 @@ config/
 
 test/
 ├── app.ts              # Healthcheck tests
+├── cluster.ts          # Cluster master tests (spawns src/app.ts with NUM_WORKERS=2)
 ├── proxy.ts            # Proxy endpoint tests
 ├── upload.ts           # Upload tests
 ├── utils.ts            # Utility function tests
