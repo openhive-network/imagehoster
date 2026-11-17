@@ -68,10 +68,10 @@ class Service {
         const deadline = Date.now() + timeoutMs
         while (!done()) {
             if (this.child.exitCode !== null || this.child.signalCode !== null) {
-                assert.fail(`service exited while waiting for ${ description }`)
+                assert.fail(`service exited while waiting for ${ description }; ${ this.recentLog() }`)
             }
             if (Date.now() > deadline) {
-                assert.fail(`timed out waiting for ${ description }`)
+                assert.fail(`timed out waiting for ${ description }; ${ this.recentLog() }`)
             }
             await new Promise<void>((resolve) => {
                 const timer = setTimeout(resolve, 200)
@@ -79,6 +79,13 @@ class Service {
             })
             this.waiters = []
         }
+    }
+
+    /** The master's last log messages, for failure reports. */
+    recentLog() {
+        const lines = this.records.filter((r) => r.pid === this.masterPid).slice(-15)
+            .map((r) => `${ r.time } ${ r.msg } worker=${ r.worker } code=${ r.code } signal=${ r.signal }`)
+        return `master log:\n${ lines.join('\n') }`
     }
 
     async listeningWorkers(count: number) {
@@ -113,7 +120,7 @@ describe('cluster master', function() {
 
     describe('worker deaths', function() {
         let service: Service
-        before(() => { service = new Service(63310, {WORKER_MAX_RSS_MB: '0', WORKER_STOP_TIMEOUT_MS: '2000'}) })
+        before(() => { service = new Service(63310, {WORKER_MAX_RSS_MB: '0', WORKER_STOP_TIMEOUT_MS: '8000'}) })
         after(() => { service.kill('SIGKILL') })
 
         it('should respawn a killed worker', async function() {
@@ -174,37 +181,42 @@ describe('cluster master', function() {
     describe('memory recycle', function() {
         let service: Service
         before(() => {
-            service = new Service(63330, {WORKER_MAX_RSS_MB: '1', WORKER_RSS_CHECK_INTERVAL_MS: '500'})
+            service = new Service(63330, {
+                WORKER_MAX_RSS_MB: '1', WORKER_RSS_CHECK_INTERVAL_MS: '500', WORKER_STOP_TIMEOUT_MS: '10000'
+            })
         })
         after(() => { service.kill('SIGKILL') })
 
         it('should replace a worker over the memory limit before stopping it', async function() {
             await service.listeningWorkers(2)
-            let failures = 0
+            const failures: string[] = []
             let requests = 0
             let polling = true
-            const poller = (async () => {
+            // several keep-alive clients, so the recycled worker has a socket kept busy
+            const pollers = [1, 2, 3, 4].map(async () => {
                 while (polling) {
-                    await service.healthcheck().catch(() => { failures++ })
+                    await service.healthcheck().catch((error) => { failures.push(error.code || error.message) })
                     requests++
                 }
-            })()
+            })
             await service.waitFor('a recycled worker to stop', () => service.master('worker stopped').length > 0)
             polling = false
-            await poller
+            await Promise.all(pollers)
 
             const [recycle] = service.master('worker memory over limit, recycling')
             assert.ok(recycle.rss_mb > 1, 'recycle logs the measured rss')
             assert.equal(recycle.limit_mb, 1)
             const [stopped] = service.master('worker stopped')
             assert.equal(stopped.worker, recycle.worker)
+            assert.equal(stopped.code, 0, 'recycled worker exits through its graceful path')
+            assert.equal(service.master('worker did not stop in time, killing it').length, 0)
             const index = (r: LogRecord) => service.records.indexOf(r)
             const replacementUp = service.master('worker listening').find((r) => r.worker! > 2)!
             assert.ok(index(recycle) < index(replacementUp), 'replacement forked after the recycle decision')
             assert.ok(index(replacementUp) < index(stopped), 'replacement listening before the old worker exits')
             assert.equal(service.master('worker died, respawning').length, 0)
             assert.ok(requests > 0)
-            assert.equal(failures, 0, 'requests keep succeeding during the recycle')
+            assert.deepEqual(failures, [], 'requests keep succeeding during the recycle')
 
             service.kill('SIGTERM')
             assert.equal(await service.exited, 0)

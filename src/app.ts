@@ -5,6 +5,7 @@ const cluster = require('cluster')
 import config from 'config'
 import * as http from 'http'
 import Koa from 'koa'
+import * as net from 'net'
 import * as os from 'os'
 import * as util from 'util'
 
@@ -71,7 +72,17 @@ async function main() {
 
     const server = http.createServer(app.callback())
     const listen: any = util.promisify(server.listen).bind(server)
-    const close = util.promisify(server.close).bind(server)
+    // http.Server#close() destroys idle keep-alive sockets, racing a client that is
+    // reusing one (ECONNRESET), and leaves busy ones open for as long as the client
+    // keeps sending. Instead only the listener is closed, and every response after
+    // that asks the client to close; sockets left idle end at keepAliveTimeout.
+    const close = util.promisify(net.Server.prototype.close).bind(server)
+    let closing = false
+    server.prependListener('request', (_req, res) => {
+        if (closing) {
+            res.setHeader('Connection', 'close')
+        }
+    })
 
     const port = config.get('port')
     await listen(port)
@@ -79,6 +90,7 @@ async function main() {
 
     process.on('SIGTERM', () => {
         logger.info('got SIGTERM, exiting...')
+        closing = true
         close().then(() => {
             process.exit(0)
         }).catch((error) => {

@@ -103,7 +103,10 @@ supervising that many workers:
 * Every `worker_rss_check_interval_ms` (`WORKER_RSS_CHECK_INTERVAL_MS`, default 30000) the master reads
   each worker's resident plus swapped memory from `/proc/<pid>/status`. A worker above
   `worker_max_rss_mb` (`WORKER_MAX_RSS_MB`, default 4096, 0 = disabled) is recycled: a replacement is
-  started, and once it listens the old worker is sent SIGTERM so it finishes its in-flight requests.
+  started, and once it listens the old worker is sent SIGTERM. A worker that got SIGTERM stops
+  accepting connections, finishes its in-flight requests, answers any further request on a
+  keep-alive connection with `Connection: close`, and exits once its idle connections have reached
+  the keep-alive timeout (5 s).
   One worker is recycled at a time, logged as `worker memory over limit, recycling` with `rss_mb` and
   `swap_mb`.
 * A worker asked to stop that has not exited after `worker_stop_timeout_ms` (`WORKER_STOP_TIMEOUT_MS`,
