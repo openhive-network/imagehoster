@@ -9,6 +9,7 @@ import * as os from 'os'
 import * as util from 'util'
 
 import {KoaContext} from './common'
+import {superviseWorkers} from './cluster-master'
 import {APIError, errorMiddleware} from './error'
 import {logger, loggerMiddleware} from './logger'
 import {routes} from './routes'
@@ -52,10 +53,6 @@ async function main() {
         logger.info({version}, 'starting service')
     }
 
-    const server = http.createServer(app.callback())
-    const listen: any = util.promisify(server.listen).bind(server)
-    const close = util.promisify(server.close).bind(server)
-
     let numWorkers = Number.parseInt(config.get('num_workers'))
     if (numWorkers === 0) {
         numWorkers = os.cpus().length
@@ -63,27 +60,27 @@ async function main() {
     const isPrimary = cluster.isPrimary && numWorkers > 1
 
     if (isPrimary) {
-        logger.info('spawning %d workers', numWorkers)
-        for (let i = 0; i < numWorkers; i++) {
-            cluster.fork()
-        }
-    } else {
-        const port = config.get('port')
-        await listen(port)
-        logger.info('listening on port %d', port)
+        superviseWorkers({
+            numWorkers,
+            maxRssMb: Number.parseInt(config.get('worker_max_rss_mb')),
+            rssCheckIntervalMs: Number.parseInt(config.get('worker_rss_check_interval_ms')),
+            stopTimeoutMs: Number.parseInt(config.get('worker_stop_timeout_ms'))
+        })
+        return
     }
 
-    const exit = async () => {
-        if (!isPrimary) {
-            await close()
-        }
-        return 0
-    }
+    const server = http.createServer(app.callback())
+    const listen: any = util.promisify(server.listen).bind(server)
+    const close = util.promisify(server.close).bind(server)
+
+    const port = config.get('port')
+    await listen(port)
+    logger.info('listening on port %d', port)
 
     process.on('SIGTERM', () => {
         logger.info('got SIGTERM, exiting...')
-        exit().then((code) => {
-            process.exit(code)
+        close().then(() => {
+            process.exit(0)
         }).catch((error) => {
             logger.fatal(error, 'unable to exit gracefully')
             setTimeout(() => process.exit(1), 1000)

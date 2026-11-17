@@ -90,6 +90,26 @@ Load order is: env vars > `config/$NODE_ENV.toml` > `config/default.toml`
 
 See the `config` module docs for more details.
 
+### Worker processes
+
+With `num_workers` other than 1 (`NUM_WORKERS`, 0 = one per CPU) the service runs as a cluster master
+supervising that many workers:
+
+* A worker that dies is logged (`worker died, respawning`, with its exit code and signal) and replaced.
+* More than 5 worker deaths within 60 seconds is treated as a crash loop: the master logs an error
+  (`... worker deaths within 60 s, not respawning ...`), stops the remaining workers and **exits with
+  code 1**, so the container's restart policy restarts the whole service rather than leaving a master
+  without workers.
+* Every `worker_rss_check_interval_ms` (`WORKER_RSS_CHECK_INTERVAL_MS`, default 30000) the master reads
+  each worker's resident plus swapped memory from `/proc/<pid>/status`. A worker above
+  `worker_max_rss_mb` (`WORKER_MAX_RSS_MB`, default 4096, 0 = disabled) is recycled: a replacement is
+  started, and once it listens the old worker is sent SIGTERM so it finishes its in-flight requests.
+  One worker is recycled at a time, logged as `worker memory over limit, recycling` with `rss_mb` and
+  `swap_mb`.
+* A worker asked to stop that has not exited after `worker_stop_timeout_ms` (`WORKER_STOP_TIMEOUT_MS`,
+  default 30000) is killed with SIGKILL (`worker did not stop in time, killing it`).
+* On SIGTERM or SIGINT the master stops all workers the same way, respawns none, and exits 0.
+
 
 API
 ---

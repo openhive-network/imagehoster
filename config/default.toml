@@ -15,6 +15,15 @@ num_workers = 1
 # libvips threads per worker process, 0 = sharp's default (one per cpu core)
 vips_concurrency = 4
 
+# with more than one worker, a worker whose resident plus swapped memory exceeds
+# this many MB is replaced: a new worker is started and, once it listens, the old
+# one is stopped gracefully. 0 disables the memory check
+worker_max_rss_mb = 4096
+# how often the master samples worker memory, in ms
+worker_rss_check_interval_ms = 30000
+# how long a worker asked to stop may take before it is killed, in ms
+worker_stop_timeout_ms = 30000
+
 # url to hived node used for verifying signatures
 rpc_node = 'https://api.hive.blog'
 
