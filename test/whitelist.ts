@@ -22,7 +22,7 @@ describe('whitelist', function() {
         })
     })
 
-    before((done) => { apiServer.listen(apiPort, 'localhost', done) })
+    before((done) => { apiServer.listen(apiPort, '127.0.0.1', done) })
     after((done) => { apiServer.close(done) })
 
     // checkUrl reads config on each call, so we can manipulate via the config object

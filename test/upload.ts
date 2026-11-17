@@ -45,7 +45,7 @@ describe('upload', () => {
     const port = 63205
     const server = http.createServer(app.callback())
 
-    before((done) => { server.listen(port, 'localhost', done) })
+    before((done) => { server.listen(port, '127.0.0.1', done) })
     after((done) => { server.close(done) })
 
     it('should upload image', async function() {

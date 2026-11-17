@@ -3,17 +3,19 @@
 # local build passes it too, e.g. --build-arg NODE_VERSION=24.
 ARG NODE_VERSION
 
-FROM node:${NODE_VERSION}-alpine AS build-stage
+# Both stages are glibc (Debian slim), so the prebuilt sharp binaries pnpm
+# installs in the build stage are the ones the runtime stage loads.
+FROM node:${NODE_VERSION}-slim AS build-stage
 
 WORKDIR /app
 
 # install build dependencies
-RUN apk add \
-    --no-cache \
-    bash \
-    build-base \
-    git \
-    make
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential \
+        git \
+        make \
+    && rm -rf /var/lib/apt/lists/*
 
 # pnpm at the version common-ci-configuration (the npm-common-config submodule)
 # builds its images with
@@ -40,7 +42,17 @@ RUN make lib ci-test
 RUN pnpm prune --prod
 
 # copy built application to runtime image
-FROM node:${NODE_VERSION}-alpine
+FROM node:${NODE_VERSION}-slim
+
+# glibc's allocator fragments under sharp's long-running libvips threads; sharp
+# recommends jemalloc on glibc (and, seeing it loaded, keeps one libvips thread
+# per core instead of falling back to one).
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libjemalloc2 \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s "$(dpkg -L libjemalloc2 | grep '/libjemalloc\.so\.2$')" /usr/local/lib/libjemalloc.so.2
+ENV LD_PRELOAD=/usr/local/lib/libjemalloc.so.2
+
 WORKDIR /app
 COPY --from=build-stage /app/config config
 COPY --from=build-stage /app/lib lib

@@ -34,6 +34,16 @@ if (!Number.isFinite(MAX_IMAGE_SIZE)) {
 }
 const SERVICE_URL = new URL(config.get('service_url'))
 
+// Sharp defaults to one libvips thread per core in every worker process;
+// 0 keeps that default.
+const VIPS_CONCURRENCY = Number(config.get('vips_concurrency'))
+if (!Number.isInteger(VIPS_CONCURRENCY) || VIPS_CONCURRENCY < 0) {
+    throw new Error('Invalid vips concurrency')
+}
+if (VIPS_CONCURRENCY > 0) {
+    Sharp.concurrency(VIPS_CONCURRENCY)
+}
+
 interface NeedleResponse extends http.IncomingMessage {
     body: any
     raw: Buffer

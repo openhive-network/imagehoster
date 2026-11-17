@@ -1,5 +1,6 @@
 import 'mocha'
 import assert from 'assert'
+import {execFile} from 'child_process'
 import * as crypto from 'crypto'
 import * as http from 'http'
 import needle from 'needle'
@@ -8,6 +9,7 @@ import * as path from 'path'
 import * as fs from 'fs'
 import sharp from 'sharp'
 import {URL} from 'url'
+import * as util from 'util'
 
 import {app} from './../src/app'
 import {getKeyNameFromHash, proxyStore, uploadStore} from './../src/common'
@@ -20,7 +22,7 @@ describe('proxy', function() {
     const port = 63205
     const server = http.createServer(app.callback())
 
-    before((done) => { server.listen(port, 'localhost', done) })
+    before((done) => { server.listen(port, '127.0.0.1', done) })
     after((done) => { server.close(done) })
 
     needle.defaults({follow_max: 1})
@@ -35,7 +37,7 @@ describe('proxy', function() {
         }
     })
 
-    before((done) => { imageServer.listen(port+1, 'localhost', done) })
+    before((done) => { imageServer.listen(port+1, '127.0.0.1', done) })
     after((done) => { imageServer.close(done) })
 
     it('should proxy', async function() {
@@ -165,6 +167,39 @@ describe('proxy', function() {
         assert.equal(meta.width, 200)
         // this would be 200 if the first url wasn't stripped
         assert.equal(meta.height, 133)
+    })
+
+})
+
+describe('vips concurrency', function() {
+
+    async function workerConcurrency(vipsConcurrency: string, module = './src/proxy') {
+        const script = `require('${ module }'); process.stdout.write(String(require('sharp').concurrency()))`
+        const {stdout} = await util.promisify(execFile)(process.execPath, ['-r', 'ts-node/register', '-e', script], {
+            cwd: path.resolve(__dirname, '..'),
+            env: {...process.env, NODE_ENV: 'test', TS_NODE_TRANSPILE_ONLY: 'true', VIPS_CONCURRENCY: vipsConcurrency},
+        })
+        return Number(stdout)
+    }
+
+    it('should apply the configured default', function() {
+        assert.equal(sharp.concurrency(), 4)
+    })
+
+    it('should apply the VIPS_CONCURRENCY override', async function() {
+        this.slow(10000)
+        assert.equal(await workerConcurrency('3'), 3)
+    })
+
+    it('should keep the sharp default for 0', async function() {
+        this.slow(10000)
+        const sharpDefault = await workerConcurrency('0', 'sharp')
+        assert.equal(await workerConcurrency('0'), sharpDefault)
+    })
+
+    it('should refuse to start with an invalid value', async function() {
+        this.slow(10000)
+        await assert.rejects(workerConcurrency('-1'), /Invalid vips concurrency/)
     })
 
 })

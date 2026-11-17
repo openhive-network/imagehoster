@@ -12,6 +12,9 @@ name = 'imagehoster'
 # number of worker processes to spawn, 0 = autodetect
 num_workers = 1
 
+# libvips threads per worker process, 0 = sharp's default (one per cpu core)
+vips_concurrency = 4
+
 # url to hived node used for verifying signatures
 rpc_node = 'https://api.hive.blog'
 
