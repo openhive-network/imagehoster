@@ -59,6 +59,7 @@ export async function coverHandler(ctx: KoaContext) {
         coverUrl = metadata.profile.cover_image
     }
 
-    ctx.set('Cache-Control', 'public,max-age=600')
+    // Same edge/browser split as avatars; the purger also purges /u/<name>/cover.
+    ctx.set('Cache-Control', 'public, s-maxage=86400, max-age=600')
     ctx.redirect(`/p/${ base58Enc(coverUrl) }?width=${ sizeW }&height=${ sizeH }`)
 }

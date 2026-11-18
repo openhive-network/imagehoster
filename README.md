@@ -68,6 +68,18 @@ directories on spinning disks, so the sweep takes hours. Empty responses that
 were already served are cached by Cloudflare for a year; those URLs need a purge
 as well.
 
+### Avatar and cover caching
+
+The `/u/<username>/avatar[/<size>]` and `/u/<username>/cover` redirects are sent
+with `Cache-Control: public, s-maxage=86400, max-age=600`. Cloudflare uses
+`s-maxage` and keeps the redirect for a day; `cf-cache-purger` purges these URLs
+within seconds of an account's `account_update2`, so the day is only the fallback
+for the purger being down. Browsers ignore `s-maxage` and recheck after 10 minutes,
+which is answered from the edge, so a changed avatar or cover shows everywhere
+within 10 minutes without extra origin requests. Without the purger the edge can
+serve an old image for up to a day. Showing the new image immediately to the user
+who just edited their profile (a cache-bust after the save) is the UI's job.
+
 ### Proxy whitelist
 
 The proxy endpoint can optionally restrict service to URLs that have been
