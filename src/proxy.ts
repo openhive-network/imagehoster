@@ -51,14 +51,47 @@ interface NeedleResponse extends http.IncomingMessage {
     cookies?: {[name: string]: any}
 }
 
+/** A response body shorter than its Content-Length announced. */
+class ShortResponseError extends Error {
+    constructor(public readonly expectedBytes: number | undefined, public readonly receivedBytes: number) {
+        super(`Received ${ receivedBytes } of ${ expectedBytes === undefined ? 'unknown' : expectedBytes } bytes`)
+        this.name = 'ShortResponseError'
+    }
+}
+
+function announcedLength(res: http.IncomingMessage) {
+    const length = Number(res.headers['content-length'])
+    return Number.isInteger(length) ? length : undefined
+}
+
 function fetchUrlOnce(url: string, options: needle.NeedleOptions) {
     return new Promise<NeedleResponse>((resolve, reject) => {
-        needle.get(url, options, (error, response) => {
+        const request = needle.get(url, options, (error, response) => {
             if (error) {
                 reject(error)
-            } else {
-                resolve(response)
+                return
             }
+            // With a Content-Encoding the announced length is that of the
+            // encoded body, which response.bytes does not necessarily match.
+            const expectedBytes = announcedLength(response)
+            if (!response.headers['content-encoding'] && expectedBytes !== undefined && response.bytes < expectedBytes) {
+                reject(new ShortResponseError(expectedBytes, response.bytes))
+                return
+            }
+            resolve(response)
+        })
+        // needle neither finishes nor fails when the connection closes early,
+        // it waits for its read timeout instead.
+        request.on('response', (res: http.IncomingMessage & {req: http.ClientRequest}) => {
+            let receivedBytes = 0
+            res.on('data', (chunk: Buffer) => { receivedBytes += chunk.length })
+            res.once('close', () => {
+                if (!res.complete) {
+                    // abort() rather than destroy(): it is what clears needle's timer
+                    res.req.abort()
+                    reject(new ShortResponseError(announcedLength(res), receivedBytes))
+                }
+            })
         })
     })
 }
@@ -192,6 +225,152 @@ export function safeParseInt(value: any): number | undefined {
     return isNaN(basicNumber) ? undefined : basicNumber
 }
 
+interface EncodedImage {
+    data: Buffer
+    contentType: string
+}
+
+/**
+ * Fetch an original from its source. Throws UpstreamError when the source
+ * cannot be reached or sends less than it announced, InvalidImage for a
+ * non-2xx response or an unaccepted format, PayloadTooLarge above
+ * MAX_IMAGE_SIZE.
+ */
+async function fetchOriginal(ctx: KoaContext, url: URL, origKey: string, span: opentracing.Span): Promise<EncodedImage> {
+    const skipSsrf = process.env.NODE_ENV === 'test'
+    let res: NeedleResponse
+    try {
+        res = await fetchUrl(url.toString(), {
+            open_timeout: 5 * 1000,
+            response_timeout: 5 * 1000,
+            read_timeout: 60 * 1000,
+            compressed: true,
+            parse_response: false,
+            user_agent: 'HiveProxy/1.0 (+https://gitlab.syncad.com/hive/imagehoster)'
+        } as any, skipSsrf)
+    } catch (cause) {
+        span.setTag(opentracing.Tags.ERROR, true)
+        span.finish()
+        if (cause instanceof ShortResponseError) {
+            ctx.log.warn({
+                orig_key: origKey,
+                url: url.toString(),
+                expected_bytes: cause.expectedBytes,
+                received_bytes: cause.receivedBytes
+            }, 'short fetch of %s, not storing it', origKey)
+        }
+        if (!(cause instanceof Error)) {
+            cause = Error('unexpected error')
+        }
+        throw new APIError({cause: cause as Error, code: APIError.Code.UpstreamError})
+    }
+
+    APIError.assert(res.bytes <= MAX_IMAGE_SIZE, APIError.Code.PayloadTooLarge)
+    APIError.assert(Buffer.isBuffer(res.body), APIError.Code.InvalidImage)
+
+    if (Math.floor((res.statusCode || 404) / 100) !== 2) {
+        throw new APIError({code: APIError.Code.InvalidImage})
+    }
+
+    return {data: res.body, contentType: await assertAcceptedImage(res.body)}
+}
+
+/**
+ * Resize and re-encode an original as the options ask. Throws when the
+ * original does not decode: InvalidImage when its header cannot be read,
+ * Sharp's error when its data cannot.
+ */
+async function convertImage(origData: Buffer, origContentType: string, options: ProxyOptions): Promise<EncodedImage> {
+    let contentType = origContentType
+    // 'error' rather than the default 'warning' lets libjpeg warnings (invalid
+    // SOS parameters, extraneous bytes) decode, while truncated data still throws.
+    const image = Sharp(origData, {failOn: 'error'}).jpeg({
+        quality: 85,
+        force: false
+    }).png({
+        compressionLevel: 9,
+        force: false
+    }).webp({
+        alphaQuality: 100,
+        force: false
+    })
+
+    let metadata: Sharp.Metadata
+    try {
+        metadata = await image.metadata()
+    } catch (cause) {
+        if (!(cause instanceof Error)) {
+            cause = Error('unexpected error')
+        }
+        throw new APIError({cause: cause as Error, code: APIError.Code.InvalidImage})
+    }
+
+    APIError.assert(metadata.width && metadata.height, APIError.Code.InvalidImage)
+
+    const maxWidth: number = safeParseInt(config.get('proxy_store.max_image_width')) || 1280
+    const maxHeight: number = safeParseInt(config.get('proxy_store.max_image_height')) || 8000
+    const maxCustomWidth: number = safeParseInt(config.get('proxy_store.max_custom_image_width')) || 8000
+    const maxCustomHeight: number = safeParseInt(config.get('proxy_store.max_custom_image_height')) || 8000
+    let width: number | undefined = safeParseInt(options.width)
+    let height: number | undefined = safeParseInt(options.height)
+
+    // If no width and height are provided, it will use the default image
+    // width and height, but cap it to the config-provided max image width
+    // and height. This is so we can save on bandwidth for the default case.
+    //
+    // If width and height are provided, it will use the provided width and
+    // height. This is so clients who need a higher-res image can still get
+    // one.
+    if (width) {
+        if (width > maxCustomWidth) { width = maxCustomWidth }
+    } else {
+        if (metadata.width && metadata.width > maxWidth) { width = maxWidth }
+    }
+    if (height) {
+        if (height > maxCustomHeight) { height = maxCustomHeight }
+    } else {
+        if (metadata.height && metadata.height > maxHeight) { height = maxHeight }
+    }
+
+    switch (options.mode) {
+    case ScalingMode.Cover:
+        image.rotate().resize(width, height, {fit: 'cover'})
+        break
+    case ScalingMode.Fit:
+        if (!width) { width = maxWidth }
+        if (!height) { height = maxHeight }
+
+        image.rotate().resize(width, height, { fit: 'inside', withoutEnlargement: true })
+        break
+    }
+
+    switch (options.format) {
+    case OutputFormat.Match:
+        break
+    case OutputFormat.JPEG:
+        image.jpeg({force: true})
+        contentType = 'image/jpeg'
+        break
+    case OutputFormat.PNG:
+        image.png({force: true})
+        contentType = 'image/png'
+        break
+    case OutputFormat.WEBP:
+        contentType = 'image/webp'
+        image.webp({force: true})
+        break
+    }
+
+    return {data: await image.toBuffer(), contentType}
+}
+
+function decoderMessage(error: unknown): string {
+    if (error instanceof APIError && error.cause) {
+        return error.cause.message
+    }
+    return error instanceof Error ? error.message : String(error)
+}
+
 export async function proxyHandler(ctx: KoaContext) {
     const myContext = tracer.extract(opentracing.FORMAT_HTTP_HEADERS, ctx.headers)
     const proxyHandlerSpan = tracer.startSpan('proxyHandler', {childOf: myContext ? myContext : undefined})
@@ -317,7 +496,8 @@ export async function proxyHandler(ctx: KoaContext) {
     // check if we have the original
     let origData: Buffer
     let contentType: string
-    if (await storeExists(origStore, origKey)) {
+    const origIsStored = await storeExists(origStore, origKey)
+    if (origIsStored) {
         ctx.tag({store: 'original'})
         const readSpan = tracer.startSpan('reading original image from store', {childOf: proxyHandlerSpan})
         origData = await readStream(origStore.createReadStream(origKey))
@@ -331,37 +511,9 @@ export async function proxyHandler(ctx: KoaContext) {
         ctx.log.debug({url: url.toString()}, 'fetching image')
 
         const fetchSourceSpan = tracer.startSpan('fetch image from source', {childOf: proxyHandlerSpan})
-
-        const skipSsrf = process.env.NODE_ENV === 'test'
-        let res: NeedleResponse
-        try {
-            res = await fetchUrl(url.toString(), {
-                open_timeout: 5 * 1000,
-                response_timeout: 5 * 1000,
-                read_timeout: 60 * 1000,
-                compressed: true,
-                parse_response: false,
-                user_agent: 'HiveProxy/1.0 (+https://gitlab.syncad.com/hive/imagehoster)'
-            } as any, skipSsrf)
-        } catch (cause) {
-            fetchSourceSpan.setTag(opentracing.Tags.ERROR, true)
-            fetchSourceSpan.finish()
-            if (!(cause instanceof Error)) {
-                cause = Error('unexpected error')
-            }
-            throw new APIError({cause: cause as Error, code: APIError.Code.UpstreamError})
-        }
-
-        APIError.assert(res.bytes <= MAX_IMAGE_SIZE, APIError.Code.PayloadTooLarge)
-        APIError.assert(Buffer.isBuffer(res.body), APIError.Code.InvalidImage)
-
-        if (Math.floor((res.statusCode || 404) / 100) !== 2) {
-            throw new APIError({code: APIError.Code.InvalidImage})
-        }
-
-        contentType = await assertAcceptedImage(res.body)
-
-        origData = res.body
+        const fetched = await fetchOriginal(ctx, url, origKey, fetchSourceSpan)
+        origData = fetched.data
+        contentType = fetched.contentType
 
         ctx.log.debug('storing original %s', origKey)
         const storeOriginalSpan = tracer.startSpan('storing original in bucket', {childOf: fetchSourceSpan})
@@ -392,84 +544,28 @@ export async function proxyHandler(ctx: KoaContext) {
         rv = origData
     } else {
         const resizingSpan = tracer.startSpan('resizing', {childOf: proxyHandlerSpan})
-        const image = Sharp(origData).jpeg({
-            quality: 85,
-            force: false
-        }).png({
-            compressionLevel: 9,
-            force: false
-        }).webp({
-            alphaQuality: 100,
-            force: false
-        })
-
-        let metadata: Sharp.Metadata
+        let converted: EncodedImage
         try {
-            metadata = await image.metadata()
-        } catch (cause) {
-            if (!(cause instanceof Error)) {
-                cause = Error('unexpected error')
+            converted = await convertImage(origData, contentType, options)
+        } catch (decodeError) {
+            // A stored proxy original that does not decode is most likely a
+            // partial fetch; the source is the only place a good copy can come from.
+            if (!origIsStored || origIsUpload) {
+                throw decodeError
             }
-            throw new APIError({cause: cause as Error, code: APIError.Code.InvalidImage})
+            ctx.log.warn({
+                orig_key: origKey,
+                url: url.toString(),
+                decoder_error: decoderMessage(decodeError)
+            }, 'stored original %s does not decode, refetching from source', origKey)
+            const refetchSpan = tracer.startSpan('refetch undecodable original', {childOf: resizingSpan})
+            const fresh = await fetchOriginal(ctx, url, origKey, refetchSpan)
+            converted = await convertImage(fresh.data, fresh.contentType, options)
+            await storeWrite(origStore, origKey, fresh.data)
+            refetchSpan.finish()
         }
-
-        APIError.assert(metadata.width && metadata.height, APIError.Code.InvalidImage)
-
-        const maxWidth: number = safeParseInt(config.get('proxy_store.max_image_width')) || 1280
-        const maxHeight: number = safeParseInt(config.get('proxy_store.max_image_height')) || 8000
-        const maxCustomWidth: number = safeParseInt(config.get('proxy_store.max_custom_image_width')) || 8000
-        const maxCustomHeight: number = safeParseInt(config.get('proxy_store.max_custom_image_height')) || 8000
-        let width: number | undefined = safeParseInt(options.width)
-        let height: number | undefined = safeParseInt(options.height)
-
-        // If no width and height are provided, it will use the default image
-        // width and height, but cap it to the config-provided max image width
-        // and height. This is so we can save on bandwidth for the default case.
-        //
-        // If width and height are provided, it will use the provided width and
-        // height. This is so clients who need a higher-res image can still get
-        // one.
-        if (width) {
-            if (width > maxCustomWidth) { width = maxCustomWidth }
-        } else {
-            if (metadata.width && metadata.width > maxWidth) { width = maxWidth }
-        }
-        if (height) {
-            if (height > maxCustomHeight) { height = maxCustomHeight }
-        } else {
-            if (metadata.height && metadata.height > maxHeight) { height = maxHeight }
-        }
-
-        switch (options.mode) {
-        case ScalingMode.Cover:
-            image.rotate().resize(width, height, {fit: 'cover'})
-            break
-        case ScalingMode.Fit:
-            if (!width) { width = maxWidth }
-            if (!height) { height = maxHeight }
-
-            image.rotate().resize(width, height, { fit: 'inside', withoutEnlargement: true })
-            break
-        }
-
-        switch (options.format) {
-        case OutputFormat.Match:
-            break
-        case OutputFormat.JPEG:
-            image.jpeg({force: true})
-            contentType = 'image/jpeg'
-            break
-        case OutputFormat.PNG:
-            image.png({force: true})
-            contentType = 'image/png'
-            break
-        case OutputFormat.WEBP:
-            contentType = 'image/webp'
-            image.webp({force: true})
-            break
-        }
-
-        rv = await image.toBuffer()
+        rv = converted.data
+        contentType = converted.contentType
         ctx.log.debug('storing converted %s', imageKey)
         const storingResizedSpan = tracer.startSpan('storing resized image', {childOf: resizingSpan})
         await storeWrite(proxyStore, imageKey, rv)
