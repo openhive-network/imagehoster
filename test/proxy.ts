@@ -306,6 +306,62 @@ describe('proxy', function() {
             assert(stored.equals(truncatedImage), 'upload was changed')
         })
 
+        describe('empty stored results', function() {
+            const emptyResult = Buffer.alloc(0)
+            const fitQuery = 'mode=fit&width=100'
+
+            function resizedKey(url: string) {
+                return `${ originalKey(url) }_100x0`
+            }
+
+            it('should regenerate an empty stored result', async function() {
+                this.slow(2000)
+                const url = sourceUrl('full-empty-result.jpg')
+                await storeWrite(proxyStore, resizedKey(url), emptyResult)
+                const res = await proxy(url, fitQuery)
+                assert.equal(res.statusCode, 200)
+                assert.equal(res.headers['content-type'], 'image/jpeg')
+                const meta = await sharp(res.body).metadata()
+                assert.equal(meta.width, 100)
+                assert.equal(meta.height, 67)
+                const stored = await readStream(proxyStore.createReadStream(resizedKey(url)))
+                assert(stored.equals(res.body), 'stored result was not replaced')
+            })
+
+            it('should not store anything for an empty stored result whose source is unreachable', async function() {
+                this.slow(2000)
+                const url = `http://localhost:${ port + 99 }/empty-result.jpg`
+                await storeWrite(proxyStore, resizedKey(url), emptyResult)
+                const res = await proxy(url, fitQuery)
+                assert.equal(res.statusCode, 400)
+                assert.equal(res.body.error.name, 'upstream_error')
+                assert.equal(res.headers['cache-control'], 'no-store')
+                assert.equal(await storeExists(proxyStore, originalKey(url)), false)
+                const stored = await readStream(proxyStore.createReadStream(resizedKey(url)))
+                assert.equal(stored.length, 0)
+            })
+
+            it('should write one non-empty result on a first request', async function() {
+                this.slow(2000)
+                const url = sourceUrl('full-first-result.jpg')
+                const res = await proxy(url, fitQuery)
+                assert.equal(res.statusCode, 200)
+                const stored = await readStream(proxyStore.createReadStream(resizedKey(url)))
+                assert(stored.length > 0, 'stored result is empty')
+                assert(stored.equals(res.body), 'stored result differs from the response')
+            })
+
+            it('should serve a non-empty stored result without resizing', async function() {
+                const url = sourceUrl('full-stored-result.jpg')
+                await storeWrite(proxyStore, resizedKey(url), sosWarningImage)
+                const res = await proxy(url, fitQuery)
+                assert.equal(res.statusCode, 200)
+                assert(Buffer.from(res.body).equals(sosWarningImage), 'stored result was not served')
+                assert.equal(res.headers['cache-control'], 'public,max-age=29030400,immutable')
+                assert.equal(requests.get('/full-stored-result.jpg'), undefined)
+            })
+        })
+
         it('should fetch a valid original once', async function() {
             this.slow(2000)
             const url = sourceUrl('full-valid.jpg')
