@@ -51,6 +51,23 @@ thread per CPU core. `vips_concurrency` (env `VIPS_CONCURRENCY`, default `4`) ca
 that pool per worker; `0` keeps sharp's default. libvips also reads
 `VIPS_CONCURRENCY` itself, so both agree.
 
+### Empty stored results
+
+A stored resized result with no content is treated as missing: the proxy logs a
+warning with its key, regenerates it and overwrites it. An empty original or
+resized result is never written. Older deployments could leave zero-byte resized
+results behind when a resize failed after the key was created; with an fs proxy
+store, list and delete them with
+
+```sh
+find <proxy_store.path> -type f -size 0 -print -delete
+```
+
+(drop `-delete` to only list them). On img2 the store has ~3,400 partition
+directories on spinning disks, so the sweep takes hours. Empty responses that
+were already served are cached by Cloudflare for a year; those URLs need a purge
+as well.
+
 ### Proxy whitelist
 
 The proxy endpoint can optionally restrict service to URLs that have been
