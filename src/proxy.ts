@@ -371,6 +371,14 @@ function decoderMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error)
 }
 
+/** Write data to store, refusing with InternalError when there is none. */
+async function storeNonEmpty(store: AbstractBlobStore, key: string, data: Buffer) {
+    if (data.length === 0) {
+        throw new APIError({message: `Refusing to store empty ${ key }`, code: APIError.Code.InternalError})
+    }
+    await storeWrite(store, key, data)
+}
+
 export async function proxyHandler(ctx: KoaContext) {
     const myContext = tracer.extract(opentracing.FORMAT_HTTP_HEADERS, ctx.headers)
     const proxyHandlerSpan = tracer.startSpan('proxyHandler', {childOf: myContext ? myContext : undefined})
@@ -470,7 +478,6 @@ export async function proxyHandler(ctx: KoaContext) {
 
     // check if we already have a converted image for requested key
     if (await storeExists(proxyStore, imageKey)) {
-        ctx.tag({store: 'resized'})
         ctx.log.debug('streaming %s from store', imageKey)
         const file = proxyStore.createReadStream(imageKey)
         file.on('error', (error) => {
@@ -481,15 +488,22 @@ export async function proxyHandler(ctx: KoaContext) {
         })
         const streamSpan = tracer.startSpan('streaming stored image', {childOf: proxyHandlerSpan})
         const {head, stream} = await streamHead(file, {bytes: 16384})
-        const mimeType = await mimeMagic(head)
-        ctx.set('Content-Type', mimeType)
-        ctx.set('Cache-Control', tokenBypassed
-            ? 'private, no-store'
-            : 'public,max-age=29030400,immutable')
-        ctx.body = stream
+        if (head.length > 0) {
+            ctx.tag({store: 'resized'})
+            const mimeType = await mimeMagic(head)
+            ctx.set('Content-Type', mimeType)
+            ctx.set('Cache-Control', tokenBypassed
+                ? 'private, no-store'
+                : 'public,max-age=29030400,immutable')
+            ctx.body = stream
+            streamSpan.finish()
+            proxyHandlerSpan.finish()
+            return
+        }
+        // left behind by a write that failed after creating the key
+        ctx.log.warn({image_key: imageKey}, 'stored result %s is empty, regenerating it', imageKey)
+        file.destroy()
         streamSpan.finish()
-        proxyHandlerSpan.finish()
-        return
     }
 
     // ctx.log.debug('we don\'t already have a resized image to stream')
@@ -517,7 +531,7 @@ export async function proxyHandler(ctx: KoaContext) {
 
         ctx.log.debug('storing original %s', origKey)
         const storeOriginalSpan = tracer.startSpan('storing original in bucket', {childOf: fetchSourceSpan})
-        await storeWrite(origStore, origKey, origData)
+        await storeNonEmpty(origStore, origKey, origData)
         storeOriginalSpan.finish()
         fetchSourceSpan.finish()
     }
@@ -561,14 +575,14 @@ export async function proxyHandler(ctx: KoaContext) {
             const refetchSpan = tracer.startSpan('refetch undecodable original', {childOf: resizingSpan})
             const fresh = await fetchOriginal(ctx, url, origKey, refetchSpan)
             converted = await convertImage(fresh.data, fresh.contentType, options)
-            await storeWrite(origStore, origKey, fresh.data)
+            await storeNonEmpty(origStore, origKey, fresh.data)
             refetchSpan.finish()
         }
         rv = converted.data
         contentType = converted.contentType
         ctx.log.debug('storing converted %s', imageKey)
         const storingResizedSpan = tracer.startSpan('storing resized image', {childOf: resizingSpan})
-        await storeWrite(proxyStore, imageKey, rv)
+        await storeNonEmpty(proxyStore, imageKey, rv)
         storingResizedSpan.finish()
         resizingSpan.finish()
     }
