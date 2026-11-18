@@ -168,6 +168,8 @@ Download a previously uploaded image.
 
 Downloads and serves the provided image, note that a copy will be taken of the image and that will be served on subsequent requests so even if the upstream is removed or changes you will still get the original from the proxy endpoint.
 
+A fetch that returns fewer bytes than its `Content-Length` announced (without a `Content-Encoding`) fails with `upstream_error` and is not stored. A stored copy that cannot be decoded (for example one truncated by an earlier partial fetch) is fetched again from the upstream once and, if the new copy decodes, replaced by it; if the upstream fails or its copy does not decode either, the error is returned and the stored copy is kept so a later request retries. Images that decode with only a decoder warning (such as some camera JPEGs with invalid SOS parameters) are served normally. Uploaded images are never refetched.
+
 ##### Params
 
   * `b58_image_url` - [Base58](https://en.wikipedia.org/wiki/Base58) encoded utf8 string containing the url to the image you wish to proxy.

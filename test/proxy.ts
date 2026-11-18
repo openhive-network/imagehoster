@@ -3,6 +3,7 @@ import assert from 'assert'
 import {execFile} from 'child_process'
 import * as crypto from 'crypto'
 import * as http from 'http'
+import * as net from 'net'
 import needle from 'needle'
 import * as multihash from 'multihashes'
 import * as path from 'path'
@@ -14,7 +15,7 @@ import * as util from 'util'
 import {app} from './../src/app'
 import {getKeyNameFromHash, proxyStore, uploadStore} from './../src/common'
 import {imageBlacklist} from './../src/blacklist'
-import {storeExists, storeWrite, base58Enc} from './../src/utils'
+import {readStream, storeExists, storeWrite, base58Enc} from './../src/utils'
 
 import {uploadImage} from './upload'
 
@@ -167,6 +168,151 @@ describe('proxy', function() {
         assert.equal(meta.width, 200)
         // this would be 200 if the first url wasn't stripped
         assert.equal(meta.height, 133)
+    })
+
+    describe('original repair', function() {
+        const fullImage = fs.readFileSync(path.resolve(__dirname, 'test.jpg'))
+        // the first 320 KiB, as left behind by a partial fetch
+        const truncatedImage = fullImage.subarray(0, 320 * 1024)
+        let sosWarningImage: Buffer
+        const requests = new Map<string, number>()
+
+        const fixtureServer = http.createServer((req, res) => {
+            const name = req.url || ''
+            requests.set(name, (requests.get(name) || 0) + 1)
+            if (name.startsWith('/full')) {
+                res.writeHead(200, {'Content-Length': fullImage.length})
+                res.end(fullImage)
+            } else if (name.startsWith('/sos')) {
+                res.writeHead(200, {'Content-Length': sosWarningImage.length})
+                res.end(sosWarningImage)
+            } else {
+                res.writeHead(404)
+                res.end()
+            }
+        })
+
+        before(async function() {
+            // A baseline JPEG whose SOS header carries progressive parameters, the
+            // shape of the Samsung camera files in sharp#1880: libjpeg warns
+            // "Invalid SOS parameters for sequential JPEG" and decodes it.
+            sosWarningImage = await sharp({create: {width: 64, height: 48, channels: 3, background: '#4080c0'}})
+                .jpeg({progressive: false})
+                .toBuffer()
+            const sos = sosWarningImage.indexOf(Buffer.from([0xFF, 0xDA]))
+            const components = sosWarningImage[sos + 4]
+            sosWarningImage[sos + 5 + components * 2 + 1] = 0 // Se, 63 for a sequential scan
+        })
+        // closes the connection after part of the body it announced
+        const shortServer = net.createServer((socket) => {
+            socket.once('data', () => {
+                requests.set('short', (requests.get('short') || 0) + 1)
+                socket.write(`HTTP/1.1 200 OK\r\nContent-Type: image/jpeg\r\nContent-Length: ${ fullImage.length }\r\n\r\n`)
+                socket.end(truncatedImage)
+            })
+        })
+
+        before((done) => { fixtureServer.listen(port + 2, '127.0.0.1', done) })
+        after((done) => { fixtureServer.close(done) })
+        before((done) => { shortServer.listen(port + 3, '127.0.0.1', done) })
+        after((done) => { shortServer.close(done) })
+
+        function sourceUrl(name: string) {
+            return `http://localhost:${ port + 2 }/${ name }`
+        }
+
+        function originalKey(url: string) {
+            const urlHash = crypto.createHash('sha1').update(new URL(url).toString()).digest()
+            return getKeyNameFromHash('U' + multihash.toB58String(multihash.encode(urlHash, 'sha1')))
+        }
+
+        function proxy(url: string, query = 'width=100') {
+            return needle('get', `http://localhost:${ port }/p/${ base58Enc(url) }?${ query }`)
+        }
+
+        it('should refetch and replace a truncated stored original', async function() {
+            this.slow(2000)
+            const url = sourceUrl('full-truncated.jpg')
+            await storeWrite(proxyStore, originalKey(url), truncatedImage)
+            const res = await proxy(url)
+            assert.equal(res.statusCode, 200)
+            const meta = await sharp(res.body).metadata()
+            assert.equal(meta.width, 100)
+            assert.equal(meta.height, 67)
+            assert.equal(requests.get('/full-truncated.jpg'), 1)
+            const stored = await readStream(proxyStore.createReadStream(originalKey(url)))
+            assert(stored.equals(fullImage), 'stored original was not replaced')
+        })
+
+        it('should keep a truncated stored original when the refetch fails', async function() {
+            this.slow(2000)
+            const url = sourceUrl('missing-truncated.jpg')
+            await storeWrite(proxyStore, originalKey(url), truncatedImage)
+            for (const attempt of [1, 2]) {
+                const res = await proxy(url)
+                assert.equal(res.statusCode, 400)
+                assert.equal(res.body.error.name, 'invalid_image')
+                assert.equal(requests.get('/missing-truncated.jpg'), attempt)
+                const stored = await readStream(proxyStore.createReadStream(originalKey(url)))
+                assert(stored.equals(truncatedImage), 'stored original was changed')
+            }
+        })
+
+        it('should keep a truncated stored original when the source is unreachable', async function() {
+            this.slow(2000)
+            const url = `http://localhost:${ port + 99 }/truncated.jpg`
+            await storeWrite(proxyStore, originalKey(url), truncatedImage)
+            const res = await proxy(url)
+            assert.equal(res.statusCode, 400)
+            assert.equal(res.body.error.name, 'upstream_error')
+            assert.equal(res.headers['cache-control'], 'no-store')
+            const stored = await readStream(proxyStore.createReadStream(originalKey(url)))
+            assert(stored.equals(truncatedImage), 'stored original was changed')
+        })
+
+        it('should resize a JPEG that decodes with a libjpeg warning', async function() {
+            await assert.rejects(sharp(sosWarningImage).toBuffer(), /Invalid SOS parameters/)
+            const res = await proxy(sourceUrl('sos.jpg'), 'width=32')
+            assert.equal(res.statusCode, 200)
+            const meta = await sharp(res.body).metadata()
+            assert.equal(meta.width, 32)
+            assert.equal(meta.height, 24)
+        })
+
+        it('should not store a fetch shorter than its Content-Length', async function() {
+            this.slow(2000)
+            const url = `http://localhost:${ port + 3 }/short.jpg`
+            const res = await proxy(url)
+            assert.equal(res.statusCode, 400)
+            assert.equal(res.body.error.name, 'upstream_error')
+            assert.equal(res.headers['cache-control'], 'no-store')
+            assert.equal(await storeExists(proxyStore, originalKey(url)), false)
+            assert.equal(requests.get('short'), 1)
+        })
+
+        it('should not refetch an undecodable upload', async function() {
+            const imageHash = crypto.createHash('sha256')
+                .update('ImageSigningChallenge')
+                .update(truncatedImage)
+                .digest()
+            const contentHash = 'D' + multihash.toB58String(multihash.encode(imageHash, 'sha2-256'))
+            await storeWrite(uploadStore, getKeyNameFromHash(contentHash), truncatedImage)
+            const url = `http://localhost:${ port }/${ contentHash }/truncated.jpg`
+            const res = await proxy(url)
+            assert.equal(res.statusCode, 500)
+            assert.equal(res.body.error.name, 'internal_error')
+            assert.equal(await storeExists(proxyStore, originalKey(url)), false)
+            const stored = await readStream(uploadStore.createReadStream(getKeyNameFromHash(contentHash)))
+            assert(stored.equals(truncatedImage), 'upload was changed')
+        })
+
+        it('should fetch a valid original once', async function() {
+            this.slow(2000)
+            const url = sourceUrl('full-valid.jpg')
+            assert.equal((await proxy(url, 'width=100')).statusCode, 200)
+            assert.equal((await proxy(url, 'width=200')).statusCode, 200)
+            assert.equal(requests.get('/full-valid.jpg'), 1)
+        })
     })
 
 })
