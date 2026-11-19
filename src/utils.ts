@@ -32,6 +32,20 @@ export function parseBool(input: any): boolean {
     }
 }
 
+const AccountNameLabel = /^[a-z][a-z0-9-]{1,14}[a-z0-9]$/
+
+/**
+ * True if `name` satisfies the Hive account-name rules: 3-16 characters in total, made of
+ * dot-separated labels that are each at least 3 characters, start with a lowercase letter,
+ * contain only `a-z`, `0-9` and `-`, and do not end with `-`.
+ */
+export function isValidAccountName(name: string): boolean {
+    if (name.length < 3 || name.length > 16) {
+        return false
+    }
+    return name.split('.').every((label) => AccountNameLabel.test(label))
+}
+
 /** Convert CamelCase to snake_case. */
 export function camelToSnake(value: string) {
     return value
