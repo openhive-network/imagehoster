@@ -93,6 +93,9 @@ type = 'memory'
 [whitelist]
 enabled = false
 # apiUrl = 'http://localhost:7015'  # PostgREST API for whitelist checks
+# ms the avatar/cover lookup (GET {apiUrl}/avatar/{name}, /cover/{name}) may
+# take before the handler falls back to get_accounts on the RPC node
+profileTimeoutMs = 1500
 
 
 # domain allowlist: bypass whitelist check for URLs on these domains
