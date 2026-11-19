@@ -120,6 +120,9 @@ more than that, is aborted there and answered with 413 and
 `Cache-Control: public, max-age=86400`, so the edge keeps the refusal for a day.
 Each abort is logged at info level (`oversize source <key> aborted`) with
 `source_host`, `announced_bytes` or `received_bytes`, and `max_bytes`.
+The proxy does not ask sources for a content encoding (no `Accept-Encoding`); a
+source that compresses anyway is counted on the decoded bytes as well, so a
+small compressed body that inflates past `proxy_fetch_max_bytes` gets the same 413.
 
 A fetched original of at most `proxy_store_original_max_bytes` is stored as
 before. A larger one is resized and served like any other, and its resized
@@ -127,7 +130,11 @@ variants are stored, but the original itself is not: in its place the store
 that would have held it gets an object `<origKey>.source` with JSON
 `{url, content_type, bytes, width, height, pages, sha256, fetched_at, version, stored: false}`
 (`width`/`height` of the first frame, `sha256` hex of the original bytes), from
-which the original can be backfilled later. The marker is never served or read
+which the original can be backfilled later. When sharp cannot read the
+original's header, `width`, `height` and `pages` are null, a warning
+(`oversize source <key> header unreadable, ...`) carries the sharp error as
+`decoder_error`, and the request goes on as for any original: an unresized GIF
+is still served, a resize is refused as an invalid image. The marker is never served or read
 by the proxy. A request for another size of the same source fetches it again
 and rewrites the marker; an unresized GIF request serves the fetched bytes
 without storing them. Each such fetch is logged at info level
