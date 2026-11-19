@@ -135,6 +135,15 @@ function fetchUrlOnce(url: string, options: needle.NeedleOptions, maxBytes: numb
                     abortOversize(undefined, receivedBytes)
                 }
             })
+            // needle inflates any Content-Encoding it knows, asked for or not,
+            // so what it buffers is counted on its decoded output as well
+            let decodedBytes = 0
+            request.on('data', (chunk: Buffer) => {
+                decodedBytes += chunk.length
+                if (decodedBytes > maxBytes) {
+                    abortOversize(undefined, decodedBytes)
+                }
+            })
             res.once('close', () => {
                 if (!res.complete) {
                     // abort() rather than destroy(): it is what clears needle's timer
@@ -298,7 +307,8 @@ async function fetchOriginal(ctx: KoaContext, url: URL, origKey: string, span: o
             open_timeout: 5 * 1000,
             response_timeout: 5 * 1000,
             read_timeout: 60 * 1000,
-            compressed: true,
+            // images do not compress: no Accept-Encoding is sent
+            compressed: false,
             parse_response: false,
             user_agent: 'HiveProxy/1.0 (+https://gitlab.syncad.com/hive/imagehoster)'
         } as any, PROXY_FETCH_MAX_BYTES, skipSsrf)
@@ -331,7 +341,7 @@ async function fetchOriginal(ctx: KoaContext, url: URL, origKey: string, span: o
     }
 
     APIError.assert(Buffer.isBuffer(res.body), APIError.Code.InvalidImage)
-    // a compressed body is counted encoded while it streams in
+    // chunks decoded after the abort threshold may still have been gathered
     if (res.body.length > PROXY_FETCH_MAX_BYTES) {
         ctx.set('Cache-Control', PAYLOAD_TOO_LARGE_CACHE_CONTROL)
         throw new APIError({code: APIError.Code.PayloadTooLarge})
@@ -609,8 +619,8 @@ async function storeNonEmpty(store: AbstractBlobStore, key: string, data: Buffer
  * Keep a fetched original: store it as origKey when it has at most
  * PROXY_STORE_ORIGINAL_MAX_BYTES, otherwise store only a '<origKey>.source'
  * marker recording where it came from and what it was, so that it can be
- * backfilled later. Returns whether the original was stored. Throws
- * InvalidImage when the header of an original to be marked cannot be read.
+ * backfilled later. Returns whether the original was stored. A marked
+ * original whose header cannot be read gets null width, height and pages.
  */
 async function keepOriginal(
     ctx: KoaContext, store: AbstractBlobStore, origKey: string, url: URL, original: EncodedImage, fetchMs: number
@@ -620,22 +630,25 @@ async function keepOriginal(
         await storeNonEmpty(store, origKey, data)
         return true
     }
-    let metadata: Sharp.Metadata
+    // an unresized passthrough never decodes the original, so an unreadable
+    // header is left for the resize path's own probe to refuse
+    let metadata: Sharp.Metadata | undefined
     try {
         metadata = await Sharp(data, {failOn: 'error'}).metadata()
     } catch (cause) {
-        if (!(cause instanceof Error)) {
-            cause = Error('unexpected error')
-        }
-        throw new APIError({cause: cause as Error, code: APIError.Code.InvalidImage})
+        ctx.log.warn({
+            orig_key: origKey,
+            source_host: url.host,
+            decoder_error: decoderMessage(cause)
+        }, 'oversize source %s header unreadable, marking it without dimensions', origKey)
     }
     await storeWrite(store, `${ origKey }.source`, JSON.stringify({
         url: url.toString(),
         content_type: contentType,
         bytes: data.length,
-        width: metadata.width,
-        height: metadata.pageHeight || metadata.height,
-        pages: metadata.pages || 1,
+        width: metadata ? metadata.width : null,
+        height: metadata ? metadata.pageHeight || metadata.height : null,
+        pages: metadata ? metadata.pages || 1 : null,
         sha256: createHash('sha256').update(data).digest('hex'),
         fetched_at: new Date().toISOString(),
         version,
