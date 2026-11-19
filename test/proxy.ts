@@ -372,6 +372,233 @@ describe('proxy', function() {
         })
     })
 
+    describe('oversize sources', function() {
+        this.timeout(60000)
+        const servicePort = port + 6
+        const fixturePort = port + 7
+        const fetchMaxBytes = 600000
+        const storeOriginalMaxBytes = 50000
+        const records: any[] = []
+        const sources = new Map<string, Buffer>()
+        const bytesWritten = new Map<string, number>()
+        let child: ChildProcess
+        let storePath: string
+
+        /** Write length bytes in paced chunks, announcing them or not, until the client goes away. */
+        function stream(name: string, res: http.ServerResponse, length: number, announce: boolean) {
+            res.writeHead(200, announce ? {'Content-Type': 'image/jpeg', 'Content-Length': length} : {'Content-Type': 'image/jpeg'})
+            const chunk = Buffer.alloc(16 * 1024, 0xFF)
+            let written = 0
+            const timer = setInterval(() => {
+                if (res.destroyed || written >= length) {
+                    clearInterval(timer)
+                    res.end()
+                    return
+                }
+                res.write(chunk)
+                written += chunk.length
+                bytesWritten.set(name, written)
+            }, 2)
+            res.once('close', () => clearInterval(timer))
+        }
+
+        const fixtureServer = http.createServer((req, res) => {
+            const name = (req.url || '').slice(1)
+            if (name === 'announced-huge.jpg') {
+                stream(name, res, fetchMaxBytes * 10, true)
+            } else if (name === 'streamed-huge.jpg') {
+                stream(name, res, fetchMaxBytes * 10, false)
+            } else if (sources.has(name)) {
+                const data = sources.get(name)!
+                res.writeHead(200, {'Content-Length': data.length})
+                res.end(data)
+            } else {
+                res.writeHead(404)
+                res.end()
+            }
+        })
+
+        function noise(width: number, height: number) {
+            return sharp({create: {width, height, channels: 3, background: '#000', noise: {type: 'gaussian', mean: 128, sigma: 60}}})
+        }
+
+        /** The service as `node src/app.ts`, with low fetch and store caps and an fs proxy store. */
+        before(async function() {
+            const large = await noise(500, 400).jpeg({quality: 90}).toBuffer()
+            const frames = await Promise.all([0, 1, 2].map(() => noise(200, 150).png().toBuffer()))
+            const largeGif = await sharp(frames, {join: {animated: true}}).gif({effort: 1}).toBuffer()
+            const small = await sharp({create: {width: 64, height: 48, channels: 3, background: '#4080c0'}}).jpeg().toBuffer()
+            for (const data of [large, largeGif]) {
+                assert(data.length > storeOriginalMaxBytes && data.length < fetchMaxBytes, `fixture of ${ data.length } bytes`)
+            }
+            assert(small.length <= storeOriginalMaxBytes)
+            sources.set('large.jpg', large)
+            sources.set('large.gif', largeGif)
+            sources.set('small.jpg', small)
+            await new Promise<void>((resolve) => fixtureServer.listen(fixturePort, '127.0.0.1', resolve))
+
+            storePath = fs.mkdtempSync(path.join(os.tmpdir(), 'imagehoster-oversize-'))
+            child = spawn(process.execPath, ['-r', 'ts-node/register', 'src/app.ts'], {
+                cwd: path.resolve(__dirname, '..'),
+                env: {
+                    ...process.env,
+                    NODE_ENV: 'test',
+                    TS_NODE_TRANSPILE_ONLY: 'true',
+                    LOG_LEVEL: 'info',
+                    PORT: String(servicePort),
+                    NUM_WORKERS: '1',
+                    NODE_CONFIG: JSON.stringify({proxy_store: {type: 'fs', path: storePath}}),
+                    PROXY_FETCH_MAX_BYTES: String(fetchMaxBytes),
+                    PROXY_STORE_ORIGINAL_MAX_BYTES: String(storeOriginalMaxBytes)
+                },
+                stdio: ['ignore', 'pipe', 'inherit']
+            })
+            let buffer = ''
+            child.stdout!.on('data', (chunk: Buffer) => {
+                const lines = (buffer + chunk.toString()).split('\n')
+                buffer = lines.pop()!
+                for (const line of lines) {
+                    try {
+                        records.push(JSON.parse(line))
+                    } catch (error) {
+                        continue
+                    }
+                }
+            })
+            const deadline = Date.now() + 30000
+            while (!records.some((r) => r.msg === `listening on port ${ servicePort }`)) {
+                assert(child.exitCode === null && Date.now() < deadline, 'service did not start')
+                await new Promise((resolve) => setTimeout(resolve, 100))
+            }
+        })
+        after(function(done) {
+            child.kill('SIGKILL')
+            fs.rmSync(storePath, {recursive: true, force: true})
+            fixtureServer.close(() => done())
+        })
+
+        function sourceUrl(name: string) {
+            return `http://localhost:${ fixturePort }/${ name }`
+        }
+
+        function proxy(url: string, query: string) {
+            return needle('get', `http://localhost:${ servicePort }/p/${ base58Enc(url) }?${ query }`)
+        }
+
+        function stored(key: string) {
+            return fs.existsSync(path.join(storePath, key))
+        }
+
+        function readSourceMarker(url: string) {
+            return JSON.parse(fs.readFileSync(path.join(storePath, `${ originalKey(url) }.source`), 'utf8'))
+        }
+
+        it('should resize a source above the store cap, storing the variant and a marker but not the original', async function() {
+            this.slow(5000)
+            const url = sourceUrl('large.jpg')
+            const source = sources.get('large.jpg')!
+            const res = await proxy(url, 'width=300')
+            assert.equal(res.statusCode, 200)
+            const meta = await sharp(res.body).metadata()
+            assert.equal(meta.width, 300)
+            assert.equal(meta.format, 'jpeg')
+            assert(stored(`${ originalKey(url) }_Cover_Match_300`), 'variant was not stored')
+            assert.equal(stored(originalKey(url)), false)
+
+            const marker = readSourceMarker(url)
+            assert.equal(marker.stored, false)
+            assert.equal(marker.url, url)
+            assert.equal(marker.content_type, 'image/jpeg')
+            assert.equal(marker.bytes, source.length)
+            assert.equal(marker.width, 500)
+            assert.equal(marker.height, 400)
+            assert.equal(marker.pages, 1)
+            assert.equal(marker.sha256, crypto.createHash('sha256').update(source).digest('hex'))
+            assert.equal(typeof marker.version, 'string')
+
+            const [log] = records.filter((r) => r.orig_key === originalKey(url) && r.msg.startsWith('oversize source'))
+            assert.equal(log.source_host, `localhost:${ fixturePort }`)
+            assert.equal(log.bytes, source.length)
+            assert.equal(log.stored, false)
+            assert.equal(typeof log.ms, 'number')
+
+            // another size fetches the source again and rewrites the marker
+            await new Promise((resolve) => setTimeout(resolve, 5))
+            const second = await proxy(url, 'width=200')
+            assert.equal(second.statusCode, 200)
+            assert.equal((await sharp(second.body).metadata()).width, 200)
+            assert(stored(`${ originalKey(url) }_Cover_Match_200`), 'second variant was not stored')
+            assert.equal(stored(originalKey(url)), false)
+            assert(Date.parse(readSourceMarker(url).fetched_at) > Date.parse(marker.fetched_at), 'marker was not rewritten')
+        })
+
+        it('should store a source at or below the store cap, without a marker', async function() {
+            const url = sourceUrl('small.jpg')
+            const res = await proxy(url, 'width=32')
+            assert.equal(res.statusCode, 200)
+            assert(fs.readFileSync(path.join(storePath, originalKey(url))).equals(sources.get('small.jpg')!), 'original was not stored')
+            assert.equal(stored(`${ originalKey(url) }.source`), false)
+        })
+
+        it('should pass an unresized oversize GIF through without storing it', async function() {
+            const url = sourceUrl('large.gif')
+            const res = await proxy(url, 'mode=fit')
+            assert.equal(res.statusCode, 200)
+            assert.equal(res.headers['content-type'], 'image/gif')
+            assert(Buffer.from(res.body).equals(sources.get('large.gif')!), 'source was not served')
+            assert.equal(stored(originalKey(url)), false)
+            const marker = readSourceMarker(url)
+            assert.equal(marker.stored, false)
+            assert.equal(marker.pages, 3)
+            assert.equal(marker.width, 200)
+            assert.equal(marker.height, 150)
+        })
+
+        it('should refuse a source announcing more than the fetch cap before reading it, cacheably', async function() {
+            const url = sourceUrl('announced-huge.jpg')
+            const res = await proxy(url, 'width=300')
+            assert.equal(res.statusCode, 413)
+            assert.equal(res.headers['cache-control'], 'public, max-age=86400')
+            assert((bytesWritten.get('announced-huge.jpg') || 0) < fetchMaxBytes, `${ bytesWritten.get('announced-huge.jpg') } bytes written`)
+            assert.equal(stored(originalKey(url)), false)
+            const [log] = records.filter((r) => r.orig_key === originalKey(url) && r.msg.startsWith('oversize source'))
+            assert.equal(log.announced_bytes, fetchMaxBytes * 10)
+            assert.equal(log.max_bytes, fetchMaxBytes)
+        })
+
+        it('should abort a source streaming past the fetch cap without a Content-Length, cacheably', async function() {
+            const url = sourceUrl('streamed-huge.jpg')
+            const res = await proxy(url, 'width=300')
+            assert.equal(res.statusCode, 413)
+            assert.equal(res.headers['cache-control'], 'public, max-age=86400')
+            // the client stops at the cap; a few paced chunks may be in flight
+            const written = bytesWritten.get('streamed-huge.jpg') || 0
+            assert(written < fetchMaxBytes + 256 * 1024, `${ written } bytes written`)
+            assert.equal(stored(originalKey(url)), false)
+            const [log] = records.filter((r) => r.orig_key === originalKey(url) && r.msg.startsWith('oversize source'))
+            assert(log.received_bytes > fetchMaxBytes)
+            assert.equal(log.announced_bytes, undefined)
+        })
+
+        it('should still refuse an upload above max_image_size', async function() {
+            const status = await new Promise<number>((resolve, reject) => {
+                const req = http.request({
+                    host: '127.0.0.1',
+                    port,
+                    method: 'POST',
+                    path: '/hs/token',
+                    headers: {'Content-Type': 'multipart/form-data; boundary=x', 'Content-Length': 15000001}
+                }, (res) => {
+                    res.resume()
+                    resolve(res.statusCode || 0)
+                })
+                req.on('error', reject)
+                req.end()
+            })
+            assert.equal(status, 413)
+        })
+    })
+
     describe('animated images', function() {
         const fixtures = new Map<string, Buffer>()
         const fixtureServer = http.createServer((req, res) => {

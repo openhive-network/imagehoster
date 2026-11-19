@@ -28,10 +28,6 @@ if (process.env.JAEGER_SERVICE_NAME) {
     tracer = new opentracing.Tracer()
 }
 
-const MAX_IMAGE_SIZE = Number.parseInt(config.get('max_image_size'))
-if (!Number.isFinite(MAX_IMAGE_SIZE)) {
-    throw new Error('Invalid max image size')
-}
 const SERVICE_URL = new URL(config.get('service_url'))
 
 // Sharp defaults to one libvips thread per core in every worker process;
@@ -59,6 +55,15 @@ const ANIMATED_MAX_PIXELS = configInteger('animated_max_pixels', 1)
 const ANIMATED_TIMEOUT_S = configInteger('animated_timeout_s', 1, 3600)
 const ANIMATED_GIF_EFFORT = configInteger('animated_gif_effort', 1, 10)
 
+// A fetch is aborted beyond PROXY_FETCH_MAX_BYTES; an original above
+// PROXY_STORE_ORIGINAL_MAX_BYTES is not stored, only marked as '<origKey>.source'.
+const PROXY_FETCH_MAX_BYTES = configInteger('proxy_fetch_max_bytes', 1)
+const PROXY_STORE_ORIGINAL_MAX_BYTES = configInteger('proxy_store_original_max_bytes', 0)
+
+// the edge serves a refusal of an oversize source for a day instead of
+// fetching the source again on every view
+const PAYLOAD_TOO_LARGE_CACHE_CONTROL = 'public, max-age=86400'
+
 const version: string = require('./version')
 
 interface NeedleResponse extends http.IncomingMessage {
@@ -76,12 +81,24 @@ class ShortResponseError extends Error {
     }
 }
 
+/** A response that announced or sent more than the fetch cap, aborted there. */
+class OversizeResponseError extends Error {
+    constructor(
+        public readonly maxBytes: number,
+        public readonly announcedBytes: number | undefined,
+        public readonly receivedBytes: number | undefined
+    ) {
+        super(`Response of ${ announcedBytes !== undefined ? announcedBytes : `over ${ receivedBytes }` } bytes exceeds ${ maxBytes }`)
+        this.name = 'OversizeResponseError'
+    }
+}
+
 function announcedLength(res: http.IncomingMessage) {
     const length = Number(res.headers['content-length'])
     return Number.isInteger(length) ? length : undefined
 }
 
-function fetchUrlOnce(url: string, options: needle.NeedleOptions) {
+function fetchUrlOnce(url: string, options: needle.NeedleOptions, maxBytes: number) {
     return new Promise<NeedleResponse>((resolve, reject) => {
         const request = needle.get(url, options, (error, response) => {
             if (error) {
@@ -100,8 +117,24 @@ function fetchUrlOnce(url: string, options: needle.NeedleOptions) {
         // needle neither finishes nor fails when the connection closes early,
         // it waits for its read timeout instead.
         request.on('response', (res: http.IncomingMessage & {req: http.ClientRequest}) => {
+            // rejecting before abort() keeps the close handler's ShortResponseError
+            // from settling the promise first
+            const abortOversize = (announcedBytes: number | undefined, receivedBytes: number | undefined) => {
+                reject(new OversizeResponseError(maxBytes, announcedBytes, receivedBytes))
+                res.req.abort()
+            }
+            const announcedBytes = announcedLength(res)
+            if (announcedBytes !== undefined && announcedBytes > maxBytes) {
+                abortOversize(announcedBytes, undefined)
+                return
+            }
             let receivedBytes = 0
-            res.on('data', (chunk: Buffer) => { receivedBytes += chunk.length })
+            res.on('data', (chunk: Buffer) => {
+                receivedBytes += chunk.length
+                if (receivedBytes > maxBytes) {
+                    abortOversize(undefined, receivedBytes)
+                }
+            })
             res.once('close', () => {
                 if (!res.complete) {
                     // abort() rather than destroy(): it is what clears needle's timer
@@ -118,7 +151,7 @@ function fetchUrlOnce(url: string, options: needle.NeedleOptions) {
  * hop against the SSRF blocklist. Without this, an attacker can
  * redirect from a public URL to an internal one.
  */
-async function fetchUrl(url: string, options: needle.NeedleOptions, skipSsrfCheck: boolean = false) {
+async function fetchUrl(url: string, options: needle.NeedleOptions, maxBytes: number, skipSsrfCheck: boolean = false) {
     const maxRedirects = 5
     // Disable needle's built-in redirect following
     const opts = {...options, follow_max: 0}
@@ -127,7 +160,7 @@ async function fetchUrl(url: string, options: needle.NeedleOptions, skipSsrfChec
         if (!skipSsrfCheck) {
             await assertPublicUrl(new URL(currentUrl))
         }
-        const res = await fetchUrlOnce(currentUrl, opts)
+        const res = await fetchUrlOnce(currentUrl, opts, maxBytes)
         const status = res.statusCode || 0
         if (status >= 301 && status <= 308 && res.headers.location) {
             currentUrl = new URL(res.headers.location, currentUrl).toString()
@@ -254,8 +287,8 @@ interface EncodedImage {
 /**
  * Fetch an original from its source. Throws UpstreamError when the source
  * cannot be reached or sends less than it announced, InvalidImage for a
- * non-2xx response or an unaccepted format, PayloadTooLarge above
- * MAX_IMAGE_SIZE.
+ * non-2xx response or an unaccepted format, PayloadTooLarge as soon as the
+ * source announces or sends more than PROXY_FETCH_MAX_BYTES.
  */
 async function fetchOriginal(ctx: KoaContext, url: URL, origKey: string, span: opentracing.Span): Promise<EncodedImage> {
     const skipSsrf = process.env.NODE_ENV === 'test'
@@ -268,10 +301,21 @@ async function fetchOriginal(ctx: KoaContext, url: URL, origKey: string, span: o
             compressed: true,
             parse_response: false,
             user_agent: 'HiveProxy/1.0 (+https://gitlab.syncad.com/hive/imagehoster)'
-        } as any, skipSsrf)
+        } as any, PROXY_FETCH_MAX_BYTES, skipSsrf)
     } catch (cause) {
         span.setTag(opentracing.Tags.ERROR, true)
         span.finish()
+        if (cause instanceof OversizeResponseError) {
+            ctx.log.info({
+                orig_key: origKey,
+                source_host: url.host,
+                announced_bytes: cause.announcedBytes,
+                received_bytes: cause.receivedBytes,
+                max_bytes: cause.maxBytes
+            }, 'oversize source %s aborted', origKey)
+            ctx.set('Cache-Control', PAYLOAD_TOO_LARGE_CACHE_CONTROL)
+            throw new APIError({cause, code: APIError.Code.PayloadTooLarge})
+        }
         if (cause instanceof ShortResponseError) {
             ctx.log.warn({
                 orig_key: origKey,
@@ -286,8 +330,12 @@ async function fetchOriginal(ctx: KoaContext, url: URL, origKey: string, span: o
         throw new APIError({cause: cause as Error, code: APIError.Code.UpstreamError})
     }
 
-    APIError.assert(res.bytes <= MAX_IMAGE_SIZE, APIError.Code.PayloadTooLarge)
     APIError.assert(Buffer.isBuffer(res.body), APIError.Code.InvalidImage)
+    // a compressed body is counted encoded while it streams in
+    if (res.body.length > PROXY_FETCH_MAX_BYTES) {
+        ctx.set('Cache-Control', PAYLOAD_TOO_LARGE_CACHE_CONTROL)
+        throw new APIError({code: APIError.Code.PayloadTooLarge})
+    }
 
     if (Math.floor((res.statusCode || 404) / 100) !== 2) {
         throw new APIError({code: APIError.Code.InvalidImage})
@@ -557,6 +605,52 @@ async function storeNonEmpty(store: AbstractBlobStore, key: string, data: Buffer
     await storeWrite(store, key, data)
 }
 
+/**
+ * Keep a fetched original: store it as origKey when it has at most
+ * PROXY_STORE_ORIGINAL_MAX_BYTES, otherwise store only a '<origKey>.source'
+ * marker recording where it came from and what it was, so that it can be
+ * backfilled later. Returns whether the original was stored. Throws
+ * InvalidImage when the header of an original to be marked cannot be read.
+ */
+async function keepOriginal(
+    ctx: KoaContext, store: AbstractBlobStore, origKey: string, url: URL, original: EncodedImage, fetchMs: number
+): Promise<boolean> {
+    const {data, contentType} = original
+    if (data.length <= PROXY_STORE_ORIGINAL_MAX_BYTES) {
+        await storeNonEmpty(store, origKey, data)
+        return true
+    }
+    let metadata: Sharp.Metadata
+    try {
+        metadata = await Sharp(data, {failOn: 'error'}).metadata()
+    } catch (cause) {
+        if (!(cause instanceof Error)) {
+            cause = Error('unexpected error')
+        }
+        throw new APIError({cause: cause as Error, code: APIError.Code.InvalidImage})
+    }
+    await storeWrite(store, `${ origKey }.source`, JSON.stringify({
+        url: url.toString(),
+        content_type: contentType,
+        bytes: data.length,
+        width: metadata.width,
+        height: metadata.pageHeight || metadata.height,
+        pages: metadata.pages || 1,
+        sha256: createHash('sha256').update(data).digest('hex'),
+        fetched_at: new Date().toISOString(),
+        version,
+        stored: false
+    }))
+    ctx.log.info({
+        orig_key: origKey,
+        source_host: url.host,
+        bytes: data.length,
+        stored: false,
+        ms: fetchMs
+    }, 'oversize source %s fetched, original not stored', origKey)
+    return false
+}
+
 export async function proxyHandler(ctx: KoaContext) {
     const myContext = tracer.extract(opentracing.FORMAT_HTTP_HEADERS, ctx.headers)
     const proxyHandlerSpan = tracer.startSpan('proxyHandler', {childOf: myContext ? myContext : undefined})
@@ -703,13 +797,15 @@ export async function proxyHandler(ctx: KoaContext) {
         ctx.log.debug({url: url.toString()}, 'fetching image')
 
         const fetchSourceSpan = tracer.startSpan('fetch image from source', {childOf: proxyHandlerSpan})
+        const fetchStart = Date.now()
         const fetched = await fetchOriginal(ctx, url, origKey, fetchSourceSpan)
+        const fetchMs = Date.now() - fetchStart
         origData = fetched.data
         contentType = fetched.contentType
 
         ctx.log.debug('storing original %s', origKey)
         const storeOriginalSpan = tracer.startSpan('storing original in bucket', {childOf: fetchSourceSpan})
-        await storeNonEmpty(origStore, origKey, origData)
+        await keepOriginal(ctx, origStore, origKey, url, fetched, fetchMs)
         storeOriginalSpan.finish()
         fetchSourceSpan.finish()
     }
@@ -751,9 +847,13 @@ export async function proxyHandler(ctx: KoaContext) {
                 decoder_error: decoderMessage(decodeError)
             }, 'stored original %s does not decode, refetching from source', origKey)
             const refetchSpan = tracer.startSpan('refetch undecodable original', {childOf: resizingSpan})
+            const refetchStart = Date.now()
             const fresh = await fetchOriginal(ctx, url, origKey, refetchSpan)
+            const refetchMs = Date.now() - refetchStart
             converted = await convertImage(fresh.data, fresh.contentType, options)
-            await storeNonEmpty(origStore, origKey, fresh.data)
+            if (!await keepOriginal(ctx, origStore, origKey, url, fresh, refetchMs)) {
+                await storeRemove(origStore, origKey)
+            }
             refetchSpan.finish()
         }
         rv = converted.data
