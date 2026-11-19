@@ -105,6 +105,40 @@ with `frames`, `pixels`, `source_bytes`, `output_bytes`, `ms` and, unless it was
 animated, `fallback` (`fits`, `frames`, `pixels`, `timeout`, `error` or
 `output-larger`).
 
+### Oversize proxy sources
+
+Proxied sources are capped by their own keys, not by `max_image_size`, which
+caps uploads only:
+
+| key | env | default | |
+|---|---|---|---|
+| `proxy_fetch_max_bytes` | `PROXY_FETCH_MAX_BYTES` | `50000000` | bytes fetched from a source |
+| `proxy_store_original_max_bytes` | `PROXY_STORE_ORIGINAL_MAX_BYTES` | `15000000` | bytes of an original that is stored |
+
+A source whose `Content-Length` exceeds `proxy_fetch_max_bytes`, or that sends
+more than that, is aborted there and answered with 413 and
+`Cache-Control: public, max-age=86400`, so the edge keeps the refusal for a day.
+Each abort is logged at info level (`oversize source <key> aborted`) with
+`source_host`, `announced_bytes` or `received_bytes`, and `max_bytes`.
+
+A fetched original of at most `proxy_store_original_max_bytes` is stored as
+before. A larger one is resized and served like any other, and its resized
+variants are stored, but the original itself is not: in its place the store
+that would have held it gets an object `<origKey>.source` with JSON
+`{url, content_type, bytes, width, height, pages, sha256, fetched_at, version, stored: false}`
+(`width`/`height` of the first frame, `sha256` hex of the original bytes), from
+which the original can be backfilled later. The marker is never served or read
+by the proxy. A request for another size of the same source fetches it again
+and rewrites the marker; an unresized GIF request serves the fetched bytes
+without storing them. Each such fetch is logged at info level
+(`oversize source <key> fetched, original not stored`) with `source_host`,
+`bytes`, `stored: false` and `ms` (fetch time). With an fs proxy store the
+markers are listed by
+
+```
+find <proxy_store.path> -name '*.source'
+```
+
 ### Empty stored results
 
 A stored resized result with no content is treated as missing: the proxy logs a

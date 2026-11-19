@@ -53,8 +53,17 @@ log_level = 'debug'
 # where to write logs, can be file path or stdout/err
 log_output = 'stdout'
 
-# max image size to allow uploading and proxying, in bytes
+# max image size to allow uploading, in bytes
 max_image_size = 15000000 # 15mb
+
+# max bytes fetched from a proxied source; the fetch is aborted, and answered
+# with a 413 the edge may cache for a day, as soon as the source announces or
+# sends more
+proxy_fetch_max_bytes = 50000000 # 50mb
+
+# a fetched proxy original above this many bytes is not stored: only its resized
+# variants are, and a '<origKey>.source' object records what the original was
+proxy_store_original_max_bytes = 15000000 # 15mb
 
 # redis db used for ratelimiting uploads
 # redis_url = 'redis://localhost'
