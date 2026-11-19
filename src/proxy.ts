@@ -300,9 +300,10 @@ async function fetchOriginal(ctx: KoaContext, url: URL, origKey: string, span: o
  * How a source with more than one frame was converted: 'animated', or the
  * reason it was not. frames, pixels and timeout exceeded a bound and got the
  * static first-frame result; error is any other failure of the animated
- * pipeline, also answered statically; output-larger got the original.
+ * pipeline, also answered statically; fits (already within the requested
+ * box) and output-larger got the original.
  */
-type AnimationOutcome = 'animated' | 'frames' | 'pixels' | 'timeout' | 'error' | 'output-larger'
+type AnimationOutcome = 'animated' | 'fits' | 'frames' | 'pixels' | 'timeout' | 'error' | 'output-larger'
 
 interface AnimationReport {
     outcome: AnimationOutcome
@@ -322,7 +323,7 @@ interface ConvertedImage extends EncodedImage {
 
 /** A static result for an animated source that a later attempt may animate. */
 function isRetryableFallback(outcome: AnimationOutcome) {
-    return outcome === 'frames' || outcome === 'pixels' || outcome === 'timeout'
+    return outcome === 'frames' || outcome === 'pixels' || outcome === 'timeout' || outcome === 'error'
 }
 
 /**
@@ -343,8 +344,11 @@ function animatedFormat(contentType: string, format: OutputFormat): 'gif' | 'web
     }
 }
 
-/** Apply the resize the options ask for to image, whose (first frame's) size is metadata's. */
-function applyResize(image: Sharp.Sharp, metadata: Sharp.Metadata, options: ProxyOptions) {
+/**
+ * The box the options ask an image of metadata's (first frame's) size to be
+ * resized to; in Fit mode both sides are set.
+ */
+function resizeBox(metadata: Sharp.Metadata, options: ProxyOptions): {width?: number, height?: number} {
     const maxWidth: number = safeParseInt(config.get('proxy_store.max_image_width')) || 1280
     const maxHeight: number = safeParseInt(config.get('proxy_store.max_image_height')) || 8000
     const maxCustomWidth: number = safeParseInt(config.get('proxy_store.max_custom_image_width')) || 8000
@@ -370,17 +374,41 @@ function applyResize(image: Sharp.Sharp, metadata: Sharp.Metadata, options: Prox
         if (metadata.height && metadata.height > maxHeight) { height = maxHeight }
     }
 
+    if (options.mode === ScalingMode.Fit) {
+        return {width: width || maxWidth, height: height || maxHeight}
+    }
+    return {width, height}
+}
+
+/** Apply the resize the options ask for to image, whose (first frame's) size is metadata's. */
+function applyResize(image: Sharp.Sharp, metadata: Sharp.Metadata, options: ProxyOptions) {
+    const {width, height} = resizeBox(metadata, options)
     switch (options.mode) {
     case ScalingMode.Cover:
         image.rotate().resize(width, height, {fit: 'cover'})
         break
     case ScalingMode.Fit:
-        if (!width) { width = maxWidth }
-        if (!height) { height = maxHeight }
-
         image.rotate().resize(width, height, { fit: 'inside', withoutEnlargement: true })
         break
     }
+}
+
+/**
+ * Whether resizing an image of metadata's size as the options ask leaves it
+ * as it is: a Fit into a box it already fits, with no orientation to apply.
+ */
+function fitsUnresized(metadata: Sharp.Metadata, options: ProxyOptions) {
+    if (options.mode !== ScalingMode.Fit || (metadata.orientation || 1) !== 1) {
+        return false
+    }
+    const {width, height} = resizeBox(metadata, options)
+    return metadata.width! <= width! && metadata.height! <= height!
+}
+
+/** Whether the frames of an encoded animation have the size of metadata's first frame. */
+async function hasFrameSize(data: Buffer, metadata: Sharp.Metadata) {
+    const output = await Sharp(data).metadata()
+    return output.width === metadata.width && (output.pageHeight || output.height) === metadata.height
 }
 
 /** Resize image to its first frame and encode it in the requested format. */
@@ -427,7 +455,9 @@ async function encodeAnimated(origData: Buffer, metadata: Sharp.Metadata, format
 /**
  * Convert a source of frames frames, keeping its animation within the
  * ANIMATED_ bounds and falling back to encodeStatic of image beyond them.
- * An animated result larger than origData is replaced by origData itself.
+ * A Fit in the source's format that would not shrink it gives origData
+ * itself, as does an animated result larger than origData unless it is a
+ * cover crop that changed the frame size.
  */
 async function convertAnimated(
     image: Sharp.Sharp, metadata: Sharp.Metadata, frames: number, format: 'gif' | 'webp',
@@ -439,6 +469,10 @@ async function convertAnimated(
         {outcome, frames, pixels, sourceBytes: origData.length, ms: Date.now() - startTime, error}
     )
 
+    if (options.format === OutputFormat.Match && fitsUnresized(metadata, options)) {
+        return {data: origData, contentType: origContentType, animation: report('fits')}
+    }
+
     let outcome: AnimationOutcome
     let errorMessage: string | undefined
     if (frames > ANIMATED_MAX_FRAMES) {
@@ -448,7 +482,9 @@ async function convertAnimated(
     } else {
         try {
             const data = await encodeAnimated(origData, metadata, format, options)
-            if (data.length > origData.length) {
+            // the original still fits a Fit box once scaled down by the client,
+            // but has the shape of a cover crop only when that left it unchanged
+            if (data.length > origData.length && (options.mode === ScalingMode.Fit || await hasFrameSize(data, metadata))) {
                 return {data: origData, contentType: origContentType, animation: report('output-larger')}
             }
             return {data, contentType: `image/${ format }`, animation: report('animated')}
@@ -457,7 +493,9 @@ async function convertAnimated(
             if (!(error instanceof Error)) {
                 throw error
             }
-            outcome = error.message.startsWith('timeout') ? 'timeout' : 'error'
+            // libvips' error buffer is process-global, so another pipeline's
+            // text can precede sharp's 'timeout: NN% complete'
+            outcome = error.message.includes('timeout:') ? 'timeout' : 'error'
             errorMessage = error.message
         }
     }
@@ -732,6 +770,7 @@ export async function proxyHandler(ctx: KoaContext) {
                 frames: animation.frames,
                 pixels: animation.pixels,
                 source_bytes: animation.sourceBytes,
+                error: animation.error,
                 time: new Date().toISOString(),
                 version
             }))
