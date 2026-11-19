@@ -7,6 +7,7 @@ import * as path from 'path'
 
 import {app} from './../src/app'
 import {rpcClient} from './../src/common'
+import {APIError} from './../src/error'
 import {base58Enc} from './../src/utils'
 
 const RedirectCacheControl = 'public, s-maxage=86400, max-age=600'
@@ -28,6 +29,8 @@ describe('avatar and cover', function() {
                 profile: {version: 2, profile_image: avatarUrl, cover_image: coverUrl}
             }),
         },
+        'good-karma': {name: 'good-karma', json_metadata: '{}'},
+        'abc.def-g': {name: 'abc.def-g', json_metadata: '{}'},
     }
 
     const database = rpcClient.database as any
@@ -92,6 +95,45 @@ describe('avatar and cover', function() {
             assert.equal(res.headers['cache-control'], undefined)
             assert.equal(res.headers['location'], undefined)
             assert.deepEqual(lookups, [['nobody']])
+        })
+    }
+
+    for (const name of ['good-karma', 'abc.def-g']) {
+        it(`should look up the valid name ${ name } and redirect`, async function() {
+            const res = await get(`/u/${ name }/avatar`)
+            assert.equal(res.statusCode, 302)
+            assert.deepEqual(lookups, [[name]])
+        })
+    }
+
+    const invalidPaths = [
+        '/u/waivio.marketplace/avatar',
+        '/u/Gandalf/avatar',
+        '/u/-bad/avatar',
+        '/u/dmitry-the-builder/avatar/small',
+        '/u/waivio.marketplace/cover',
+    ]
+    for (const urlPath of invalidPaths) {
+        it(`should answer ${ urlPath } like a missing account without an RPC`, async function() {
+            const emitted: any[] = []
+            const onError = (error: any) => { emitted.push(error) }
+            app.on('error', onError)
+            let res: any
+            try {
+                res = await get(urlPath)
+            } finally {
+                app.removeListener('error', onError)
+            }
+            const missing = await get(urlPath.replace(/^\/u\/[^/]+/, '/u/nobody'))
+            assert.equal(res.statusCode, 404)
+            assert.equal(res.body.error.name, 'no_such_account')
+            assert.equal(res.headers['cache-control'], missing.headers['cache-control'])
+            assert.equal(res.headers['location'], missing.headers['location'])
+            assert.deepEqual(lookups, [['nobody']])
+            assert.equal(emitted.length, 1)
+            assert.ok(emitted[0] instanceof APIError)
+            assert.equal(emitted[0].code, APIError.Code.NoSuchAccount)
+            assert.ok(emitted[0].statusCode < 500)
         })
     }
 })
