@@ -51,6 +51,49 @@ thread per CPU core. `vips_concurrency` (env `VIPS_CONCURRENCY`, default `4`) ca
 that pool per worker; `0` keeps sharp's default. libvips also reads
 `VIPS_CONCURRENCY` itself, so both agree.
 
+### Animated images
+
+A GIF or WebP source with more than one frame keeps its animation when resized:
+`format=match` writes a GIF as GIF and a WebP as WebP, `format=gif` and
+`format=webp` write either as that format, and `format=jpeg`/`png` give the
+first frame as before. A source of any other format with more than one frame
+would be written as animated WebP for `format=match`, since sharp writes
+animation only as GIF and WebP; APNG is not one today, as the PNG decoder of
+the bundled libvips reads only its first frame and its detected type,
+`image/apng`, is not an accepted one. A GIF requested at its original size is
+passed through unchanged, as before.
+
+The animated pipeline is bounded by:
+
+| key | env | default | |
+|---|---|---|---|
+| `animated_max_frames` | `ANIMATED_MAX_FRAMES` | `100` | frames in the source |
+| `animated_max_pixels` | `ANIMATED_MAX_PIXELS` | `50000000` | frames × width × height of the source |
+| `animated_timeout_s` | `ANIMATED_TIMEOUT_S` | `10` | seconds the pipeline may take (sharp's `timeout()`) |
+| `animated_gif_effort` | `ANIMATED_GIF_EFFORT` | `2` | cgif effort of GIF output, 1–10 |
+
+A source beyond `animated_max_frames` or `animated_max_pixels`, or whose
+pipeline times out, gets the static first-frame result. That result is marked
+by an object `<key>.animated-fallback` in the proxy store, beside the result
+`<key>`, holding JSON `{reason, frames, pixels, source_bytes, time, version}`
+(`reason` is `frames`, `pixels` or `timeout`). The marker is written before the
+result and is never served or read by the proxy; any other result stored for
+an animated source deletes its key's marker. To re-attempt a marked variant, delete
+the variant and its marker: the next request runs the animated pipeline again,
+and writes the marker again if it falls back again. With an fs proxy store the
+marked variants are listed by
+
+```
+find <proxy_store.path> -name '*.animated-fallback'
+```
+
+An animated result larger than the source is not kept: the source itself is
+stored and served, unmarked. Any other failure of the animated pipeline is
+answered with the static result, unmarked. Every animated source is logged at
+info level (`animated source <key>: <outcome>`) with `frames`, `pixels`,
+`source_bytes`, `output_bytes`, `ms` and, unless it was animated, `fallback`
+(`frames`, `pixels`, `timeout`, `error` or `output-larger`).
+
 ### Empty stored results
 
 A stored resized result with no content is treated as missing: the proxy logs a
@@ -217,6 +260,7 @@ The options are set as query-strings and control how the image is transformed be
     * `jpeg` - Use JPEG encoding.
     * `png` - Use PNG encoding.
     * `webp` - Use WebP encoding.
+    * `gif` - Use GIF encoding.
 
 If only `width` or `height` are given their counterpart will be calculated based on the upstream image aspect ratio.
 

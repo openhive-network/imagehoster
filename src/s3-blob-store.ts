@@ -1,10 +1,11 @@
 /**
  * Minimal S3 blob store implementing the abstract-blob-store interface.
  * Only implements the methods actually used by this application:
- * createReadStream, createWriteStream, and exists.
+ * createReadStream, createWriteStream, exists and remove.
  */
 
 import {
+    DeleteObjectCommand,
     GetObjectCommand,
     HeadObjectCommand,
     PutObjectCommand,
@@ -87,6 +88,19 @@ export class S3BlobStore {
             } else {
                 done(err)
             }
+        })
+    }
+
+    /** Deleting a key that does not exist succeeds, as in S3 itself. */
+    public remove(opts: any, done: (error?: any) => void) {
+        const key = typeof opts === 'string' ? opts : opts.key
+        this.s3.send(new DeleteObjectCommand({
+            Bucket: this.bucket,
+            Key: key
+        })).then(() => {
+            done()
+        }).catch((err) => {
+            done(err)
         })
     }
 }
