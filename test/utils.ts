@@ -1,7 +1,7 @@
 import 'mocha'
 import assert from 'assert'
 
-import {parseBool, isPrivateIP} from './../src/utils'
+import {parseBool, isPrivateIP, isValidAccountName} from './../src/utils'
 
 describe('utils', function() {
 
@@ -21,6 +21,18 @@ describe('utils', function() {
         assert.throws(() => {
             parseBool('banana')
         })
+    })
+
+    it('isValidAccountName', function() {
+        for (const name of ['abc', 'gandalf', 'good-karma', 'a1b', 'abc.def-g', 'abc.def.ghi', 'sixteen-chars-ab', 'abc.d3f']) {
+            assert.equal(isValidAccountName(name), true, name)
+        }
+        for (const name of [
+            '', 'ab', 'seventeen-chars-a', 'waivio.marketplace', 'Gandalf', 'gAndalf', '1abc', '-bad',
+            'bad-', 'abc.de', 'ab.cde', 'a.b.c-d', 'abc.', '.abc', 'abc..def', 'abc_def', 'abc.1de', 'abc.def-',
+        ]) {
+            assert.equal(isValidAccountName(name), false, name)
+        }
     })
 
     it('isPrivateIP', function() {

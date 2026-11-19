@@ -1,7 +1,7 @@
 /** Serve user avatars. */
 
 import config from 'config'
-import { base58Enc } from './utils'
+import { base58Enc, isValidAccountName } from './utils'
 
 import { Account } from '@hiveio/dhive'
 import {KoaContext, rpcClient} from './common'
@@ -23,6 +23,8 @@ export async function avatarHandler(ctx: KoaContext) {
     APIError.assertParams(ctx.params, ['username'])
 
     const username = ctx.params['username']
+    // dhive throws client-side on names it cannot serialise; answer them like a missing account.
+    APIError.assert(isValidAccountName(username), APIError.Code.NoSuchAccount)
     const size = AvatarSizes[ctx.params['size']] || AvatarSizes.medium
 
     interface ExtendedAccount extends Account {
