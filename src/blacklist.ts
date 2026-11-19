@@ -35,7 +35,7 @@ function parseBlacklistFile(data: any): BlacklistData {
 }
 
 /** Upload and proxying blacklists. In the future this will live on-chain. */
-class Blacklist {
+export class Blacklist {
     private staticList: string[]
     private dynamicUrls: string[]
     private dynamicPatterns: RegExp[]
@@ -79,6 +79,11 @@ class Blacklist {
             }
         }
         return false
+    }
+
+    /** Literal entries (static list plus the dynamic file's exact entries); patterns are excluded. */
+    public entries(): string[] {
+        return Array.from(new Set([...this.staticList, ...this.dynamicUrls]))
     }
 
     /**
