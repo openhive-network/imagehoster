@@ -12,6 +12,7 @@ import * as fs from 'fs'
 import sharp from 'sharp'
 import {URL} from 'url'
 import * as util from 'util'
+import * as zlib from 'zlib'
 
 import {app} from './../src/app'
 import {getKeyNameFromHash, proxyStore, uploadStore} from './../src/common'
@@ -381,6 +382,11 @@ describe('proxy', function() {
         const records: any[] = []
         const sources = new Map<string, Buffer>()
         const bytesWritten = new Map<string, number>()
+        const acceptEncodings = new Map<string, string | undefined>()
+        // gzip members of zeros: decoded 1000x their size, so a body well
+        // below the fetch cap inflates far past it
+        const gzipMember = zlib.gzipSync(Buffer.alloc(16 * 1024 * 1024))
+        const gzipBomb = Buffer.concat(Array.from({length: Math.floor(fetchMaxBytes * 0.8 / gzipMember.length)}, () => gzipMember))
         let child: ChildProcess
         let storePath: string
 
@@ -402,12 +408,33 @@ describe('proxy', function() {
             res.once('close', () => clearInterval(timer))
         }
 
+        /** Write the gzip bomb in paced chunks, whatever the client accepts, until the client goes away. */
+        function streamGzip(name: string, res: http.ServerResponse) {
+            res.writeHead(200, {'Content-Type': 'image/jpeg', 'Content-Encoding': 'gzip', 'Content-Length': gzipBomb.length})
+            const chunkSize = 16 * 1024
+            let written = 0
+            const timer = setInterval(() => {
+                if (res.destroyed || written >= gzipBomb.length) {
+                    clearInterval(timer)
+                    res.end()
+                    return
+                }
+                res.write(gzipBomb.subarray(written, written + chunkSize))
+                written = Math.min(written + chunkSize, gzipBomb.length)
+                bytesWritten.set(name, written)
+            }, 2)
+            res.once('close', () => clearInterval(timer))
+        }
+
         const fixtureServer = http.createServer((req, res) => {
             const name = (req.url || '').slice(1)
+            acceptEncodings.set(name, req.headers['accept-encoding'])
             if (name === 'announced-huge.jpg') {
                 stream(name, res, fetchMaxBytes * 10, true)
             } else if (name === 'streamed-huge.jpg') {
                 stream(name, res, fetchMaxBytes * 10, false)
+            } else if (name === 'gzip-huge.jpg') {
+                streamGzip(name, res)
             } else if (sources.has(name)) {
                 const data = sources.get(name)!
                 res.writeHead(200, {'Content-Length': data.length})
@@ -428,12 +455,19 @@ describe('proxy', function() {
             const frames = await Promise.all([0, 1, 2].map(() => noise(200, 150).png().toBuffer()))
             const largeGif = await sharp(frames, {join: {animated: true}}).gif({effort: 1}).toBuffer()
             const small = await sharp({create: {width: 64, height: 48, channels: 3, background: '#4080c0'}}).jpeg().toBuffer()
-            for (const data of [large, largeGif]) {
+            // zeroed past the logical screen descriptor: a GIF by its magic bytes
+            // whose header sharp refuses, as it finds no frames
+            const corruptGif = Buffer.from(largeGif)
+            corruptGif.fill(0, 13)
+            await assert.rejects(sharp(corruptGif, {failOn: 'error'}).metadata())
+            assert(gzipBomb.length < fetchMaxBytes && gzipBomb.length * 500 > fetchMaxBytes * 10, `gzip body of ${ gzipBomb.length } bytes`)
+            for (const data of [large, largeGif, corruptGif]) {
                 assert(data.length > storeOriginalMaxBytes && data.length < fetchMaxBytes, `fixture of ${ data.length } bytes`)
             }
             assert(small.length <= storeOriginalMaxBytes)
             sources.set('large.jpg', large)
             sources.set('large.gif', largeGif)
+            sources.set('corrupt.gif', corruptGif)
             sources.set('small.jpg', small)
             await new Promise<void>((resolve) => fixtureServer.listen(fixturePort, '127.0.0.1', resolve))
 
@@ -552,6 +586,40 @@ describe('proxy', function() {
             assert.equal(marker.pages, 3)
             assert.equal(marker.width, 200)
             assert.equal(marker.height, 150)
+        })
+
+        it('should pass an unresized oversize GIF with an unreadable header through, marking it without dimensions', async function() {
+            const url = sourceUrl('corrupt.gif')
+            const res = await proxy(url, 'mode=fit')
+            assert.equal(res.statusCode, 200)
+            assert.equal(res.headers['content-type'], 'image/gif')
+            assert(Buffer.from(res.body).equals(sources.get('corrupt.gif')!), 'source was not served')
+            assert.equal(stored(originalKey(url)), false)
+            assert.deepEqual(fs.readdirSync(storePath).filter((key) => key.startsWith(originalKey(url))), [`${ originalKey(url) }.source`])
+            const marker = readSourceMarker(url)
+            assert.equal(marker.stored, false)
+            assert.equal(marker.bytes, sources.get('corrupt.gif')!.length)
+            assert.strictEqual(marker.width, null)
+            assert.strictEqual(marker.height, null)
+            assert.strictEqual(marker.pages, null)
+            const [log] = records.filter((r) => r.orig_key === originalKey(url) && r.msg.includes('header unreadable'))
+            assert.equal(log.level, 40)
+            assert.equal(typeof log.decoder_error, 'string')
+        })
+
+        it('should refuse a compressed source that inflates past the fetch cap, without asking for compression', async function() {
+            const url = sourceUrl('gzip-huge.jpg')
+            const res = await proxy(url, 'width=300')
+            assert.equal(res.statusCode, 413)
+            assert.equal(res.headers['cache-control'], 'public, max-age=86400')
+            assert.equal(acceptEncodings.get('gzip-huge.jpg'), undefined)
+            // the first gzip member alone inflates past the cap
+            const written = bytesWritten.get('gzip-huge.jpg') || 0
+            assert(written < gzipBomb.length / 2, `${ written } of ${ gzipBomb.length } bytes written`)
+            assert.equal(stored(originalKey(url)), false)
+            const [log] = records.filter((r) => r.orig_key === originalKey(url) && r.msg.startsWith('oversize source'))
+            // decoded bytes held when aborting: the cap plus one inflated chunk
+            assert(log.received_bytes > fetchMaxBytes && log.received_bytes <= fetchMaxBytes + 64 * 1024, `${ log.received_bytes } bytes received`)
         })
 
         it('should refuse a source announcing more than the fetch cap before reading it, cacheably', async function() {
