@@ -16,7 +16,7 @@ import {imageBlacklist} from './blacklist'
 import {getKeyNameFromHash, KoaContext, proxyStore, uploadStore} from './common'
 import {APIError} from './error'
 import {assertAcceptedImage} from './image-policy'
-import {assertPublicUrl, base58Dec, mimeMagic, readStream, storeExists, storeWrite} from './utils'
+import {assertPublicUrl, base58Dec, mimeMagic, readStream, storeExists, storeRemove, storeWrite} from './utils'
 import {domainAllowlist} from './allowlist'
 import {checkUrl, validateProxyAuthToken} from './whitelist'
 
@@ -43,6 +43,23 @@ if (!Number.isInteger(VIPS_CONCURRENCY) || VIPS_CONCURRENCY < 0) {
 if (VIPS_CONCURRENCY > 0) {
     Sharp.concurrency(VIPS_CONCURRENCY)
 }
+
+function configInteger(key: string, min: number, max = Number.MAX_SAFE_INTEGER) {
+    const value = Number(config.get(key))
+    if (!Number.isInteger(value) || value < min || value > max) {
+        throw new Error(`Invalid ${ key.replace(/_/g, ' ') }`)
+    }
+    return value
+}
+
+// Bounds on keeping the animation of a multi-frame source; a source beyond
+// them, or one whose pipeline times out, is resized to its first frame.
+const ANIMATED_MAX_FRAMES = configInteger('animated_max_frames', 1)
+const ANIMATED_MAX_PIXELS = configInteger('animated_max_pixels', 1)
+const ANIMATED_TIMEOUT_S = configInteger('animated_timeout_s', 1, 3600)
+const ANIMATED_GIF_EFFORT = configInteger('animated_gif_effort', 1, 10)
+
+const version: string = require('./version')
 
 interface NeedleResponse extends http.IncomingMessage {
     body: any
@@ -140,6 +157,7 @@ enum OutputFormat {
     JPEG,
     PNG,
     WEBP,
+    GIF,
 }
 
 interface ProxyOptions {
@@ -196,6 +214,9 @@ function parseOptions(query: {[key: string]: any}): ProxyOptions {
         break
     case 'webp':
         format = OutputFormat.WEBP
+        break
+    case 'gif':
+        format = OutputFormat.GIF
         break
     default:
         throw new APIError({message: 'Invalid output format', code: APIError.Code.InvalidParam})
@@ -276,37 +297,54 @@ async function fetchOriginal(ctx: KoaContext, url: URL, origKey: string, span: o
 }
 
 /**
- * Resize and re-encode an original as the options ask. Throws when the
- * original does not decode: InvalidImage when its header cannot be read,
- * Sharp's error when its data cannot.
+ * How a source with more than one frame was converted: 'animated', or the
+ * reason it was not. frames, pixels and timeout exceeded a bound and got the
+ * static first-frame result; error is any other failure of the animated
+ * pipeline, also answered statically; output-larger got the original.
  */
-async function convertImage(origData: Buffer, origContentType: string, options: ProxyOptions): Promise<EncodedImage> {
-    let contentType = origContentType
-    // 'error' rather than the default 'warning' lets libjpeg warnings (invalid
-    // SOS parameters, extraneous bytes) decode, while truncated data still throws.
-    const image = Sharp(origData, {failOn: 'error'}).jpeg({
-        quality: 85,
-        force: false
-    }).png({
-        compressionLevel: 9,
-        force: false
-    }).webp({
-        alphaQuality: 100,
-        force: false
-    })
+type AnimationOutcome = 'animated' | 'frames' | 'pixels' | 'timeout' | 'error' | 'output-larger'
 
-    let metadata: Sharp.Metadata
-    try {
-        metadata = await image.metadata()
-    } catch (cause) {
-        if (!(cause instanceof Error)) {
-            cause = Error('unexpected error')
-        }
-        throw new APIError({cause: cause as Error, code: APIError.Code.InvalidImage})
+interface AnimationReport {
+    outcome: AnimationOutcome
+    frames: number
+    /** frames × width × height of the source */
+    pixels: number
+    sourceBytes: number
+    /** wall time of the conversion, in ms */
+    ms: number
+    error?: string
+}
+
+interface ConvertedImage extends EncodedImage {
+    /** Set for a source with more than one frame when the requested format can be animated. */
+    animation?: AnimationReport
+}
+
+/** A static result for an animated source that a later attempt may animate. */
+function isRetryableFallback(outcome: AnimationOutcome) {
+    return outcome === 'frames' || outcome === 'pixels' || outcome === 'timeout'
+}
+
+/**
+ * The format an animated source is written in for a requested format,
+ * undefined when the request asks for a static one. sharp writes animation
+ * as GIF and WebP only, so other sources (APNG) matching their input get WebP.
+ */
+function animatedFormat(contentType: string, format: OutputFormat): 'gif' | 'webp' | undefined {
+    switch (format) {
+    case OutputFormat.Match:
+        return contentType === 'image/gif' ? 'gif' : 'webp'
+    case OutputFormat.GIF:
+        return 'gif'
+    case OutputFormat.WEBP:
+        return 'webp'
+    default:
+        return undefined
     }
+}
 
-    APIError.assert(metadata.width && metadata.height, APIError.Code.InvalidImage)
-
+/** Apply the resize the options ask for to image, whose (first frame's) size is metadata's. */
+function applyResize(image: Sharp.Sharp, metadata: Sharp.Metadata, options: ProxyOptions) {
     const maxWidth: number = safeParseInt(config.get('proxy_store.max_image_width')) || 1280
     const maxHeight: number = safeParseInt(config.get('proxy_store.max_image_height')) || 8000
     const maxCustomWidth: number = safeParseInt(config.get('proxy_store.max_custom_image_width')) || 8000
@@ -343,6 +381,12 @@ async function convertImage(origData: Buffer, origContentType: string, options: 
         image.rotate().resize(width, height, { fit: 'inside', withoutEnlargement: true })
         break
     }
+}
+
+/** Resize image to its first frame and encode it in the requested format. */
+async function encodeStatic(image: Sharp.Sharp, metadata: Sharp.Metadata, origContentType: string, options: ProxyOptions): Promise<EncodedImage> {
+    let contentType = origContentType
+    applyResize(image, metadata, options)
 
     switch (options.format) {
     case OutputFormat.Match:
@@ -359,9 +403,105 @@ async function convertImage(origData: Buffer, origContentType: string, options: 
         contentType = 'image/webp'
         image.webp({force: true})
         break
+    case OutputFormat.GIF:
+        contentType = 'image/gif'
+        image.gif({force: true})
+        break
     }
 
     return {data: await image.toBuffer(), contentType}
+}
+
+/** Resize every frame of origData and encode them as format, within ANIMATED_TIMEOUT_S. */
+async function encodeAnimated(origData: Buffer, metadata: Sharp.Metadata, format: 'gif' | 'webp', options: ProxyOptions) {
+    const image = Sharp(origData, {failOn: 'error', animated: true}).timeout({seconds: ANIMATED_TIMEOUT_S})
+    applyResize(image, metadata, options)
+    if (format === 'gif') {
+        image.gif({effort: ANIMATED_GIF_EFFORT})
+    } else {
+        image.webp({alphaQuality: 100})
+    }
+    return image.toBuffer()
+}
+
+/**
+ * Convert a source of frames frames, keeping its animation within the
+ * ANIMATED_ bounds and falling back to encodeStatic of image beyond them.
+ * An animated result larger than origData is replaced by origData itself.
+ */
+async function convertAnimated(
+    image: Sharp.Sharp, metadata: Sharp.Metadata, frames: number, format: 'gif' | 'webp',
+    origData: Buffer, origContentType: string, options: ProxyOptions
+): Promise<ConvertedImage> {
+    const startTime = Date.now()
+    const pixels = frames * metadata.width! * metadata.height!
+    const report = (outcome: AnimationOutcome, error?: string): AnimationReport => (
+        {outcome, frames, pixels, sourceBytes: origData.length, ms: Date.now() - startTime, error}
+    )
+
+    let outcome: AnimationOutcome
+    let errorMessage: string | undefined
+    if (frames > ANIMATED_MAX_FRAMES) {
+        outcome = 'frames'
+    } else if (pixels > ANIMATED_MAX_PIXELS) {
+        outcome = 'pixels'
+    } else {
+        try {
+            const data = await encodeAnimated(origData, metadata, format, options)
+            if (data.length > origData.length) {
+                return {data: origData, contentType: origContentType, animation: report('output-larger')}
+            }
+            return {data, contentType: `image/${ format }`, animation: report('animated')}
+        } catch (error) {
+            // whatever stopped the animated pipeline, the static one may still succeed
+            if (!(error instanceof Error)) {
+                throw error
+            }
+            outcome = error.message.startsWith('timeout') ? 'timeout' : 'error'
+            errorMessage = error.message
+        }
+    }
+    const fallback = await encodeStatic(image, metadata, origContentType, options)
+    return {...fallback, animation: report(outcome, errorMessage)}
+}
+
+/**
+ * Resize and re-encode an original as the options ask. Throws when the
+ * original does not decode: InvalidImage when its header cannot be read,
+ * Sharp's error when its data cannot.
+ */
+async function convertImage(origData: Buffer, origContentType: string, options: ProxyOptions): Promise<ConvertedImage> {
+    // 'error' rather than the default 'warning' lets libjpeg warnings (invalid
+    // SOS parameters, extraneous bytes) decode, while truncated data still throws.
+    const image = Sharp(origData, {failOn: 'error'}).jpeg({
+        quality: 85,
+        force: false
+    }).png({
+        compressionLevel: 9,
+        force: false
+    }).webp({
+        alphaQuality: 100,
+        force: false
+    })
+
+    let metadata: Sharp.Metadata
+    try {
+        metadata = await image.metadata()
+    } catch (cause) {
+        if (!(cause instanceof Error)) {
+            cause = Error('unexpected error')
+        }
+        throw new APIError({cause: cause as Error, code: APIError.Code.InvalidImage})
+    }
+
+    APIError.assert(metadata.width && metadata.height, APIError.Code.InvalidImage)
+
+    const frames = metadata.pages || 1
+    const format = frames > 1 ? animatedFormat(origContentType, options.format) : undefined
+    if (format === undefined) {
+        return encodeStatic(image, metadata, origContentType, options)
+    }
+    return convertAnimated(image, metadata, frames, format, origData, origContentType, options)
 }
 
 function decoderMessage(error: unknown): string {
@@ -558,7 +698,7 @@ export async function proxyHandler(ctx: KoaContext) {
         rv = origData
     } else {
         const resizingSpan = tracer.startSpan('resizing', {childOf: proxyHandlerSpan})
-        let converted: EncodedImage
+        let converted: ConvertedImage
         try {
             converted = await convertImage(origData, contentType, options)
         } catch (decodeError) {
@@ -580,10 +720,39 @@ export async function proxyHandler(ctx: KoaContext) {
         }
         rv = converted.data
         contentType = converted.contentType
+        const {animation} = converted
+        const markerKey = `${ imageKey }.animated-fallback`
         ctx.log.debug('storing converted %s', imageKey)
         const storingResizedSpan = tracer.startSpan('storing resized image', {childOf: resizingSpan})
+        // The marker goes first, so that a stored fallback never lacks one; a
+        // marker left without its result only names a key the next request redoes.
+        if (animation && isRetryableFallback(animation.outcome)) {
+            await storeWrite(proxyStore, markerKey, JSON.stringify({
+                reason: animation.outcome,
+                frames: animation.frames,
+                pixels: animation.pixels,
+                source_bytes: animation.sourceBytes,
+                time: new Date().toISOString(),
+                version
+            }))
+        }
         await storeNonEmpty(proxyStore, imageKey, rv)
+        if (animation && !isRetryableFallback(animation.outcome)) {
+            await storeRemove(proxyStore, markerKey)
+        }
         storingResizedSpan.finish()
+        if (animation) {
+            ctx.log.info({
+                image_key: imageKey,
+                frames: animation.frames,
+                pixels: animation.pixels,
+                source_bytes: animation.sourceBytes,
+                output_bytes: rv.length,
+                ms: animation.ms,
+                fallback: animation.outcome === 'animated' ? undefined : animation.outcome,
+                error: animation.error
+            }, 'animated source %s: %s', imageKey, animation.outcome)
+        }
         resizingSpan.finish()
     }
 
