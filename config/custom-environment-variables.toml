@@ -20,6 +20,7 @@ proxy_store_original_max_bytes = 'PROXY_STORE_ORIGINAL_MAX_BYTES'
 
 [whitelist]
 apiUrl = 'WHITELIST_API_URL'
+profileTimeoutMs = 'WHITELIST_PROFILE_TIMEOUT_MS'
 
 [allowlist]
 domainAllowList = 'DOMAIN_ALLOWLIST_FILE'
