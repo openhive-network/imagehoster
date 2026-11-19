@@ -175,6 +175,48 @@ within 10 minutes without extra origin requests. Without the purger the edge can
 serve an old image for up to a day. Showing the new image immediately to the user
 who just edited their profile (a cache-bust after the save) is the UI's job.
 
+### Avatar and cover lookup
+
+`/u/<username>/avatar` and `/u/<username>/cover` first reject names that are not
+valid Hive account names with 404, without any network call. When
+`whitelist.enabled` is true and `whitelist.apiUrl` is set, they then ask the
+proxy-whitelist API (hive/proxy-whitelist#4) for the URL:
+`GET {apiUrl}/avatar/{name}` or `GET {apiUrl}/cover/{name}`, with a timeout of
+`whitelist.profileTimeoutMs` (default 1500, env `WHITELIST_PROFILE_TIMEOUT_MS`).
+
+- a JSON string is the avatar/cover URL (one that is not `http(s)://` counts as
+  none);
+- JSON `null` means the account has none: the default avatar or default cover is
+  used, without asking the RPC node;
+- 404 means the API does not know the account. That is not "no such account":
+  the whitelist app only knows accounts that referenced an image or set a
+  profile image. The handler falls back to `get_accounts` on `rpc_node`, which
+  answers 404 for an account missing on chain;
+- any other status, a timeout, a connection error or a body that is not a JSON
+  string or `null` also falls back to `get_accounts`, and logs a warning at most
+  once per minute for each of avatar and cover (`suppressed` counts the failures
+  not logged since the previous warning).
+
+When the API is unconfigured, the handlers use `get_accounts` only, as before.
+Redirect targets and caching headers do not depend on where the URL came from.
+When the API was asked, `Server-Timing` has a `wl` entry
+(`desc="whitelist /avatar"` or `"whitelist /cover"`); the avatar's `api` entry
+still times `get_accounts` when that is called. The request log line carries
+`avatar_source` (resp. `cover_source`): `api` for a URL from the API, `default`
+for an API `null`, `rpc` when `get_accounts` was asked. The share of `api` and
+`default` is the API hit ratio:
+
+```
+docker logs imagehoster2 | grep -o '"avatar_source":"[a-z]*"' | sort | uniq -c
+```
+
+On img2, `whitelist.apiUrl` is meant to point at a local haproxy frontend whose
+backend has the local proxy-whitelist replica (hive/proxy-whitelist#7) as the
+primary server and steem-8's API as `backup`, health-checked with haf_api_node's
+`check_sync_status` agent. An unhealthy or lagging replica then degrades to the
+~100 ms remote API rather than to this fallback; only when both are gone do the
+handlers fall back to `get_accounts`.
+
 ### Proxy whitelist
 
 The proxy endpoint can optionally restrict service to URLs that have been
