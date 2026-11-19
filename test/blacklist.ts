@@ -7,7 +7,7 @@ import {URL} from 'url'
 
 // Import the Blacklist class indirectly via the module's exports
 // We test imageBlacklist for static list behavior, and create temp files for dynamic tests
-import {imageBlacklist} from './../src/blacklist'
+import {Blacklist, imageBlacklist} from './../src/blacklist'
 
 describe('dynamic blacklist', function() {
 
@@ -138,6 +138,40 @@ describe('dynamic blacklist', function() {
             assert.throws(() => {
                 JSON.parse(fs.readFileSync(tmpFile, 'utf8'))
             })
+        })
+    })
+
+    describe('entries', function() {
+        let tmpFile: string
+
+        beforeEach(() => {
+            tmpFile = path.join(os.tmpdir(), `blacklist-test-entries-${Date.now()}.json`)
+        })
+
+        afterEach(() => {
+            fs.unwatchFile(tmpFile)
+            try { fs.unlinkSync(tmpFile) } catch (e) { /* ignore */ }
+        })
+
+        it('returns the static entries without a dynamic file', function() {
+            const list = new Blacklist(['alice', 'bob'])
+            assert.deepEqual(list.entries(), ['alice', 'bob'])
+        })
+
+        it('returns static plus dynamic exact entries and no patterns', function() {
+            fs.writeFileSync(tmpFile, JSON.stringify({urls: ['carol', 'alice'], patterns: ['^dave$']}))
+            const list = new Blacklist(['alice', 'bob'], tmpFile)
+            assert.deepEqual(list.entries(), ['alice', 'bob', 'carol'])
+            assert(list.includes('dave'), 'pattern should still apply to includes()')
+        })
+
+        it('reflects the dynamic file after it is reloaded', function() {
+            fs.writeFileSync(tmpFile, JSON.stringify(['carol']))
+            const list = new Blacklist(['alice'], tmpFile)
+            assert.deepEqual(list.entries(), ['alice', 'carol'])
+            fs.writeFileSync(tmpFile, JSON.stringify(['erin', 'frank']))
+            list.reloadDynamicList()
+            assert.deepEqual(list.entries(), ['alice', 'erin', 'frank'])
         })
     })
 

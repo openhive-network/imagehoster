@@ -190,6 +190,14 @@ apiUrl = 'https://your-api-server/proxy-whitelist-api'
 
 Or via env var: `WHITELIST_API_URL=https://...`
 
+Each check sends the account blacklist (the built-in list plus the exact
+entries of the `blacklist.accountBlackList` file; patterns are not sent) as
+`blacklisted_accounts`, so a URL referenced only by blacklisted accounts is
+refused with 403. This needs a proxy-whitelist that accepts the field
+(hive/proxy-whitelist!4): upgrade the API before the imagehoster. Against an
+older API every check errors and fails open, which silently disables the
+whitelist.
+
 ### Blacklist
 
 A dynamic blacklist file can block specific URLs and URL patterns. The file

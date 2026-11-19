@@ -1,6 +1,7 @@
 /** Proxy URL whitelist — only serves images referenced on the Hive blockchain. */
 
 import config from 'config'
+import {accountBlacklist} from './blacklist'
 import {ensureRedis} from './common'
 import {logger} from './logger'
 
@@ -9,6 +10,9 @@ export type UrlStatus = 'whitelisted' | 'blacklisted' | 'unknown'
 /**
  * Combined whitelist + blacklist check in a single API call.
  * Returns 'whitelisted', 'blacklisted', or 'unknown'.
+ * Sends the current account blacklist so the API reports URLs referenced only by
+ * those accounts as 'unknown'; the field is omitted when the list is empty so the
+ * request stays compatible with an API that predates it.
  * On error or if disabled, returns 'whitelisted' (fail-open).
  */
 export async function checkUrl(url: string): Promise<UrlStatus> {
@@ -20,13 +24,17 @@ export async function checkUrl(url: string): Promise<UrlStatus> {
     if (!apiUrl) {
         return 'whitelisted'
     }
+    const blacklistedAccounts = accountBlacklist.entries()
+    const body = blacklistedAccounts.length > 0
+        ? {url, blacklisted_accounts: blacklistedAccounts}
+        : {url}
     try {
         const resp = await fetch(
             `${apiUrl}/whitelist/check`,
             {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({url})
+                body: JSON.stringify(body)
             }
         )
         const result = await resp.json() as string
