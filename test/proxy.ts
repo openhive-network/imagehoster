@@ -1,9 +1,10 @@
 import 'mocha'
 import assert from 'assert'
-import {execFile} from 'child_process'
+import {ChildProcess, execFile, spawn} from 'child_process'
 import * as crypto from 'crypto'
 import * as http from 'http'
 import * as net from 'net'
+import * as os from 'os'
 import needle from 'needle'
 import * as multihash from 'multihashes'
 import * as path from 'path'
@@ -27,6 +28,11 @@ describe('proxy', function() {
     after((done) => { server.close(done) })
 
     needle.defaults({follow_max: 1})
+
+    function originalKey(url: string) {
+        const urlHash = crypto.createHash('sha1').update(new URL(url).toString()).digest()
+        return getKeyNameFromHash('U' + multihash.toB58String(multihash.encode(urlHash, 'sha1')))
+    }
 
     let serveImage = true
     const imageServer = http.createServer((req, res) => {
@@ -221,11 +227,6 @@ describe('proxy', function() {
             return `http://localhost:${ port + 2 }/${ name }`
         }
 
-        function originalKey(url: string) {
-            const urlHash = crypto.createHash('sha1').update(new URL(url).toString()).digest()
-            return getKeyNameFromHash('U' + multihash.toB58String(multihash.encode(urlHash, 'sha1')))
-        }
-
         function proxy(url: string, query = 'width=100') {
             return needle('get', `http://localhost:${ port }/p/${ base58Enc(url) }?${ query }`)
         }
@@ -368,6 +369,326 @@ describe('proxy', function() {
             assert.equal((await proxy(url, 'width=100')).statusCode, 200)
             assert.equal((await proxy(url, 'width=200')).statusCode, 200)
             assert.equal(requests.get('/full-valid.jpg'), 1)
+        })
+    })
+
+    describe('animated images', function() {
+        const fixtures = new Map<string, Buffer>()
+        const fixtureServer = http.createServer((req, res) => {
+            const data = fixtures.get(req.url || '')
+            if (data) {
+                res.writeHead(200, {'Content-Length': data.length})
+                res.end(data)
+            } else {
+                res.writeHead(404)
+                res.end()
+            }
+        })
+
+        before((done) => { fixtureServer.listen(port + 4, '127.0.0.1', done) })
+        after((done) => { fixtureServer.close(done) })
+
+        /** A frame of gradients with a diagonal stripe pattern that moves with index. */
+        function frame(width: number, height: number, index: number) {
+            const raw = Buffer.alloc(width * height * 3)
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const offset = (y * width + x) * 3
+                    raw[offset] = x * 255 / width
+                    raw[offset + 1] = y * 255 / height
+                    raw[offset + 2] = (index * 16 + x + y) & 255
+                }
+            }
+            return sharp(raw, {raw: {width, height, channels: 3}}).png().toBuffer()
+        }
+
+        async function animation(format: 'gif' | 'webp', width: number, height: number, frames: number) {
+            const pngs = await Promise.all(Array.from({length: frames}, (_, index) => frame(width, height, index)))
+            const image = sharp(pngs, {join: {animated: true}})
+            return (format === 'gif' ? image.gif({effort: 1}) : image.webp()).toBuffer()
+        }
+
+        function serve(name: string, data: Buffer) {
+            fixtures.set(`/${ name }`, data)
+            return `http://localhost:${ port + 4 }/${ name }`
+        }
+
+        function markerKey(imageKey: string) {
+            return `${ imageKey }.animated-fallback`
+        }
+
+        let animatedGif: Buffer
+        let animatedWebp: Buffer
+
+        before(async function() {
+            animatedGif = await animation('gif', 200, 150, 4)
+            animatedWebp = await animation('webp', 200, 150, 4)
+        })
+
+        describe('within the bounds', function() {
+
+            function proxy(url: string, query: string) {
+                return needle('get', `http://localhost:${ port }/p/${ base58Enc(url) }?${ query }`)
+            }
+
+            it('should keep the animation of a resized GIF', async function() {
+                this.slow(2000)
+                const url = serve('animated.gif', animatedGif)
+                const res = await needle('get', `http://localhost:${ port }/100x0/${ url }`)
+                assert.equal(res.statusCode, 200)
+                assert.equal(res.headers['content-type'], 'image/gif')
+                const meta = await sharp(res.body).metadata()
+                assert.equal(meta.format, 'gif')
+                assert.equal(meta.pages, 4)
+                assert.equal(meta.width, 100)
+                assert.equal(meta.height, 75)
+                const imageKey = `${ originalKey(url) }_100x0`
+                assert(Buffer.from(res.body).equals(await readStream(proxyStore.createReadStream(imageKey))))
+                assert.equal(await storeExists(proxyStore, markerKey(imageKey)), false)
+            })
+
+            it('should keep the animation of a resized WebP', async function() {
+                this.slow(2000)
+                const res = await proxy(serve('animated.webp', animatedWebp), 'width=100')
+                assert.equal(res.statusCode, 200)
+                assert.equal(res.headers['content-type'], 'image/webp')
+                const meta = await sharp(res.body).metadata()
+                assert.equal(meta.format, 'webp')
+                assert.equal(meta.pages, 4)
+                assert.equal(meta.width, 100)
+            })
+
+            it('should write the animation in an explicitly requested format', async function() {
+                this.slow(2000)
+                const asWebp = await proxy(serve('as-webp.gif', animatedGif), 'mode=fit&width=100&format=webp')
+                assert.equal(asWebp.headers['content-type'], 'image/webp')
+                const webpMeta = await sharp(asWebp.body).metadata()
+                assert.equal(webpMeta.format, 'webp')
+                assert.equal(webpMeta.pages, 4)
+                // lossless, as lossy WebP is smaller than any GIF of it
+                const lossless = await sharp(animatedGif, {animated: true}).webp({lossless: true}).toBuffer()
+                const asGif = await proxy(serve('as-gif.webp', lossless), 'mode=fit&width=100&format=gif')
+                assert.equal(asGif.headers['content-type'], 'image/gif')
+                const gifMeta = await sharp(asGif.body).metadata()
+                assert.equal(gifMeta.format, 'gif')
+                assert.equal(gifMeta.pages, 4)
+                assert.equal(gifMeta.width, 100)
+            })
+
+            it('should crop every frame alike in cover mode', async function() {
+                this.slow(2000)
+                const res = await proxy(serve('cover.gif', animatedGif), 'width=50&height=50')
+                const meta = await sharp(res.body).metadata()
+                assert.equal(meta.pages, 4)
+                assert.equal(meta.width, 50)
+                assert.equal(meta.height, 50)
+            })
+
+            it('should give the first frame for format=jpeg', async function() {
+                const url = serve('as-jpeg.gif', animatedGif)
+                const res = await proxy(url, 'mode=fit&width=100&format=jpeg')
+                assert.equal(res.headers['content-type'], 'image/jpeg')
+                const meta = await sharp(res.body).metadata()
+                assert.equal(meta.format, 'jpeg')
+                assert.equal(meta.pages, undefined)
+                assert.equal(meta.width, 100)
+                assert.equal(await storeExists(proxyStore, markerKey(`${ originalKey(url) }_Fit_JPEG_100`)), false)
+            })
+
+            it('should serve the original when the animation would grow', async function() {
+                this.slow(2000)
+                // GIF frames take several times the bytes of lossy WebP ones
+                const url = serve('grows.webp', animatedWebp)
+                const res = await proxy(url, 'mode=fit&width=150&format=gif')
+                assert.equal(res.statusCode, 200)
+                assert.equal(res.headers['content-type'], 'image/webp')
+                assert(Buffer.from(res.body).equals(animatedWebp), 'original was not served')
+                assert.equal(await storeExists(proxyStore, markerKey(`${ originalKey(url) }_Fit_GIF_150`)), false)
+            })
+
+            it('should delete the fallback marker of a key it animates', async function() {
+                const url = serve('marked.gif', animatedGif)
+                const imageKey = `${ originalKey(url) }_100x0`
+                await storeWrite(proxyStore, markerKey(imageKey), JSON.stringify({reason: 'timeout'}))
+                const res = await proxy(url, 'mode=fit&width=100')
+                assert.equal((await sharp(res.body).metadata()).pages, 4)
+                assert.equal(await storeExists(proxyStore, markerKey(imageKey)), false)
+            })
+
+            it('should resize 34 frames of 421x750 at the configured GIF effort in under 6 s', async function() {
+                // about 2.5 s at effort 2 and 11 s at sharp's default effort 7 on a Xeon
+                this.timeout(60000)
+                this.slow(10000)
+                const url = serve('large.gif', await animation('gif', 421, 750, 34))
+                const start = Date.now()
+                const res = await proxy(url, 'mode=fit&width=300')
+                const elapsed = Date.now() - start
+                const meta = await sharp(res.body).metadata()
+                assert.equal(meta.pages, 34)
+                assert.equal(meta.width, 300)
+                assert(elapsed < 6000, `took ${ elapsed } ms`)
+            })
+
+            it('should resize single-frame GIF, WebP and PNG to a single frame', async function() {
+                this.slow(2000)
+                const still = await frame(200, 150, 0)
+                const sources: Array<[string, Buffer]> = [
+                    ['gif', await sharp(still).gif().toBuffer()],
+                    ['webp', await sharp(still).webp().toBuffer()],
+                    ['png', still]
+                ]
+                for (const [format, data] of sources) {
+                    const url = serve(`still.${ format }`, data)
+                    const res = await proxy(url, 'mode=fit&width=100')
+                    assert.equal(res.headers['content-type'], `image/${ format }`)
+                    const meta = await sharp(res.body).metadata()
+                    assert.equal(meta.format, format)
+                    assert.equal(meta.pages || 1, 1)
+                    assert.equal(meta.width, 100)
+                    assert.equal(await storeExists(proxyStore, markerKey(`${ originalKey(url) }_100x0`)), false)
+                }
+            })
+
+            it('should pass an unresized GIF through', async function() {
+                const res = await needle('get', `http://localhost:${ port }/p/${ base58Enc(serve('unresized.gif', animatedGif)) }`)
+                assert.equal(res.headers['content-type'], 'image/gif')
+                assert(Buffer.from(res.body).equals(animatedGif), 'original was not served')
+            })
+        })
+
+        describe('beyond the bounds', function() {
+            this.timeout(60000)
+            const servicePort = port + 5
+            const records: any[] = []
+            let child: ChildProcess
+            let storePath: string
+
+            /** The service as `node src/app.ts`, with low bounds and an fs proxy store. */
+            before(async function() {
+                storePath = fs.mkdtempSync(path.join(os.tmpdir(), 'imagehoster-animated-'))
+                child = spawn(process.execPath, ['-r', 'ts-node/register', 'src/app.ts'], {
+                    cwd: path.resolve(__dirname, '..'),
+                    env: {
+                        ...process.env,
+                        NODE_ENV: 'test',
+                        TS_NODE_TRANSPILE_ONLY: 'true',
+                        LOG_LEVEL: 'info',
+                        PORT: String(servicePort),
+                        NUM_WORKERS: '1',
+                        NODE_CONFIG: JSON.stringify({proxy_store: {type: 'fs', path: storePath}}),
+                        ANIMATED_MAX_FRAMES: '6',
+                        ANIMATED_MAX_PIXELS: '2000000',
+                        ANIMATED_TIMEOUT_S: '1',
+                        ANIMATED_GIF_EFFORT: '10'
+                    },
+                    stdio: ['ignore', 'pipe', 'inherit']
+                })
+                let buffer = ''
+                child.stdout!.on('data', (chunk: Buffer) => {
+                    const lines = (buffer + chunk.toString()).split('\n')
+                    buffer = lines.pop()!
+                    for (const line of lines) {
+                        try {
+                            records.push(JSON.parse(line))
+                        } catch (error) {
+                            continue
+                        }
+                    }
+                })
+                const deadline = Date.now() + 30000
+                while (!records.some((r) => r.msg === `listening on port ${ servicePort }`)) {
+                    assert(child.exitCode === null && Date.now() < deadline, 'service did not start')
+                    await new Promise((resolve) => setTimeout(resolve, 100))
+                }
+            })
+            after(function() {
+                child.kill('SIGKILL')
+                fs.rmSync(storePath, {recursive: true, force: true})
+            })
+
+            function proxy(url: string, query: string) {
+                return needle('get', `http://localhost:${ servicePort }/p/${ base58Enc(url) }?${ query }`)
+            }
+
+            function animatedLog(imageKey: string) {
+                return records.filter((r) => r.image_key === imageKey && r.msg.startsWith('animated source'))
+            }
+
+            function readMarker(imageKey: string) {
+                return JSON.parse(fs.readFileSync(path.join(storePath, markerKey(imageKey)), 'utf8'))
+            }
+
+            async function assertFirstFrame(res: any, width: number) {
+                assert.equal(res.statusCode, 200)
+                assert.equal(res.headers['content-type'], 'image/gif')
+                const meta = await sharp(res.body).metadata()
+                assert.equal(meta.pages || 1, 1)
+                assert.equal(meta.width, width)
+            }
+
+            it('should give the first frame of a GIF beyond animated_max_frames, and mark it', async function() {
+                this.slow(5000)
+                const source = await animation('gif', 40, 30, 8)
+                const url = serve('many-frames.gif', source)
+                const imageKey = `${ originalKey(url) }_20x0`
+                const res = await proxy(url, 'mode=fit&width=20')
+                await assertFirstFrame(res, 20)
+                const [log] = animatedLog(imageKey)
+                assert.equal(log.fallback, 'frames')
+                assert.equal(log.frames, 8)
+                const marker = readMarker(imageKey)
+                assert.equal(marker.reason, 'frames')
+                assert.equal(marker.frames, 8)
+                assert.equal(marker.pixels, 8 * 40 * 30)
+                assert.equal(marker.source_bytes, source.length)
+                assert.equal(typeof marker.version, 'string')
+                assert(Date.parse(marker.time) > 0)
+
+                // the stored result is served without the marker, and without converting again
+                fs.unlinkSync(path.join(storePath, markerKey(imageKey)))
+                const stored = await proxy(url, 'mode=fit&width=20')
+                assert(Buffer.from(stored.body).equals(res.body))
+                assert.equal(animatedLog(imageKey).length, 1)
+            })
+
+            it('should give the first frame of a GIF beyond animated_max_pixels, and mark it', async function() {
+                this.slow(5000)
+                const url = serve('many-pixels.gif', await animation('gif', 640, 640, 5))
+                const imageKey = `${ originalKey(url) }_100x0`
+                await assertFirstFrame(await proxy(url, 'mode=fit&width=100'), 100)
+                assert.equal(animatedLog(imageKey)[0].fallback, 'pixels')
+                const marker = readMarker(imageKey)
+                assert.equal(marker.reason, 'pixels')
+                assert.equal(marker.frames, 5)
+                assert.equal(marker.pixels, 5 * 640 * 640)
+            })
+
+            it('should give the first frame when the animation times out, mark it and retry once the result is deleted', async function() {
+                this.slow(20000)
+                // noise takes cgif at effort 10 well beyond a second
+                const noise = await Promise.all(Array.from({length: 6}, () => sharp({
+                    create: {width: 560, height: 560, channels: 3, background: '#000', noise: {type: 'gaussian', mean: 128, sigma: 60}}
+                }).png().toBuffer()))
+                const url = serve('slow.gif', await sharp(noise, {join: {animated: true}}).gif({effort: 1}).toBuffer())
+                const imageKey = `${ originalKey(url) }_Cover_GIF_550`
+
+                await assertFirstFrame(await proxy(url, 'width=550&format=gif'), 550)
+                const [first] = animatedLog(imageKey)
+                assert.equal(first.fallback, 'timeout')
+                assert(first.ms < 15000, `timed out after ${ first.ms } ms`)
+                const marker = readMarker(imageKey)
+                assert.equal(marker.reason, 'timeout')
+                assert.equal(marker.frames, 6)
+                const health = await needle('get', `http://localhost:${ servicePort }/.well-known/healthcheck.json`)
+                assert.equal(health.statusCode, 200)
+
+                fs.unlinkSync(path.join(storePath, imageKey))
+                await assertFirstFrame(await proxy(url, 'width=550&format=gif'), 550)
+                const attempts = animatedLog(imageKey)
+                assert.equal(attempts.length, 2)
+                assert.equal(attempts[1].fallback, 'timeout')
+                assert(Date.parse(readMarker(imageKey).time) > Date.parse(marker.time), 'marker was not rewritten')
+            })
         })
     })
 

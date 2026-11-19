@@ -15,6 +15,18 @@ num_workers = 1
 # libvips threads per worker process, 0 = sharp's default (one per cpu core)
 vips_concurrency = 4
 
+# bounds on keeping the animation of a GIF or WebP with more than one frame
+# when it is resized; beyond them the first frame is resized, as for a static
+# image, and the stored result is marked with a '<key>.animated-fallback' object
+# max frames in the source
+animated_max_frames = 100
+# max frames x width x height of the source
+animated_max_pixels = 50000000
+# seconds the animated pipeline may take, 1-3600
+animated_timeout_s = 10
+# cgif effort of animated GIF output, 1 (fastest) to 10
+animated_gif_effort = 2
+
 # with more than one worker, a worker whose resident plus swapped memory exceeds
 # this many MB is replaced: a new worker is started and, once it listens, the old
 # one is stopped gracefully. 0 disables the memory check

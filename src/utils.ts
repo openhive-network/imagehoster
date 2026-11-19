@@ -81,6 +81,16 @@ export function storeWrite(store: AbstractBlobStore, key: BlobKey, data: Buffer 
     })
 }
 
+/** Remove key from store; a key that does not exist is not an error. */
+export function storeRemove(store: AbstractBlobStore, key: string) {
+    return new Promise<void>((resolve, reject) => {
+        // the memory store only accepts the object form
+        store.remove({key}, (error) => {
+            if (error) { reject(error) } else { resolve() }
+        })
+    })
+}
+
 /**
  * Convert an IPv6 address to its full 8-group hex representation.
  * Needed because string prefix matching on abbreviated forms is unreliable.
