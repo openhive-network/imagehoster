@@ -431,6 +431,28 @@ describe('proxy', function() {
                 return needle('get', `http://localhost:${ port }/p/${ base58Enc(url) }?${ query }`)
             }
 
+            /** Run with the animated pipeline, the only sharp instance given a timeout, replaced by replace. */
+            async function withAnimatedPipeline<T>(replace: (image: any, args: any[], timeout: Function) => any, run: () => Promise<T>) {
+                const timeout = sharp.prototype.timeout
+                sharp.prototype.timeout = function(this: any, ...args: any[]) { return replace(this, args, timeout) }
+                try {
+                    return await run()
+                } finally {
+                    sharp.prototype.timeout = timeout
+                }
+            }
+
+            function failingPipeline(message: string) {
+                return (image: any) => {
+                    image.toBuffer = () => Promise.reject(new Error(message))
+                    return image
+                }
+            }
+
+            async function readMarker(imageKey: string) {
+                return JSON.parse((await readStream(proxyStore.createReadStream(markerKey(imageKey)))).toString())
+            }
+
             it('should keep the animation of a resized GIF', async function() {
                 this.slow(2000)
                 const url = serve('animated.gif', animatedGif)
@@ -549,6 +571,74 @@ describe('proxy', function() {
                 }
             })
 
+            it('should serve a GIF that already fits a Fit box without the animated pipeline', async function() {
+                this.timeout(60000)
+                this.slow(10000)
+                const source = await animation('gif', 421, 750, 34)
+                const url = serve('fits.gif', source)
+                const imageKey = `${ originalKey(url) }_640x0`
+                await storeWrite(proxyStore, markerKey(imageKey), JSON.stringify({reason: 'timeout'}))
+                let pipelines = 0
+                const res = await withAnimatedPipeline((image, args, timeout) => {
+                    pipelines++
+                    return timeout.apply(image, args)
+                }, () => needle('get', `http://localhost:${ port }/640x0/${ url }`))
+                assert.equal(pipelines, 0)
+                assert.equal(res.statusCode, 200)
+                assert.equal(res.headers['content-type'], 'image/gif')
+                assert(Buffer.from(res.body).equals(source), 'original was not served')
+                assert.equal((await sharp(res.body).metadata()).pages, 34)
+                assert(source.equals(await readStream(proxyStore.createReadStream(imageKey))))
+                assert.equal(await storeExists(proxyStore, markerKey(imageKey)), false)
+            })
+
+            it('should keep a cropped animation larger than the source', async function() {
+                this.slow(2000)
+                // a two-colour checkerboard packs into a few bytes; upscaled, it does not
+                const checkers = await Promise.all(Array.from({length: 4}, (_, index) => {
+                    const raw = Buffer.alloc(60 * 40 * 3)
+                    for (let pixel = 0; pixel < 60 * 40; pixel++) {
+                        raw.fill((pixel % 60 + Math.floor(pixel / 60) + index) & 1 ? 255 : 0, pixel * 3, pixel * 3 + 3)
+                    }
+                    return sharp(raw, {raw: {width: 60, height: 40, channels: 3}}).png().toBuffer()
+                }))
+                const source = await sharp(checkers, {join: {animated: true}}).gif({effort: 10}).toBuffer()
+                const res = await proxy(serve('cover-grows.gif', source), 'width=50&height=50&mode=cover')
+                assert.equal(res.statusCode, 200)
+                assert.equal(res.headers['content-type'], 'image/gif')
+                assert(res.body.length > source.length, `output of ${ res.body.length } bytes is not larger than ${ source.length }`)
+                const meta = await sharp(res.body).metadata()
+                assert.equal(meta.pages, 4)
+                assert.equal(meta.width, 50)
+                assert.equal(meta.pageHeight || meta.height, 50)
+            })
+
+            it('should give the first frame when the animated pipeline fails, and mark it', async function() {
+                const url = serve('fails.gif', animatedGif)
+                const imageKey = `${ originalKey(url) }_100x0`
+                await storeWrite(proxyStore, markerKey(imageKey), JSON.stringify({reason: 'timeout'}))
+                const res = await withAnimatedPipeline(failingPipeline('gifsave: out of memory'), () => proxy(url, 'mode=fit&width=100'))
+                assert.equal(res.statusCode, 200)
+                assert.equal(res.headers['content-type'], 'image/gif')
+                const meta = await sharp(res.body).metadata()
+                assert.equal(meta.pages || 1, 1)
+                assert.equal(meta.width, 100)
+                const marker = await readMarker(imageKey)
+                assert.equal(marker.reason, 'error')
+                assert.equal(marker.error, 'gifsave: out of memory')
+                assert.equal(marker.frames, 4)
+            })
+
+            it('should recognise a timeout behind another pipeline\'s error text', async function() {
+                const url = serve('prefixed-timeout.gif', animatedGif)
+                const imageKey = `${ originalKey(url) }_100x0`
+                const message = 'VipsJpeg: premature end of JPEG file\ntimeout: 42% complete'
+                await withAnimatedPipeline(failingPipeline(message), () => proxy(url, 'mode=fit&width=100'))
+                const marker = await readMarker(imageKey)
+                assert.equal(marker.reason, 'timeout')
+                assert.equal(marker.error, message)
+            })
+
             it('should pass an unresized GIF through', async function() {
                 const res = await needle('get', `http://localhost:${ port }/p/${ base58Enc(serve('unresized.gif', animatedGif)) }`)
                 assert.equal(res.headers['content-type'], 'image/gif')
@@ -661,6 +751,21 @@ describe('proxy', function() {
                 assert.equal(marker.reason, 'pixels')
                 assert.equal(marker.frames, 5)
                 assert.equal(marker.pixels, 5 * 640 * 640)
+            })
+
+            it('should log a GIF that fits a Fit box as fits, beyond animated_max_frames', async function() {
+                this.slow(10000)
+                const source = await animation('gif', 421, 750, 34)
+                const url = serve('fits-logged.gif', source)
+                const imageKey = `${ originalKey(url) }_640x0`
+                const res = await proxy(url, 'mode=fit&width=640')
+                assert.equal(res.statusCode, 200)
+                assert(Buffer.from(res.body).equals(source), 'original was not served')
+                const [log] = animatedLog(imageKey)
+                assert.equal(log.fallback, 'fits')
+                assert.equal(log.frames, 34)
+                assert.equal(log.output_bytes, source.length)
+                assert.equal(fs.existsSync(path.join(storePath, markerKey(imageKey))), false)
             })
 
             it('should give the first frame when the animation times out, mark it and retry once the result is deleted', async function() {

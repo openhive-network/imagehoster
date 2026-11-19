@@ -61,7 +61,10 @@ would be written as animated WebP for `format=match`, since sharp writes
 animation only as GIF and WebP; APNG is not one today, as the PNG decoder of
 the bundled libvips reads only its first frame and its detected type,
 `image/apng`, is not an accepted one. A GIF requested at its original size is
-passed through unchanged, as before.
+passed through unchanged, as before. So is an animated source requested with
+`mode=fit` and `format=match` whose frames already fit the requested box (after
+the `max_image_width`/`max_image_height` defaults): it is stored and served as
+it is, without running the animated pipeline.
 
 The animated pipeline is bounded by:
 
@@ -73,10 +76,14 @@ The animated pipeline is bounded by:
 | `animated_gif_effort` | `ANIMATED_GIF_EFFORT` | `2` | cgif effort of GIF output, 1–10 |
 
 A source beyond `animated_max_frames` or `animated_max_pixels`, or whose
-pipeline times out, gets the static first-frame result. That result is marked
-by an object `<key>.animated-fallback` in the proxy store, beside the result
-`<key>`, holding JSON `{reason, frames, pixels, source_bytes, time, version}`
-(`reason` is `frames`, `pixels` or `timeout`). The marker is written before the
+pipeline times out or fails otherwise, gets the static first-frame result. That
+result is marked by an object `<key>.animated-fallback` in the proxy store,
+beside the result `<key>`, holding JSON
+`{reason, frames, pixels, source_bytes, error, time, version}` (`reason` is
+`frames`, `pixels`, `timeout` or `error`; `error` is the pipeline's error text,
+present for `timeout` and `error`). A timeout is recognised by `timeout:`
+anywhere in the error text, as libvips' error buffer is shared by concurrent
+pipelines. The marker is written before the
 result and is never served or read by the proxy; any other result stored for
 an animated source deletes its key's marker. To re-attempt a marked variant, delete
 the variant and its marker: the next request runs the animated pipeline again,
@@ -87,12 +94,16 @@ marked variants are listed by
 find <proxy_store.path> -name '*.animated-fallback'
 ```
 
-An animated result larger than the source is not kept: the source itself is
-stored and served, unmarked. Any other failure of the animated pipeline is
-answered with the static result, unmarked. Every animated source is logged at
-info level (`animated source <key>: <outcome>`) with `frames`, `pixels`,
-`source_bytes`, `output_bytes`, `ms` and, unless it was animated, `fallback`
-(`frames`, `pixels`, `timeout`, `error` or `output-larger`).
+An animated `mode=fit` result larger than the source is not kept: the source
+itself is stored and served, unmarked, as it still fits the requested box once
+scaled down by the client. The same holds for a `mode=cover` result whose frames
+have the source's size. A `mode=cover` result of any other size is kept even
+when it is larger than the source, since the uncropped source does not have the
+requested shape.
+Every animated source is logged at info level (`animated source <key>: <outcome>`)
+with `frames`, `pixels`, `source_bytes`, `output_bytes`, `ms` and, unless it was
+animated, `fallback` (`fits`, `frames`, `pixels`, `timeout`, `error` or
+`output-larger`).
 
 ### Empty stored results
 
